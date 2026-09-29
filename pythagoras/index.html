@@ -332,7 +332,8 @@ function sTriangle(t) {
     text('직각을 끼고 있는 두 변', RX + 250, 367, { size: 40, align: 'left', alpha: d1 * eOut(p(t, 11.2, .4)) });
     rrect(RX, 470, 740, 150, 24, C.white, d1 * eOut(p(t, 14.8, .4)));
     math('c', RX + 50, 545, 64, { align: 'left', color: C.red, alpha: d1 * eOut(p(t, 15.0, .4)) });
-    text('빗변 · 직각과 마주 보는 가장 긴 변', RX + 250, 547, { size: 40, align: 'left', alpha: d1 * eOut(p(t, 15.2, .4)) });
+    text('빗변', RX + 250, 522, { size: 40, align: 'left', color: C.red, alpha: d1 * eOut(p(t, 15.2, .4)) });
+    text('직각과 마주 보는 가장 긴 변', RX + 250, 572, { size: 36, align: 'left', alpha: d1 * eOut(p(t, 15.3, .4)) });
   }
   // 개념 2
   const d2 = env(t, 24.6, 38.2, .4, .4);
