@@ -1,0 +1,561 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>피타고라스 정리 설명 영상</title>
+<style>
+  @font-face { font-family: 'Noto Sans KR'; src: url('fonts/NotoSansKR.ttf') format('truetype'); font-weight: 100 900; font-display: block; }
+  @font-face { font-family: 'Inter'; src: url('fonts/Inter.ttf') format('truetype'); font-weight: 100 900; font-display: block; }
+  @font-face { font-family: 'Noto Serif'; src: url('fonts/NotoSerif-Italic.ttf') format('truetype'); font-weight: 100 900; font-style: italic; font-display: block; }
+  html, body { margin: 0; background: #111; }
+  body { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 12px; font-family: 'Noto Sans KR', sans-serif; color: #ddd; }
+  canvas { width: min(100%, 1280px); aspect-ratio: 16 / 9; display: block; background: #000; }
+  .bar { display: flex; gap: 12px; align-items: center; width: min(100%, 1280px); }
+  .bar input { flex: 1; }
+  body.render { padding: 0; gap: 0; }
+  body.render canvas { width: 1920px; height: 1080px; }
+  body.render .bar { display: none; }
+</style>
+</head>
+<body>
+<script src="timeline.js"></script>
+<canvas id="c" width="1920" height="1080"></canvas>
+<div class="bar">
+  <button id="play">▶ 재생</button>
+  <input id="seek" type="range" min="0" max="200" step="0.01" value="0">
+  <span id="time">0.00s</span>
+</div>
+<script>
+// ------------------------------------------------------------
+// 중학교 수학 「피타고라스 정리」 설명 모션그래픽
+// draw(t) 는 시간 t(초)만으로 화면을 그리는 순수 함수 → 프레임 단위 렌더 가능
+// 자막과 시간 늘리기(WARP)는 tools/make_audio.py 가 만든 timeline.js 에서 읽음
+// ------------------------------------------------------------
+const W = 1920, H = 1080, BASE_DURATION = 124;
+const WARP = window.WARP || [];
+const SUBS = window.SUBS || [];
+const v2r = v => WARP.reduce((r, [vs, ve, f]) => v > vs ? r + (Math.min(v, ve) - vs) * (f - 1) : r, v);
+function r2v(r) {
+  let v = 0, rr = 0;
+  for (const [vs, ve, f] of WARP) {
+    if (r < rr + (vs - v)) return v + (r - rr);
+    rr += vs - v; v = vs;
+    const seg = (ve - vs) * f;
+    if (r < rr + seg) return vs + (r - rr) / f;
+    rr += seg; v = ve;
+  }
+  return v + (r - rr);
+}
+const DURATION = v2r(BASE_DURATION);
+const cv = document.getElementById('c');
+const ctx = cv.getContext('2d');
+
+// 재능교육 브랜드 컬러: 레드 & 블랙
+const C = {
+  red: '#E60012', redDeep: '#B3000E', pink: '#FFD6D9', pinkLine: '#F28B94',
+  black: '#1A1A1A', char: '#2B2B2B', ink: '#3A3A3A', gray: '#8C8C8C',
+  paper: '#F7F4F0', white: '#FFFFFF', tri: '#E7E1DA', grid: 'rgba(0,0,0,.06)',
+};
+const KR = "'Noto Sans KR', sans-serif", EN = "'Inter', sans-serif", MATH = "'Noto Serif', serif";
+
+// ---------- easing / timing ----------
+const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
+const lerp = (a, b, k) => a + (b - a) * k;
+const p = (t, s, d) => clamp((t - s) / d);
+const eOut = x => 1 - Math.pow(1 - x, 3);
+const eIn = x => x * x * x;
+const eIO = x => x < .5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
+const eBack = x => { const c1 = 1.9, c3 = c1 + 1; return x <= 0 ? 0 : 1 + c3 * Math.pow(x - 1, 3) + c1 * Math.pow(x - 1, 2); };
+const env = (t, s, e, fi = .4, fo = .4) => Math.min(eOut(p(t, s, fi)), 1 - eIn(p(t, e - fo, fo)));
+const pop = (t, s, d = .5) => eBack(p(t, s, d));
+
+// ---------- primitives ----------
+function bg(c) { ctx.fillStyle = c; ctx.fillRect(0, 0, W, H); }
+function circle(x, y, r, c, a = 1) { if (r <= 0 || a <= 0) return; ctx.save(); ctx.globalAlpha *= a; ctx.fillStyle = c; ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill(); ctx.restore(); }
+function rrect(x, y, w, h, r, fill, a = 1, stroke = null, lw = 3) {
+  if (a <= 0 || w <= 0 || h <= 0) return;
+  ctx.save(); ctx.globalAlpha *= a; ctx.beginPath(); ctx.roundRect(x, y, w, h, Math.min(r, w / 2, h / 2));
+  if (fill) { ctx.fillStyle = fill; ctx.fill(); }
+  if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = lw; ctx.stroke(); }
+  ctx.restore();
+}
+function poly(pts, fill, a = 1, stroke = null, lw = 3) {
+  if (a <= 0) return;
+  ctx.save(); ctx.globalAlpha *= a; ctx.beginPath();
+  pts.forEach(([x, y], i) => i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)); ctx.closePath();
+  if (fill) { ctx.fillStyle = fill; ctx.fill(); }
+  if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = lw; ctx.lineJoin = 'round'; ctx.stroke(); }
+  ctx.restore();
+}
+function seg(a, b, k, color, w, alpha = 1) {
+  if (k <= 0 || alpha <= 0) return;
+  ctx.save(); ctx.globalAlpha *= alpha; ctx.strokeStyle = color; ctx.lineWidth = w; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(lerp(a[0], b[0], k), lerp(a[1], b[1], k)); ctx.stroke(); ctx.restore();
+}
+function text(str, x, y, { size = 60, color = C.black, weight = 700, family = KR, align = 'center', alpha = 1, scale = 1, italic = false } = {}) {
+  if (alpha <= 0 || scale <= 0) return;
+  ctx.save(); ctx.globalAlpha *= alpha; ctx.translate(x, y); ctx.scale(scale, scale);
+  ctx.font = `${italic ? 'italic ' : ''}${weight} ${size}px ${family}`; ctx.fillStyle = color; ctx.textAlign = align; ctx.textBaseline = 'middle';
+  ctx.fillText(str, 0, 0); ctx.restore();
+}
+function measure(str, size, weight = 700, family = KR, italic = false) {
+  ctx.save(); ctx.font = `${italic ? 'italic ' : ''}${weight} ${size}px ${family}`; const w = ctx.measureText(str).width; ctx.restore(); return w;
+}
+function pill(str, x, y, { size = 40, fill = C.red, color = C.white, k = 1, padX = 28, weight = 700 } = {}) {
+  if (k <= 0) return;
+  const w = measure(str, size, weight) + padX * 2, h = size * 1.7;
+  ctx.save(); ctx.translate(x, y); ctx.scale(k, k);
+  rrect(-w / 2, -h / 2, w, h, h / 2, fill); text(str, 0, 2, { size, color, weight });
+  ctx.restore();
+}
+
+// ---------- 수식 렌더링 ----------
+// 문자열 규칙: a,b,c 는 이탤릭 세리프, 숫자는 Inter, ² 는 위첨자, [a:…] [b:…] [c:…] 는 색 칩
+const CHIP = { a: [C.red, C.white], b: [C.char, C.white], c: [C.pink, C.redDeep] };
+function mathTokens(str) {
+  const out = [];
+  const re = /\[([abc]):([^\]]+)\]|([^\[]+)/g; let m;
+  while ((m = re.exec(str))) out.push(m[1] ? { chip: m[1], s: m[2] } : { s: m[3] });
+  return out;
+}
+function runWidth(s, size) {
+  let w = 0;
+  for (const ch of s) w += glyph(ch, size).w;
+  return w;
+}
+function glyph(ch, size) {
+  if (ch === '²') return { w: measure('2', size * .58, 700, EN) + size * .04, draw: (x, y, col) => text('2', x + size * .02, y - size * .38, { size: size * .58, color: col, family: EN, align: 'left' }) };
+  if (/[a-z]/.test(ch)) { const w = measure(ch, size, 500, MATH, true) + size * .06; return { w, draw: (x, y, col) => text(ch, x, y + size * .02, { size, color: col, family: MATH, italic: true, weight: 500, align: 'left' }) }; }
+  if (/[0-9.]/.test(ch)) return { w: measure(ch, size, 700, EN), draw: (x, y, col) => text(ch, x, y, { size, color: col, family: EN, align: 'left' }) };
+  if (ch === ' ') return { w: size * .22, draw: () => {} };
+  const s = size * .9; return { w: measure(ch, s, 500, KR) + size * .04, draw: (x, y, col) => text(ch, x + size * .02, y - size * .02, { size: s, color: col, family: KR, weight: 500, align: 'left' }) };
+}
+function math(str, x, y, size, { color = C.black, align = 'center', scale = 1, alpha = 1, chipK = 1 } = {}) {
+  if (scale <= 0 || alpha <= 0) return 0;
+  const toks = mathTokens(str), padX = size * .22;
+  const widths = toks.map(t => runWidth(t.s, size) + (t.chip ? padX * 2 : 0));
+  const total = widths.reduce((a, b) => a + b, 0);
+  ctx.save(); ctx.globalAlpha *= alpha; ctx.translate(x, y); ctx.scale(scale, scale);
+  let cx = align === 'center' ? -total / 2 : align === 'right' ? -total : 0;
+  toks.forEach((t, i) => {
+    let col = color, gx = cx;
+    if (t.chip) {
+      const [f, c] = CHIP[t.chip];
+      rrect(cx, -size * .66, widths[i], size * 1.3, size * .28, f, chipK);
+      col = c; gx += padX;
+    }
+    for (const ch of t.s) { const g = glyph(ch, size); g.draw(gx, 0, col); gx += g.w; }
+    cx += widths[i];
+  });
+  ctx.restore();
+  return total;
+}
+
+// ---------- 공통 배경 / 헤더 / 자막 ----------
+function paperBg(t) {
+  bg(C.paper);
+  ctx.save(); ctx.strokeStyle = C.grid; ctx.lineWidth = 1;
+  const g = 60; ctx.beginPath();
+  for (let x = 0; x <= W; x += g) { ctx.moveTo(x, 0); ctx.lineTo(x, H); }
+  for (let y = 0; y <= H; y += g) { ctx.moveTo(0, y); ctx.lineTo(W, y); }
+  ctx.stroke(); ctx.restore();
+}
+const SECTIONS = [
+  [6.5, 20, '개념 1', '직각삼각형과 빗변'],
+  [20, 38, '개념 2', '세 변 위의 정사각형'],
+  [38, 60.5, '개념 3', '넓이로 확인하기'],
+  [60.5, 84.5, '개념 4', '왜 그럴까? 그림으로 증명하기'],
+  [84.5, 96, '개념 5', '피타고라스 정리'],
+  [96, 116, '예제', '빗변의 길이 구하기'],
+];
+function header(t) {
+  const s = SECTIONS.find(s => t >= s[0] && t < s[1]);
+  if (!s) return;
+  ctx.save(); ctx.shadowColor = 'rgba(0,0,0,.08)'; ctx.shadowBlur = 20; ctx.shadowOffsetY = 6;
+  rrect(60, 36, 1800, 104, 24, C.white); ctx.restore();
+  rrect(60, 36, 12, 104, 6, C.red);
+  const w = measure(s[2], 36, 700) + 44;
+  rrect(104, 60, w, 56, 14, s[2] === '예제' ? C.black : C.red, pop(t, s[0] + .1, .5));
+  text(s[2], 104 + w / 2, 89, { size: 36, color: C.white, alpha: eOut(p(t, s[0] + .1, .4)) });
+  text(s[3], 104 + w + 28, 90, { size: 48, align: 'left', alpha: eOut(p(t, s[0] + .25, .5)) });
+  text('중학교 수학  ·  피타고라스 정리', 1820, 90, { size: 28, color: C.gray, weight: 500, align: 'right' });
+}
+function subtitle(t) {
+  const s = SUBS.find(s => t >= s[0] && t < s[1]);
+  if (!s) return;
+  const a = env(t, s[0], s[1], .25, .25);
+  const size = 46, w = runWidth(s[2], size) + 120;
+  ctx.save(); ctx.globalAlpha = a; ctx.shadowColor = 'rgba(0,0,0,.18)'; ctx.shadowBlur = 24; ctx.shadowOffsetY = 6;
+  rrect(W / 2 - w / 2, 952, w, 88, 20, 'rgba(26,26,26,.92)'); ctx.restore();
+  rrect(W / 2 - w / 2 + 28, 986, 8, 20, 4, C.red, a);
+  math(s[2], W / 2 + 12, 996, size, { color: C.white, alpha: a });
+}
+function transition(t) {
+  const R = Math.hypot(W, H) / 2 + 20;
+  for (const T of [6.5, 60.5, 84.5, 96, 116]) {
+    const a = p(t, T - .45, .45), b = p(t, T, .45);
+    if (a > 0 && a < 1) rrect(0, H * (1 - eIn(a)), W, H * eIn(a), 0, C.red);
+    if (t >= T && b < 1) rrect(0, 0, W, H * (1 - eOut(b)), 0, C.red);
+  }
+}
+
+// ============================================================
+// 기하: 직각삼각형 a=3(세로), b=4(가로), c=5
+// ============================================================
+const U = 64, OX = 390, OY = 650;              // 1단위 = 58px, 직각 꼭짓점 C 위치
+const P = (x, y) => [OX + x * U, OY + y * U];
+const PC = P(0, 0), PA = P(0, -3), PB = P(4, 0);
+// 정사각형: 원점 o, 변 벡터 e1(삼각형의 변), e2(바깥쪽) — 단위 좌표
+const SQ = {
+  a: { o: [0, 0], e1: [0, -3], e2: [-3, 0], n: 3, fill: C.red, lit: '#FF5A66', label: C.white },
+  b: { o: [0, 0], e1: [4, 0], e2: [0, 4], n: 4, fill: C.char, lit: '#5A5A5A', label: C.white },
+  c: { o: [0, -3], e1: [4, 3], e2: [3, -4], n: 5, fill: C.pink, lit: '#FFB0B7', label: C.redDeep },
+};
+function sqPt(q, s, u, k) { return P(q.o[0] + q.e1[0] * s + q.e2[0] * u * k, q.o[1] + q.e1[1] * s + q.e2[1] * u * k); }
+function drawSquare(q, k, { alpha = 1, gridA = 0, lit = 0 } = {}) {
+  if (k <= 0 || alpha <= 0) return;
+  const pts = [sqPt(q, 0, 0, k), sqPt(q, 1, 0, k), sqPt(q, 1, 1, k), sqPt(q, 0, 1, k)];
+  poly(pts, q.fill, alpha, q === SQ.c ? C.red : null, 3);
+  // 칸 칠하기 (세기)
+  const n = q.n;
+  for (let i = 0; i < Math.min(lit, n * n); i++) {
+    const r = Math.floor(i / n), c = i % n;
+    const f = clamp(lit - i);
+    const cell = [sqPt(q, c / n, r / n, k), sqPt(q, (c + 1) / n, r / n, k), sqPt(q, (c + 1) / n, (r + 1) / n, k), sqPt(q, c / n, (r + 1) / n, k)];
+    poly(cell, q.lit, alpha * f);
+  }
+  if (gridA > 0) {
+    ctx.save(); ctx.globalAlpha = alpha * gridA; ctx.strokeStyle = q === SQ.c ? 'rgba(179,0,14,.45)' : 'rgba(255,255,255,.5)'; ctx.lineWidth = 2;
+    ctx.beginPath();
+    for (let i = 1; i < n; i++) {
+      let a = sqPt(q, i / n, 0, k), b = sqPt(q, i / n, 1, k); ctx.moveTo(...a); ctx.lineTo(...b);
+      a = sqPt(q, 0, i / n, k); b = sqPt(q, 1, i / n, k); ctx.moveTo(...a); ctx.lineTo(...b);
+    }
+    ctx.stroke(); ctx.restore();
+  }
+}
+function sqCenter(q, k) { return sqPt(q, .5, .5, k); }
+
+function drawTriangle(t, draw, { alpha = 1 } = {}) {
+  // 둘레를 따라 그려짐 (draw: 0..1)
+  const pts = [PC, PB, PA, PC];
+  const lens = [4, 5, 3], tot = 12;
+  let rem = draw * tot;
+  poly([PC, PB, PA], C.white, alpha * eOut(clamp((draw - .8) / .2)));
+  ctx.save(); ctx.globalAlpha = alpha; ctx.strokeStyle = C.black; ctx.lineWidth = 6; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  ctx.beginPath(); ctx.moveTo(...pts[0]);
+  for (let i = 0; i < 3; i++) {
+    const f = clamp(rem / lens[i]); if (f <= 0) break;
+    ctx.lineTo(lerp(pts[i][0], pts[i + 1][0], f), lerp(pts[i][1], pts[i + 1][1], f)); rem -= lens[i];
+  }
+  ctx.stroke(); ctx.restore();
+}
+function rightMark(alpha, color = C.black) {
+  if (alpha <= 0) return;
+  const s = 26;
+  ctx.save(); ctx.globalAlpha = alpha; ctx.strokeStyle = color; ctx.lineWidth = 4;
+  ctx.beginPath(); ctx.moveTo(PC[0] + s, PC[1]); ctx.lineTo(PC[0] + s, PC[1] - s); ctx.lineTo(PC[0], PC[1] - s); ctx.stroke(); ctx.restore();
+}
+// 변 라벨 위치 (삼각형 안쪽 / 빗변은 바깥쪽)
+const LBL = { a: [PC[0] + 34, (PC[1] + PA[1]) / 2 + 20], b: [(PC[0] + PB[0]) / 2 + 16, PC[1] - 34], c: [(PA[0] + PB[0]) / 2 + 40, (PA[1] + PB[1]) / 2 - 40] };
+
+// ============================================================
+// SCENES
+// ============================================================
+
+// 0–6.5 : 타이틀
+function sTitle(t) {
+  bg(C.black);
+  // 배경의 큰 직각삼각형 + 세 정사각형 실루엣
+  ctx.save(); ctx.globalAlpha = .9;
+  const k = eIO(p(t, .1, 1.6));
+  ctx.translate(1350, 560); ctx.scale(.9, .9); ctx.translate(-OX, -OY);
+  ['a', 'b', 'c'].forEach((key, i) => {
+    const q = SQ[key], kk = eBack(p(t, .5 + i * .25, .8));
+    const pts = [sqPt(q, 0, 0, kk), sqPt(q, 1, 0, kk), sqPt(q, 1, 1, kk), sqPt(q, 0, 1, kk)];
+    poly(pts, key === 'a' ? C.red : key === 'b' ? '#3A3A3A' : 'rgba(255,214,217,.9)', kk > 0 ? 1 : 0);
+  });
+  poly([PC, PB, PA], C.white, k);
+  ctx.restore();
+  text('중학교 수학', 180, 330, { size: 40, color: C.red, align: 'left', alpha: eOut(p(t, .4, .5)) });
+  text('피타고라스', 172, 450, { size: 150, color: C.white, weight: 900, align: 'left', alpha: eOut(p(t, .7, .5)) });
+  text('정리', 172, 610, { size: 150, color: C.white, weight: 900, align: 'left', alpha: eOut(p(t, .9, .5)) });
+  math('[a:a²] + [b:b²] = [c:c²]', 180, 780, 72, { align: 'left', color: C.white, scale: 1, alpha: eOut(p(t, 1.6, .6)) });
+  text('재능교육', W - 90, H - 60, { size: 30, color: '#BDBDBD', align: 'right', alpha: eOut(p(t, 2, .6)) });
+}
+
+// 6.5–60.5 : 개념 1~3 (같은 그림을 이어서 사용)
+function sTriangle(t) {
+  const out = 1 - eIn(p(t, 60, .45));
+  ctx.save(); ctx.globalAlpha = out;
+  // 정사각형 (개념 2~)
+  const ks = { a: eIO(p(t, 24.2, .9)), b: eIO(p(t, 25.8, .9)), c: eIO(p(t, 27.4, .9)) };
+  const gridA = eOut(p(t, 38.2, .6));
+  const lits = { a: clamp((t - 42.2) / 1.4) * 9, b: clamp((t - 45.7) / 1.4) * 16, c: clamp((t - 49.4) / 1.4) * 25 };
+  for (const key of ['a', 'b', 'c']) drawSquare(SQ[key], ks[key], { gridA, lit: lits[key] });
+  // 삼각형
+  drawTriangle(t, eIO(p(t, 7.0, 1.4)));
+  rightMark(eOut(p(t, 8.5, .4)));
+  // 변 강조
+  const hA = env(t, 10.8, 14.6, .3, .4), hB = env(t, 11.6, 14.6, .3, .4), hC = env(t, 14.8, 19.6, .3, .4);
+  seg(PC, PA, 1, C.red, 12, hA); seg(PC, PB, 1, C.red, 12, hB); seg(PA, PB, 1, C.red, 12, hC);
+  // 변 이름 a, b, c (정사각형이 생기면 사라짐)
+  const lblOut = 1 - eIn(p(t, 23.8, .4));
+  math('a', LBL.a[0], LBL.a[1], 64, { color: C.red, scale: pop(t, 10.8, .5) * lblOut });
+  math('b', LBL.b[0], LBL.b[1], 64, { color: C.red, scale: pop(t, 11.6, .5) * lblOut });
+  math('c', LBL.c[0], LBL.c[1], 64, { color: C.red, scale: pop(t, 14.8, .5) * lblOut });
+  pill('빗변', LBL.c[0] + 100, LBL.c[1] - 10, { size: 34, k: pop(t, 15.3, .5) * lblOut });
+  // 정사각형 넓이 라벨
+  for (const [key, s] of [['a', 25.0], ['b', 26.6], ['c', 28.2]]) {
+    const q = SQ[key], [x, y] = sqCenter(q, ks[key]);
+    const la = 1 - eIn(p(t, 38.0, .3));
+    math(`${key}²`, x, y, 70, { color: q.label, scale: pop(t, s, .5), alpha: la });
+    // 개념 3: 칸 수
+    const n = { a: 9, b: 16, c: 25 }[key], cs = { a: 43.8, b: 47.3, c: 51.0 }[key];
+    const numA = eOut(p(t, 38.2, .4));
+    if (t > 38) math(String(n), x, y, 76, { color: q.label, scale: pop(t, cs, .5), alpha: numA });
+  }
+  // 개념 3: 변 길이 3, 4, 5
+  const nA = eOut(p(t, 38.5, .4));
+  text('3', LBL.a[0], LBL.a[1], { size: 54, color: C.red, family: EN, alpha: nA, scale: pop(t, 38.5, .5) });
+  text('4', LBL.b[0], LBL.b[1], { size: 54, color: C.red, family: EN, alpha: nA, scale: pop(t, 38.7, .5) });
+  text('5', (PA[0] + PB[0]) / 2 + .6 * 40, (PA[1] + PB[1]) / 2 - .8 * 40, { size: 54, color: C.red, family: EN, alpha: nA, scale: pop(t, 38.9, .5) });
+  ctx.restore();
+
+  // 오른쪽 설명 패널
+  const RX = 1060;
+  // 개념 1
+  const d1 = env(t, 10.8, 20.2, .4, .4);
+  if (d1 > 0) {
+    rrect(RX, 290, 740, 150, 24, C.white, d1 * eOut(p(t, 10.8, .4)));
+    math('a, b', RX + 50, 365, 64, { align: 'left', color: C.red, alpha: d1 * eOut(p(t, 11.0, .4)) });
+    text('직각을 끼고 있는 두 변', RX + 250, 367, { size: 40, align: 'left', alpha: d1 * eOut(p(t, 11.2, .4)) });
+    rrect(RX, 470, 740, 150, 24, C.white, d1 * eOut(p(t, 14.8, .4)));
+    math('c', RX + 50, 545, 64, { align: 'left', color: C.red, alpha: d1 * eOut(p(t, 15.0, .4)) });
+    text('빗변 · 직각과 마주 보는 가장 긴 변', RX + 250, 547, { size: 40, align: 'left', alpha: d1 * eOut(p(t, 15.2, .4)) });
+  }
+  // 개념 2
+  const d2 = env(t, 24.6, 38.2, .4, .4);
+  if (d2 > 0) {
+    [['a', 25.0], ['b', 26.6], ['c', 28.2]].forEach(([key, s], i) => {
+      const k = pop(t, s + .1, .5) * d2;
+      ctx.save(); ctx.translate(RX + 60, 330 + i * 150); ctx.scale(k, k);
+      rrect(-20, -60, 700, 120, 24, C.white);
+      ctx.restore();
+      if (k > 0) {
+        math(`[${key}:${key}²]`, RX + 110, 330 + i * 150, 60, { scale: k });
+        text(`${key === 'c' ? '빗변을' : key === 'a' ? '변 a를' : '변 b를'} 한 변으로 하는 정사각형`, RX + 200, 332 + i * 150, { size: 36, align: 'left', alpha: d2 * eOut(p(t, s + .3, .4)) });
+      }
+    });
+    text('?', RX + 380, 790, { size: 90, color: C.red, weight: 900, scale: pop(t, 30.5, .6) * d2 });
+  }
+  // 개념 3
+  const d3 = env(t, 42.0, 60.3, .4, .4);
+  if (d3 > 0) {
+    rrect(RX, 280, 740, 560, 30, C.white, d3);
+    const rows = [['[a:9]', 43.8, 'a²'], ['[b:16]', 47.3, 'b²'], ['[c:25]', 51.0, 'c²']];
+    rows.forEach(([m, s, name], i) => {
+      math(`${name} = `, RX + 70, 360 + i * 90, 50, { align: 'left', alpha: d3 * eOut(p(t, s - .2, .3)) });
+      math(m, RX + 200, 360 + i * 90, 50, { align: 'left', scale: pop(t, s, .5) * d3 });
+      text('칸', RX + 330, 362 + i * 90, { size: 36, color: C.gray, weight: 500, align: 'left', alpha: d3 * eOut(p(t, s + .2, .3)) });
+    });
+    rrect(RX + 50, 620, 640, 4, 2, '#EEE', d3);
+    // 9 + 16 = 25
+    const parts = ['[a:9]', ' + ', '[b:16]', ' = ', '[c:25]'];
+    let x = RX + 70;
+    parts.forEach((m, i) => {
+      const w = math(m, x, 690, 60, { align: 'left', scale: pop(t, 53.3 + i * .35, .5) * d3 });
+      x += w || measure(m, 60);
+    });
+    math('3² + 4² = 5²', RX + 370, 785, 58, { scale: pop(t, 56.8, .6) * d3, color: C.red });
+  }
+}
+
+// 60.5–84.5 : 증명
+const B = 60;                                      // 큰 정사각형 1단위
+const TRI = [                                      // 배치 1 (가운데 c²), 단위 좌표
+  { pts: [[0, 0], [4, 0], [0, 3]], move: [3, 0], at: 76.0 },
+  { pts: [[4, 0], [7, 0], [7, 4]], move: [-4, 3], at: 77.6 },
+  { pts: [[7, 4], [7, 7], [3, 7]], move: [0, -4], at: 76.8 },
+  { pts: [[3, 7], [0, 7], [0, 3]], move: [0, 0], at: 0 },
+];
+function bigSquare(t, cx, cy, arrange2, alpha) {
+  const x0 = cx - 3.5 * B, y0 = cy - 3.5 * B;
+  const Q = (x, y) => [x0 + x * B, y0 + y * B];
+  const draw = eOut(p(t, 64.2, .9));
+  rrect(x0, y0, 7 * B, 7 * B, 0, C.white, alpha * draw);
+  // 남는 부분 색칠
+  if (!arrange2) {
+    const ck = eOut(p(t, 71.2, .6));
+    poly([Q(4, 0), Q(7, 4), Q(3, 7), Q(0, 3)], C.pink, alpha * ck, C.red, 4);
+    math('c²', ...Q(3.5, 3.5), 80, { color: C.redDeep, scale: pop(t, 71.4, .5), alpha });
+  } else {
+    const ck = eOut(p(t, 71.2, .6)) * (1 - eOut(p(t, 75.6, .3)));
+    poly([Q(4, 0), Q(7, 4), Q(3, 7), Q(0, 3)], C.pink, alpha * ck, C.red, 4);
+    const ak = eOut(p(t, 78.4, .5)), bk = eOut(p(t, 78.8, .5));
+    rrect(...Q(0, 0), 3 * B, 3 * B, 0, C.red, alpha * ak);
+    rrect(...Q(3, 3), 4 * B, 4 * B, 0, C.char, alpha * bk);
+    math('a²', ...Q(1.5, 1.5), 70, { color: C.white, scale: pop(t, 78.5, .5), alpha });
+    math('b²', ...Q(5, 5), 80, { color: C.white, scale: pop(t, 78.9, .5), alpha });
+  }
+  // 삼각형
+  TRI.forEach((tr, i) => {
+    const k = pop(t, 67.7 + i * .4, .5);
+    if (k <= 0) return;
+    const m = arrange2 && tr.at ? eIO(p(t, tr.at, .7)) : 0;
+    const pts = tr.pts.map(([x, y]) => Q(x + tr.move[0] * m, y + tr.move[1] * m));
+    const cxT = pts.reduce((s, q) => s + q[0], 0) / 3, cyT = pts.reduce((s, q) => s + q[1], 0) / 3;
+    const sp = pts.map(([x, y]) => [cxT + (x - cxT) * k, cyT + (y - cyT) * k]);
+    ctx.save(); if (m > 0 && m < 1) { ctx.shadowColor = 'rgba(0,0,0,.25)'; ctx.shadowBlur = 20; ctx.shadowOffsetY = 8; }
+    poly(sp, C.tri, alpha, C.black, 3);
+    ctx.restore();
+  });
+  ctx.save(); ctx.globalAlpha = alpha * draw; ctx.strokeStyle = C.black; ctx.lineWidth = 5; ctx.strokeRect(x0, y0, 7 * B, 7 * B); ctx.restore();
+  // 변 길이 표시 a + b
+  const la = eOut(p(t, 65.0, .5)) * alpha;
+  if (la > 0) {
+    const tick = (x, y, w, h) => rrect(x, y, w, h, 0, C.black, la);
+    const ls = arrange2 ? [['a', 0, 3], ['b', 3, 7]] : [['b', 0, 4], ['a', 4, 7]];
+    ls.forEach(([n, s, e]) => { math(n, x0 + (s + e) / 2 * B, y0 - 34, 44, { color: C.red, alpha: la }); tick(x0 + s * B, y0 - 14, 3, 14); });
+    tick(x0 + 7 * B - 3, y0 - 14, 3, 14);
+    [['a', 0, 3], ['b', 3, 7]].forEach(([n, s, e]) => { math(n, x0 - 36, y0 + (s + e) / 2 * B, 44, { color: C.red, alpha: la }); tick(x0 - 14, y0 + s * B, 14, 3); });
+    tick(x0 - 14, y0 + 7 * B - 3, 14, 3);
+  }
+}
+function sProof(t) {
+  paperBg(t);
+  const split = eIO(p(t, 74.7, 1.0));
+  const cy = 540;
+  const lx = lerp(960, 560, split), rx = lerp(960, 1360, split);
+  if (split > 0) bigSquare(t, rx, cy, true, 1);
+  bigSquare(t, lx, cy, false, 1);
+  const eq = pop(t, 79.8, .6);
+  if (eq > 0) { circle(960, cy, 60 * eq, C.red); text('=', 960, cy - 4, { size: 90, color: C.white, weight: 900, scale: eq }); }
+  math('c²', 560, 830, 64, { color: C.redDeep, scale: pop(t, 80.2, .5) });
+  math('a² + b²', 1360, 830, 64, { scale: pop(t, 80.5, .5) });
+  const ca = eOut(p(t, 81, .5));
+  text('큰 정사각형 − 삼각형 4개', 560, 890, { size: 30, color: C.gray, weight: 500, alpha: ca });
+  text('큰 정사각형 − 삼각형 4개', 1360, 890, { size: 30, color: C.gray, weight: 500, alpha: ca });
+}
+
+// 84.5–96 : 공식
+function sFormula(t) {
+  paperBg(t);
+  const cx = W / 2;
+  pill('피타고라스 정리', cx, 290, { size: 44, k: pop(t, 89.2, .5), padX: 40 });
+  const parts = ['[a:a²]', ' + ', '[b:b²]', ' = ', '[c:c²]'];
+  const size = 150;
+  const ws = parts.map(m => { ctx.save(); const w = mathTokens(m).reduce((s, t) => s + runWidth(t.s, size) + (t.chip ? size * .44 : 0), 0); ctx.restore(); return w; });
+  let x = cx - ws.reduce((a, b) => a + b, 0) / 2;
+  parts.forEach((m, i) => {
+    math(m, x + ws[i] / 2, 480, size, { scale: pop(t, 85.0 + i * .18, .6) });
+    x += ws[i];
+  });
+  const k = eOut(p(t, 89.6, .6));
+  rrect(cx - 600, 640, 1200, 150, 30, C.white, k);
+  text('직각삼각형에서', cx, 682, { size: 36, color: C.gray, weight: 500, alpha: k });
+  text('(직각을 낀 두 변의 제곱의 합) = (빗변의 제곱)', cx, 742, { size: 50, alpha: k });
+}
+
+// 96–116 : 예제
+function sExample(t) {
+  paperBg(t);
+  const u = 52, C0 = [360, 800], A0 = [360, 800 - 6 * u], B0 = [360 + 8 * u, 800];
+  const d = eIO(p(t, 96.3, 1.2));
+  poly([C0, B0, A0], C.white, eOut(p(t, 97.2, .4)));
+  ctx.save(); ctx.strokeStyle = C.black; ctx.lineWidth = 6; ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(...C0);
+  const L = [8, 10, 6], pts = [C0, B0, A0, C0]; let rem = d * 24;
+  for (let i = 0; i < 3; i++) { const f = clamp(rem / L[i]); if (f <= 0) break; ctx.lineTo(lerp(pts[i][0], pts[i + 1][0], f), lerp(pts[i][1], pts[i + 1][1], f)); rem -= L[i]; }
+  ctx.stroke(); ctx.restore();
+  const s = 26, ma = eOut(p(t, 97.4, .4));
+  ctx.save(); ctx.globalAlpha = ma; ctx.strokeStyle = C.black; ctx.lineWidth = 4; ctx.beginPath();
+  ctx.moveTo(C0[0] + s, C0[1]); ctx.lineTo(C0[0] + s, C0[1] - s); ctx.lineTo(C0[0], C0[1] - s); ctx.stroke(); ctx.restore();
+  text('6', C0[0] - 40, (C0[1] + A0[1]) / 2, { size: 60, family: EN, color: C.black, scale: pop(t, 97.6, .5) });
+  text('8', (C0[0] + B0[0]) / 2, C0[1] + 50, { size: 60, family: EN, color: C.black, scale: pop(t, 97.8, .5) });
+  const hx = (A0[0] + B0[0]) / 2 + 44, hy = (A0[1] + B0[1]) / 2 - 36;
+  const solved = t > 109.6;
+  if (!solved) { circle(hx, hy, 42 * pop(t, 98.2, .5), C.red); text('?', hx, hy - 2, { size: 56, color: C.white, weight: 900, scale: pop(t, 98.2, .5) }); }
+  else { circle(hx, hy, 52 * pop(t, 109.6, .5), C.red); text('10', hx, hy, { size: 50, color: C.white, family: EN, scale: pop(t, 109.6, .5) }); }
+  // 풀이
+  const RX = 1000;
+  rrect(RX - 40, 250, 860, 640, 30, C.white, eOut(p(t, 99.8, .5)));
+  const steps = [
+    ['c² = 6² + 8²', 100.2, C.black],
+    ['   = 36 + 64', 103.7, C.black],
+    ['   = 100', 106.7, C.black],
+  ];
+  steps.forEach(([m, st, col], i) => {
+    math(m, RX + 30, 350 + i * 120, 76, { align: 'left', color: col, alpha: eOut(p(t, st, .4)), scale: 1 });
+  });
+  const fk = pop(t, 109.2, .6);
+  if (fk > 0) {
+    ctx.save(); ctx.translate(RX + 390, 750); ctx.scale(fk, fk);
+    rrect(-330, -70, 660, 140, 30, C.red);
+    ctx.restore();
+    math('c = 10', RX + 330, 750, 80, { color: C.white, scale: fk });
+    text('(c > 0)', RX + 580, 756, { size: 32, color: '#FFD6D9', weight: 500, alpha: eOut(p(t, 109.6, .4)) });
+  }
+}
+
+// 116–124 : 마무리
+function sEnd(t) {
+  bg(C.red);
+  const cx = W / 2;
+  text('오늘의 핵심', cx, 260, { size: 44, color: '#FFD6D9', weight: 500, alpha: eOut(p(t, 116.3, .5)) });
+  text('피타고라스 정리', cx, 380, { size: 110, color: C.white, weight: 900, scale: pop(t, 116.5, .6) });
+  const k = pop(t, 117.2, .6);
+  if (k > 0) {
+    ctx.save(); ctx.translate(cx, 560); ctx.scale(k, k); rrect(-440, -95, 880, 190, 40, C.white); ctx.restore();
+    math('[a:a²] + [b:b²] = [c:c²]', cx, 560, 100, { scale: k });
+  }
+  text('직각삼각형의 빗변을 구할 때 떠올려 보세요!', cx, 760, { size: 50, color: C.white, alpha: eOut(p(t, 118, .6)) });
+  rrect(W - 330, H - 88, 18, 18, 0, C.white, eOut(p(t, 118.5, .5)));
+  text('재능교육', W - 90, H - 78, { size: 34, color: C.white, align: 'right', alpha: eOut(p(t, 118.5, .5)) });
+  const f = p(t, 123, 1);
+  if (f > 0) rrect(0, 0, W, H, 0, `rgba(0,0,0,${eIO(f)})`);
+}
+
+function draw(realT) {
+  const t = r2v(realT);
+  ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalAlpha = 1;
+  if (t < 6.5) sTitle(t);
+  else if (t < 60.5) { paperBg(t); sTriangle(t); }
+  else if (t < 84.5) sProof(t);
+  else if (t < 96) sFormula(t);
+  else if (t < 116) sExample(t);
+  else sEnd(t);
+  if (t >= 6.5 && t < 116) { header(t); subtitle(t); }
+  else if (t < 6.5) subtitle(t);
+  transition(t);
+}
+
+// ---------- preview player ----------
+const seekEl = document.getElementById('seek'), timeEl = document.getElementById('time'), playEl = document.getElementById('play');
+seekEl.max = DURATION;
+let playing = false, t0 = 0, tCur = 0;
+const audio = new Audio('audio/mix.wav'); audio.preload = 'auto';
+function show(t) { tCur = t; draw(t); seekEl.value = t; timeEl.textContent = t.toFixed(2) + 's'; }
+function loop(now) {
+  if (!playing) return;
+  const t = (now - t0) / 1000;
+  if (t >= DURATION) { playing = false; playEl.textContent = '▶ 재생'; audio.pause(); show(DURATION); return; }
+  show(t); requestAnimationFrame(loop);
+}
+playEl.onclick = () => {
+  playing = !playing; playEl.textContent = playing ? '❚❚ 정지' : '▶ 재생';
+  if (playing) { if (tCur >= DURATION) tCur = 0; t0 = performance.now() - tCur * 1000; try { audio.currentTime = tCur; audio.play().catch(() => {}); } catch (e) {} requestAnimationFrame(loop); }
+  else audio.pause();
+};
+seekEl.oninput = () => { show(+seekEl.value); if (playing) { t0 = performance.now() - tCur * 1000; try { audio.currentTime = tCur; } catch (e) {} } };
+
+window.draw = draw;
+window.DURATION = DURATION;
+window.ready = Promise.all([
+  document.fonts.load(`900 100px 'Noto Sans KR'`, '가'), document.fonts.load(`700 100px 'Inter'`, '1'), document.fonts.load(`italic 500 100px 'Noto Serif'`, 'a'),
+]).then(r => {
+  if (r.some(fs => !fs.length)) throw new Error('폰트를 불러오지 못했습니다 (fonts/ 폴더 확인)');
+}).then(() => document.fonts.ready).then(() => { if (location.search.includes('render')) document.body.classList.add('render'); show(0); return true; });
+</script>
+</body>
+</html>
