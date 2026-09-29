@@ -13,7 +13,7 @@ const FPS = +arg('--fps', preview ? 15 : 30);
 const OUT = path.resolve(dir, arg('--out', preview ? 'out/math_100_preview.mp4' : 'out/math_100.mp4'));
 const FFMPEG = process.env.FFMPEG || 'ffmpeg';
 const AUDIO_START = process.env.AUDIO_START || '0'; // 노래의 시작 지점(초)
-const audio = ['song.mp3', 'song.wav', 'song.m4a'].map(f => path.join(dir, 'audio', f)).find(existsSync);
+const audio = ['mix.wav', 'song.mp3', 'song.wav', 'song.m4a'].map(f => path.join(dir, 'audio', f)).find(existsSync);
 
 mkdirSync(path.dirname(OUT), { recursive: true });
 const browser = await chromium.launch({ executablePath: process.env.CHROMIUM || '/opt/pw-browsers/chromium' });
