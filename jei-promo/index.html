@@ -1,0 +1,450 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>재능교육 홍보 영상</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700;900&family=Montserrat:wght@700;900&display=block" rel="stylesheet">
+<style>
+  html, body { margin: 0; background: #111; }
+  body { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 12px; font-family: 'Noto Sans KR', sans-serif; color: #ddd; }
+  canvas { width: min(100%, 1280px); aspect-ratio: 16 / 9; display: block; background: #000; }
+  .bar { display: flex; gap: 12px; align-items: center; width: min(100%, 1280px); }
+  .bar input { flex: 1; }
+  body.render { padding: 0; gap: 0; }
+  body.render canvas { width: 1920px; height: 1080px; }
+  body.render .bar { display: none; }
+</style>
+</head>
+<body>
+<canvas id="c" width="1920" height="1080"></canvas>
+<div class="bar">
+  <button id="play">▶ 재생</button>
+  <input id="seek" type="range" min="0" max="60" step="0.01" value="0">
+  <span id="time">0.00s</span>
+</div>
+<script>
+// ------------------------------------------------------------
+// 재능교육 1분 홍보 모션그래픽
+// draw(t) 는 시간 t(초)만으로 화면을 그리는 순수 함수 → 프레임 단위 렌더 가능
+// ------------------------------------------------------------
+const W = 1920, H = 1080, DURATION = 60;
+const cv = document.getElementById('c');
+const ctx = cv.getContext('2d');
+
+const C = {
+  navy: '#1B2A6B', orange: '#FF7A1A', green: '#20B26B', sky: '#3DA5F4',
+  yellow: '#FFC93C', cream: '#FFF8EE', white: '#FFFFFF', deep: '#0E1A4A',
+  forest: '#0F6E48',
+};
+const KR = "'Noto Sans KR', sans-serif";
+const EN = "'Montserrat', 'Noto Sans KR', sans-serif";
+
+// ---------- easing / timing helpers ----------
+const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
+const lerp = (a, b, k) => a + (b - a) * k;
+const p = (t, start, dur) => clamp((t - start) / dur);
+const eOut = x => 1 - Math.pow(1 - x, 3);
+const eIn = x => x * x * x;
+const eIO = x => x < .5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
+const eBack = x => { const c1 = 1.70158, c3 = c1 + 1; return 1 + c3 * Math.pow(x - 1, 3) + c1 * Math.pow(x - 1, 2); };
+const eElastic = x => x === 0 ? 0 : x === 1 ? 1 : Math.pow(2, -10 * x) * Math.sin((x * 10 - .75) * (2 * Math.PI) / 3) + 1;
+// in → hold → out envelope (0..1)
+const env = (t, s, e, fi = .5, fo = .5) => Math.min(eOut(p(t, s, fi)), 1 - eIn(p(t, e - fo, fo)));
+
+// deterministic pseudo random
+function rng(seed) { return () => (seed = (seed * 16807) % 2147483647) / 2147483647; }
+
+// ---------- drawing primitives ----------
+function bg(color) { ctx.fillStyle = color; ctx.fillRect(0, 0, W, H); }
+function circle(x, y, r, color, alpha = 1) {
+  if (r <= 0 || alpha <= 0) return;
+  ctx.save(); ctx.globalAlpha *= alpha; ctx.fillStyle = color;
+  ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+}
+function ring(x, y, r, w, color, a0 = -Math.PI / 2, a1 = Math.PI * 1.5, alpha = 1) {
+  if (r <= 0 || alpha <= 0) return;
+  ctx.save(); ctx.globalAlpha *= alpha; ctx.strokeStyle = color; ctx.lineWidth = w; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.arc(x, y, r, a0, a1); ctx.stroke(); ctx.restore();
+}
+function rrect(x, y, w, h, r, color, alpha = 1) {
+  if (alpha <= 0) return;
+  ctx.save(); ctx.globalAlpha *= alpha; ctx.fillStyle = color;
+  ctx.beginPath(); ctx.roundRect(x, y, w, h, r); ctx.fill(); ctx.restore();
+}
+function text(str, x, y, { size = 80, color = C.navy, weight = 900, font = KR, align = 'center', alpha = 1, scale = 1, rot = 0, base = 'middle', spacing = 0 } = {}) {
+  if (alpha <= 0 || scale <= 0) return;
+  ctx.save(); ctx.globalAlpha *= alpha; ctx.translate(x, y); ctx.rotate(rot); ctx.scale(scale, scale);
+  ctx.font = `${weight} ${size}px ${font}`; ctx.fillStyle = color; ctx.textAlign = align; ctx.textBaseline = base;
+  ctx.letterSpacing = spacing + 'px';
+  ctx.fillText(str, 0, 0); ctx.restore();
+}
+function measure(str, size, weight = 900, font = KR, spacing = 0) {
+  ctx.save(); ctx.font = `${weight} ${size}px ${font}`; ctx.letterSpacing = spacing + 'px';
+  const w = ctx.measureText(str).width; ctx.restore(); return w;
+}
+// per-character pop-in, centered at (cx, cy)
+function charsIn(str, cx, cy, t, start, { size = 120, color = C.navy, weight = 900, stagger = .06, dur = .5, colors = null, rise = 60, alpha = 1 } = {}) {
+  const chars = [...str];
+  const widths = chars.map(ch => measure(ch, size, weight));
+  const total = widths.reduce((a, b) => a + b, 0);
+  let x = cx - total / 2;
+  chars.forEach((ch, i) => {
+    const k = p(t, start + i * stagger, dur);
+    const s = eBack(k);
+    text(ch, x + widths[i] / 2, cy + (1 - eOut(k)) * rise, { size, color: colors ? colors[i] : color, weight, alpha: eOut(k) * alpha, scale: .4 + .6 * s });
+    x += widths[i];
+  });
+}
+// floating soft background bubbles
+function bubbles(t, seed, colors, alpha = .12, count = 14) {
+  const r = rng(seed);
+  for (let i = 0; i < count; i++) {
+    const x0 = r() * W, y0 = r() * H, rad = 20 + r() * 90, sp = .2 + r() * .6, ph = r() * 6.28;
+    const col = colors[Math.floor(r() * colors.length)];
+    circle(x0 + Math.sin(t * sp + ph) * 40, y0 + Math.cos(t * sp * .8 + ph) * 30 - (t * 12 * sp) % 60, rad, col, alpha);
+  }
+}
+// scene transitions: circular wipe growing from (x, y)
+function wipeCircle(t, start, dur, x, y, color) {
+  const k = eIO(p(t, start, dur));
+  if (k <= 0) return;
+  circle(x, y, k * Math.hypot(W, H) * 1.05, color);
+}
+function wipeRect(t, start, dur, color, dir = 1) {
+  const k = eIO(p(t, start, dur));
+  if (k <= 0) return;
+  ctx.fillStyle = color;
+  // slanted panel sweeping horizontally
+  const x = dir > 0 ? lerp(-W * 1.4, 0, k) : lerp(W * 1.4, 0, k);
+  ctx.save(); ctx.translate(x, 0); ctx.beginPath();
+  ctx.moveTo(0, 0); ctx.lineTo(W + 300, 0); ctx.lineTo(W, H); ctx.lineTo(-300, H); ctx.closePath(); ctx.fill(); ctx.restore();
+}
+
+// ---------- icons (vector, no external assets) ----------
+function iconBulb(x, y, s, k) {
+  ctx.save(); ctx.translate(x, y); ctx.scale(s, s);
+  // glow rays
+  for (let i = 0; i < 8; i++) {
+    const a = i / 8 * Math.PI * 2, rr = 70 + 10 * Math.sin(k * 10 + i);
+    ctx.strokeStyle = C.yellow; ctx.lineWidth = 8; ctx.lineCap = 'round'; ctx.globalAlpha = k;
+    ctx.beginPath(); ctx.moveTo(Math.cos(a) * 58, Math.sin(a) * 58 - 10); ctx.lineTo(Math.cos(a) * rr, Math.sin(a) * rr - 10); ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+  circle(0, -10, 44, C.yellow);
+  rrect(-22, 30, 44, 26, 6, C.navy);
+  rrect(-16, 58, 32, 10, 5, C.navy);
+  ctx.restore();
+}
+function iconPencil(x, y, s, k) {
+  ctx.save(); ctx.translate(x, y); ctx.scale(s, s);
+  // check line being written
+  ctx.strokeStyle = C.green; ctx.lineWidth = 14; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  const kk = clamp(k * 1.3);
+  ctx.beginPath(); ctx.moveTo(-60, 20);
+  const p1 = clamp(kk / .4), p2 = clamp((kk - .4) / .6);
+  ctx.lineTo(lerp(-60, -20, p1), lerp(20, 55, p1));
+  if (p2 > 0) ctx.lineTo(lerp(-20, 60, p2), lerp(55, -35, p2));
+  ctx.stroke();
+  // pencil
+  const px = kk < .4 ? lerp(-60, -20, p1) : lerp(-20, 60, p2), py = kk < .4 ? lerp(20, 55, p1) : lerp(55, -35, p2);
+  ctx.translate(px, py); ctx.rotate(-Math.PI / 4);
+  ctx.fillStyle = C.orange; ctx.fillRect(-12, -110, 24, 90);
+  ctx.fillStyle = '#F4D3A6'; ctx.beginPath(); ctx.moveTo(-12, -20); ctx.lineTo(12, -20); ctx.lineTo(0, 0); ctx.fill();
+  ctx.fillStyle = C.navy; ctx.fillRect(-12, -124, 24, 14);
+  ctx.restore();
+}
+function iconSprout(x, y, s, k) {
+  ctx.save(); ctx.translate(x, y); ctx.scale(s, s);
+  rrect(-50, 40, 100, 34, 10, C.orange);
+  const g = eOut(k);
+  ctx.strokeStyle = C.green; ctx.lineWidth = 10; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(0, 40); ctx.lineTo(0, 40 - 90 * g); ctx.stroke();
+  const leaf = (dir, sc) => {
+    ctx.save(); ctx.translate(0, 40 - 70 * g); ctx.scale(dir * sc, sc); ctx.fillStyle = C.green;
+    ctx.beginPath(); ctx.moveTo(0, 0); ctx.quadraticCurveTo(30, -50, 70, -40); ctx.quadraticCurveTo(50, 5, 0, 0); ctx.fill(); ctx.restore();
+  };
+  leaf(1, eBack(clamp((k - .3) / .5)));
+  leaf(-1, eBack(clamp((k - .45) / .5)) * .85);
+  ctx.restore();
+}
+
+// ============================================================
+// SCENES
+// ============================================================
+
+// S1 0–6s : 로고 인트로
+function scene1(t) {
+  bg(C.navy);
+  bubbles(t, 7, [C.sky, C.orange, C.green, C.yellow], .08);
+  const cx = W / 2, cy = H / 2 - 40;
+  const dots = [C.orange, C.yellow, C.green, C.sky];
+  // 4 dots drop in, orbit, then burst into rings
+  dots.forEach((col, i) => {
+    const k = eBack(p(t, .2 + i * .12, .6));
+    const orbit = eIO(p(t, 1.2, 1.2));
+    const a = i / 4 * Math.PI * 2 + orbit * Math.PI + Math.PI / 4;
+    const R = lerp(0, 260, orbit) + (1 - k) * 0;
+    const x = lerp(cx - 180 + i * 120, cx + Math.cos(a) * R, orbit);
+    const y = lerp(cy - 400 * (1 - k), cy + Math.sin(a) * R * .55, orbit);
+    const fade = 1 - p(t, 2.3, .6);
+    circle(x, y, 38 * k, col, fade);
+    // rings after burst
+    const rk = eOut(p(t, 2.2 + i * .08, 1.4));
+    ring(cx, cy, 120 + rk * (260 + i * 70), 10 - rk * 8, col, -Math.PI / 2, Math.PI * 1.5, (1 - rk) * (t > 2.2 ? 1 : 0));
+  });
+  charsIn('재능교육', cx, cy, t, 2.3, { size: 220, color: C.white, stagger: .1, dur: .6 });
+  // underline bar
+  const u = eOut(p(t, 3.1, .7));
+  rrect(cx - 330 * u, cy + 150, 660 * u, 12, 6, C.orange, u);
+  text('JEI · 스스로 자라는 힘', cx, cy + 230, { size: 54, color: C.cream, weight: 700, alpha: eOut(p(t, 3.5, .6)), spacing: 6 });
+  wipeCircle(t, 5.3, .8, cx, cy, C.orange);
+}
+
+// S2 6–17s : 교육 50년 카운트
+function scene2(t) {
+  bg(C.orange);
+  bubbles(t, 21, [C.yellow, C.white], .12);
+  const cx = W / 2, cy = H / 2 - 30;
+  text('SINCE 1977', cx, 170, { size: 60, color: C.white, font: EN, alpha: env(t, 6.3, 16.3), spacing: 18 });
+  // progress ring
+  const ringK = eIO(p(t, 6.8, 3.8));
+  ring(cx, cy, 300, 26, 'rgba(255,255,255,.25)', -Math.PI / 2, Math.PI * 1.5, env(t, 6.5, 16.3));
+  ring(cx, cy, 300, 26, C.white, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * ringK, env(t, 6.5, 16.3));
+  // spark on ring tip
+  const ta = -Math.PI / 2 + Math.PI * 2 * ringK;
+  circle(cx + Math.cos(ta) * 300, cy + Math.sin(ta) * 300, 26, C.yellow, env(t, 6.8, 10.8, .3, .4));
+  // counter 0 → 50
+  const n = Math.round(50 * eIO(p(t, 6.8, 3.8)));
+  const pop = t > 10.6 ? 1 + .12 * Math.sin(p(t, 10.6, .5) * Math.PI) : 1;
+  const nw = measure(String(n), 300, 900, EN);
+  text(String(n), cx - 40, cy + 10, { size: 300, color: C.white, font: EN, scale: pop * eBack(p(t, 6.5, .6)), alpha: env(t, 6.5, 16.3) });
+  text('년', cx - 40 + nw / 2 + 85, cy + 70, { size: 110, color: C.navy, alpha: env(t, 7, 16.3), scale: eBack(p(t, 7, .5)) });
+  // confetti burst at 50
+  const bk = p(t, 10.6, 1.4);
+  if (bk > 0 && bk < 1) {
+    const r = rng(99);
+    for (let i = 0; i < 40; i++) {
+      const a = r() * Math.PI * 2, d = 320 + r() * 380, col = [C.yellow, C.navy, C.white, C.green][i % 4];
+      circle(cx + Math.cos(a) * d * eOut(bk), cy + Math.sin(a) * d * eOut(bk) + 200 * bk * bk, 10 + r() * 12, col, 1 - bk);
+    }
+  }
+  // copy lines
+  const l1 = env(t, 11.2, 13.8);
+  text('반세기, 오직 교육 한 길', cx, 920 + (1 - eOut(p(t, 11.2, .6))) * 40, { size: 86, color: C.navy, alpha: l1 });
+  const l2 = env(t, 13.9, 16.4);
+  text('교육업 50년, 아이들의 배움에 전념해 왔습니다', cx, 920 + (1 - eOut(p(t, 13.9, .6))) * 40, { size: 72, color: C.navy, alpha: l2 });
+  wipeRect(t, 16.2, .8, C.cream, 1);
+}
+
+// S3 17–33s : 스스로학습
+function scene3(t) {
+  bg(C.cream);
+  bubbles(t, 33, [C.orange, C.sky, C.green], .07);
+  const cx = W / 2;
+  // big title then moves up
+  const up = eIO(p(t, 20.2, .9));
+  const ty = lerp(H / 2 - 40, 170, up), ts = lerp(1, .55, up);
+  ctx.save(); ctx.translate(cx, ty); ctx.scale(ts, ts);
+  charsIn('스스로학습', 0, 0, t, 17.4, { size: 240, stagger: .12, dur: .6, colors: [C.navy, C.navy, C.navy, C.orange, C.orange] });
+  const u = eOut(p(t, 18.4, .8));
+  // hand-drawn style underline wave
+  ctx.strokeStyle = C.green; ctx.lineWidth = 20; ctx.lineCap = 'round';
+  ctx.beginPath();
+  for (let i = 0; i <= 60 * u; i++) { const x = -560 + i * 18.6; const y = 150 + Math.sin(i * .35) * 10; i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); }
+  ctx.stroke();
+  ctx.restore();
+  text('SELF-DIRECTED LEARNING', cx, H / 2 + 200, { size: 44, color: C.navy, font: EN, spacing: 14, alpha: env(t, 18.8, 20.4, .5, .4) });
+
+  // three cards
+  const cards = [
+    { s: 21.0, icon: iconBulb, title: '스스로 생각하고', sub: '궁금한 것을 먼저 떠올리는 힘', col: C.sky },
+    { s: 22.4, icon: iconPencil, title: '스스로 풀고', sub: '내 속도에 맞춰 한 단계씩', col: C.green },
+    { s: 23.8, icon: iconSprout, title: '스스로 자랍니다', sub: '작은 성취가 모여 큰 자신감으로', col: C.orange },
+  ];
+  const out = 1 - eIn(p(t, 32, .6));
+  cards.forEach((c, i) => {
+    const k = eBack(p(t, c.s, .7));
+    const x = 240 + i * 520, y = 360 + (1 - k) * 500;
+    const a = eOut(p(t, c.s, .5)) * out;
+    if (a <= 0) return;
+    ctx.save(); ctx.globalAlpha = a;
+    ctx.shadowColor = 'rgba(27,42,107,.18)'; ctx.shadowBlur = 40; ctx.shadowOffsetY = 16;
+    rrect(x, y, 440, 470, 36, C.white);
+    ctx.restore();
+    ctx.save(); ctx.globalAlpha = a;
+    rrect(x, y, 440, 16, 8, c.col);
+    circle(x + 220, y + 150, 100, c.col, .15);
+    c.icon(x + 220, y + 150, 1, clamp((t - c.s - .3) / 1.4));
+    text(c.title, x + 220, y + 330, { size: 52, color: C.navy });
+    text(c.sub, x + 220, y + 400, { size: 30, color: '#55607f', weight: 700 });
+    ctx.restore();
+  });
+  // bottom message
+  const m = env(t, 26.2, 32.2);
+  rrect(cx - 620, 890, 1240, 110, 55, C.navy, m);
+  text('아이 스스로 답을 찾는 힘, 재능교육이 키웁니다', cx, 946, { size: 52, color: C.white, alpha: m, scale: .9 + .1 * eOut(p(t, 26.2, .6)) });
+  wipeCircle(t, 32.3, .8, W, H, C.navy);
+}
+
+// S4 33–45s : 자기의 일은 스스로 하자 (계단 오르기)
+function scene4(t) {
+  bg(C.navy);
+  bubbles(t, 44, [C.sky, C.yellow], .07);
+  const steps = [
+    { w: '자기의', col: C.sky },
+    { w: '일은', col: C.green },
+    { w: '스스로', col: C.yellow },
+    { w: '하자!', col: C.orange },
+  ];
+  const baseX = 260, baseY = 1000, sw = 360, sh = 150;
+  const t0 = 33.6, gap = 1.6;
+  const outK = eIn(p(t, 42.2, .8));
+  steps.forEach((s, i) => {
+    const k = eBack(p(t, t0 + i * gap, .6));
+    const h = sh * (i + 1);
+    const x = baseX + i * sw, y = baseY - h * k;
+    ctx.save(); ctx.globalAlpha = 1 - outK;
+    rrect(x + 6, y, sw - 12, h * k + 40, 20, s.col);
+    ctx.restore();
+    // word on each step
+    const wk = p(t, t0 + i * gap + .35, .5);
+    text(s.w, x + sw / 2, y + 80 + (1 - eOut(wk)) * 50, { size: 84, color: C.navy, alpha: eOut(wk) * (1 - outK), scale: .6 + .4 * eBack(wk) });
+  });
+  // child character (ball with face) hopping up the steps
+  const hopStart = t0 + .7;
+  const idx = clamp(Math.floor((t - hopStart) / gap), -1, 3);
+  let bx, by;
+  if (t < hopStart) { bx = baseX - 120; by = baseY - 50; }
+  else {
+    const i = idx, frac = clamp(((t - hopStart) - i * gap) / .7);
+    const fromX = i === 0 ? baseX - 120 : baseX + (i - 1) * sw + sw / 2, fromY = i === 0 ? baseY - 50 : baseY - sh * i - 50;
+    const toX = baseX + i * sw + sw / 2, toY = baseY - sh * (i + 1) - 50;
+    bx = lerp(fromX, toX, eIO(frac));
+    by = lerp(fromY, toY, eIO(frac)) - Math.sin(frac * Math.PI) * 160;
+  }
+  const squash = 1 + .08 * Math.sin(t * 12);
+  ctx.save(); ctx.globalAlpha = 1 - outK; ctx.translate(bx, by); ctx.scale(1 / squash, squash);
+  circle(0, 0, 50, C.white);
+  circle(-16, -8, 7, C.navy); circle(16, -8, 7, C.navy);
+  ctx.strokeStyle = C.navy; ctx.lineWidth = 6; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.arc(0, 8, 16, .15 * Math.PI, .85 * Math.PI); ctx.stroke();
+  circle(-30, 14, 8, C.orange, .6); circle(30, 14, 8, C.orange, .6);
+  ctx.restore();
+  // flag / star at top step
+  const st = eElastic(p(t, 39.4, 1));
+  if (st > 0) {
+    ctx.save(); ctx.globalAlpha = 1 - outK; ctx.translate(baseX + 3 * sw + sw / 2 + 110, baseY - sh * 4 - 150); ctx.scale(st, st); ctx.rotate(t);
+    ctx.fillStyle = C.yellow; ctx.beginPath();
+    for (let i = 0; i < 10; i++) { const r = i % 2 ? 26 : 60, a = i / 10 * Math.PI * 2 - Math.PI / 2; ctx.lineTo(Math.cos(a) * r, Math.sin(a) * r); }
+    ctx.fill(); ctx.restore();
+  }
+  // slogan headline at top
+  const hk = env(t, 40.2, 44.4, .6, .4);
+  text('♪ 자기의 일은 스스로 하자', W / 2, 150, { size: 88, color: C.white, alpha: hk, scale: .8 + .2 * eBack(p(t, 40.2, .6)) });
+  // after steps fade, center card
+  const ck = env(t, 42.6, 44.5, .6, .4);
+  text('작은 습관이 평생의 힘이 됩니다', W / 2, H / 2 + 40, { size: 96, color: C.yellow, alpha: ck, scale: .85 + .15 * eOut(p(t, 42.6, .6)) });
+  wipeCircle(t, 44.3, .8, 0, 0, C.forest);
+}
+
+// S5 45–53s : 50년 타임라인
+function scene5(t) {
+  bg(C.forest);
+  bubbles(t, 55, [C.green, C.yellow, C.white], .07);
+  text('50년 동안 한결같이, 아이들 곁에', W / 2, 200, { size: 80, color: C.white, alpha: env(t, 45.4, 52.4), scale: .9 + .1 * eOut(p(t, 45.4, .6)) });
+  const y = 560, x0 = 180, x1 = W - 180;
+  const lk = eIO(p(t, 45.8, 3.6));
+  const fade = 1 - eIn(p(t, 51.8, .6));
+  ctx.save(); ctx.globalAlpha = fade;
+  ctx.strokeStyle = 'rgba(255,255,255,.3)'; ctx.lineWidth = 10; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(x0, y); ctx.lineTo(x1, y); ctx.stroke();
+  ctx.strokeStyle = C.yellow; ctx.beginPath(); ctx.moveTo(x0, y); ctx.lineTo(lerp(x0, x1, lk), y); ctx.stroke();
+  const years = ['1977', '1987', '1997', '2007', '2017', '2027'];
+  years.forEach((yr, i) => {
+    const f = i / (years.length - 1);
+    const k = eBack(clamp((lk - f) * 6 + 1 - .001 * 0 - (f === 0 ? 0 : 0)));
+    const on = lk >= f - .0001 ? 1 : 0;
+    const dk = on ? eBack(clamp((t - (45.8 + f * 3.6)) / .5)) : 0;
+    const x = lerp(x0, x1, f);
+    const last = i === years.length - 1;
+    circle(x, y, (last ? 40 : 26) * dk, last ? C.orange : C.white);
+    if (last) ring(x, y, 40 + 30 * ((t * 1.2) % 1), 6, C.orange, 0, Math.PI * 2, dk * (1 - (t * 1.2) % 1));
+    text(yr, x, y + (i % 2 ? -90 : 100), { size: 52, color: last ? C.yellow : C.white, font: EN, alpha: dk });
+    text(last ? '50주년' : i === 0 ? '첫걸음' : `${i * 10}년`, x, y + (i % 2 ? -150 : 160), { size: 36, color: C.cream, weight: 700, alpha: dk * .85 });
+  });
+  ctx.restore();
+  const m = env(t, 49.8, 52.6);
+  text('앞으로의 50년도, 스스로 크는 아이들과 함께', W / 2, 880 + (1 - eOut(p(t, 49.8, .6))) * 40, { size: 70, color: C.white, alpha: m });
+  wipeRect(t, 52.3, .8, C.cream, -1);
+}
+
+// S6 53–60s : 엔딩
+function scene6(t) {
+  bg(C.cream);
+  bubbles(t, 66, [C.orange, C.sky, C.green, C.yellow], .08);
+  const cx = W / 2, cy = 430;
+  const dots = [C.orange, C.yellow, C.green, C.sky];
+  dots.forEach((col, i) => {
+    const k = eOut(p(t, 53.2 + i * .1, .9));
+    const a = i / 4 * Math.PI * 2 + Math.PI / 4;
+    const x = cx + Math.cos(a) * lerp(1200, 0, k) + (i - 1.5) * 90 * k;
+    const y = lerp(cy + Math.sin(a) * 900, cy - 190, k);
+    circle(x, y, 26, col, k);
+  });
+  charsIn('재능교육', cx, cy, t, 53.9, { size: 230, stagger: .09, dur: .6 });
+  const u = eOut(p(t, 54.6, .7));
+  rrect(cx - 360 * u, cy + 150, 720 * u, 12, 6, C.orange, u);
+  text('스스로학습 · 교육 50년', cx, cy + 250, { size: 70, color: C.orange, alpha: eOut(p(t, 55, .6)), spacing: 4 });
+  const s = eOut(p(t, 55.8, .7));
+  rrect(cx - 470, 830, 940, 110, 55, C.navy, s);
+  text('♪ 자기의 일은 스스로 하자', cx, 886, { size: 54, color: C.white, alpha: s });
+  // fade to black
+  const f = p(t, 59, 1);
+  if (f > 0) { ctx.fillStyle = `rgba(0,0,0,${eIO(f)})`; ctx.fillRect(0, 0, W, H); }
+}
+
+function draw(t) {
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.globalAlpha = 1; ctx.shadowBlur = 0; ctx.shadowColor = 'transparent';
+  if (t < 6.1) scene1(t);
+  else if (t < 17.0) scene2(t);
+  else if (t < 33.1) scene3(t);
+  else if (t < 45.1) scene4(t);
+  else if (t < 53.1) scene5(t);
+  else scene6(t);
+}
+
+// ---------- preview player ----------
+const seekEl = document.getElementById('seek'), timeEl = document.getElementById('time'), playEl = document.getElementById('play');
+let playing = false, t0 = 0, tCur = 0;
+const audio = new Audio('audio/song.mp3');
+audio.preload = 'auto';
+function show(t) { tCur = t; draw(t); seekEl.value = t; timeEl.textContent = t.toFixed(2) + 's'; }
+function loop(now) {
+  if (!playing) return;
+  const t = (now - t0) / 1000;
+  if (t >= DURATION) { playing = false; playEl.textContent = '▶ 재생'; audio.pause(); show(DURATION); return; }
+  show(t); requestAnimationFrame(loop);
+}
+playEl.onclick = () => {
+  playing = !playing; playEl.textContent = playing ? '❚❚ 정지' : '▶ 재생';
+  if (playing) {
+    if (tCur >= DURATION) tCur = 0;
+    t0 = performance.now() - tCur * 1000;
+    try { audio.currentTime = tCur; audio.play().catch(() => {}); } catch (e) {}
+    requestAnimationFrame(loop);
+  } else audio.pause();
+};
+seekEl.oninput = () => { show(+seekEl.value); if (playing) { t0 = performance.now() - tCur * 1000; try { audio.currentTime = tCur; } catch (e) {} } };
+
+window.draw = draw;
+window.DURATION = DURATION;
+window.ready = document.fonts.load(`900 100px ${KR}`).then(() => Promise.all([
+  document.fonts.load(`700 100px ${KR}`), document.fonts.load(`900 100px 'Montserrat'`),
+  // 화면에 쓰인 모든 한글 글자의 폰트 서브셋을 미리 로드
+  ...['700', '900'].map(w => document.fonts.load(`${w} 100px 'Noto Sans KR'`, [...new Set(document.scripts[0].textContent.match(/[\uAC00-\uD7A3·♪]/g))].join(''))),
+])).then(() => document.fonts.ready).then(() => { if (location.search.includes('render')) document.body.classList.add('render'); show(0); return true; });
+</script>
+</body>
+</html>
