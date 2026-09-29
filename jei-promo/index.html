@@ -3,9 +3,9 @@
 <head>
 <meta charset="utf-8">
 <title>재능교육 홍보 영상</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;500;700;900&family=Inter:wght@500;600;800&display=block" rel="stylesheet">
 <style>
+  @font-face { font-family: 'Noto Sans KR'; src: url('fonts/NotoSansKR.ttf') format('truetype'); font-weight: 100 900; font-display: block; }
+  @font-face { font-family: 'Inter'; src: url('fonts/Inter.ttf') format('truetype'); font-weight: 100 900; font-display: block; }
   html, body { margin: 0; background: #111; }
   body { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 12px; font-family: 'Noto Sans KR', sans-serif; color: #ddd; }
   canvas { width: min(100%, 1280px); aspect-ratio: 16 / 9; display: block; background: #000; }
@@ -435,11 +435,9 @@ seekEl.oninput = () => { show(+seekEl.value); if (playing) { t0 = performance.no
 
 window.draw = draw;
 window.DURATION = DURATION;
-window.ready = document.fonts.ready.then(() => Promise.all([
-  ...['500', '600', '800'].map(w => document.fonts.load(`${w} 100px 'Inter'`, '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ—·/')),
-  // 화면에 쓰인 모든 한글 글자의 폰트 서브셋을 미리 로드
-  ...['300', '500', '700', '900'].map(w => document.fonts.load(`${w} 100px 'Noto Sans KR'`, [...new Set(document.scripts[0].textContent.match(/[\uAC00-\uD7A3·♪'’]/g))].join(''))),
-])).then(() => document.fonts.ready).then(() => { if (location.search.includes('render')) document.body.classList.add('render'); show(0); return true; });
+window.ready = Promise.all([document.fonts.load(`900 100px 'Noto Sans KR'`, '가'), document.fonts.load(`800 100px 'Inter'`, 'A')]).then(r => {
+  if (r.some(fs => !fs.length)) throw new Error('폰트를 불러오지 못했습니다 (fonts/ 폴더 확인)');
+}).then(() => document.fonts.ready).then(() => { if (location.search.includes('render')) document.body.classList.add('render'); show(0); return true; });
 </script>
 </body>
 </html>

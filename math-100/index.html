@@ -1,0 +1,583 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>100까지의 수 개념 영상</title>
+<style>
+  @font-face { font-family: 'Jua'; src: url('fonts/Jua-Regular.ttf') format('truetype'); font-display: block; }
+  html, body { margin: 0; background: #111; }
+  body { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 12px; font-family: 'Jua', sans-serif; color: #ddd; }
+  canvas { width: min(100%, 1280px); aspect-ratio: 16 / 9; display: block; background: #000; }
+  .bar { display: flex; gap: 12px; align-items: center; width: min(100%, 1280px); }
+  .bar input { flex: 1; }
+  body.render { padding: 0; gap: 0; }
+  body.render canvas { width: 1920px; height: 1080px; }
+  body.render .bar { display: none; }
+</style>
+</head>
+<body>
+<canvas id="c" width="1920" height="1080"></canvas>
+<div class="bar">
+  <button id="play">▶ 재생</button>
+  <input id="seek" type="range" min="0" max="114" step="0.01" value="0">
+  <span id="time">0.00s</span>
+</div>
+<script>
+// ------------------------------------------------------------
+// 수학 1-2 「1. 100까지의 수」 단원 개념 정리 모션그래픽
+// draw(t) 는 시간 t(초)만으로 화면을 그리는 순수 함수 → 프레임 단위 렌더 가능
+// ------------------------------------------------------------
+const W = 1920, H = 1080, DURATION = 114;
+const cv = document.getElementById('c');
+const ctx = cv.getContext('2d');
+
+// 재능교육 브랜드 컬러(레드 & 블랙)를 유아용으로 부드럽게 확장
+const C = {
+  red: '#E60012', redDeep: '#B3000E', redSoft: '#FF6B72', pink: '#FFE1E3', pinkDot: '#FFD0D4',
+  black: '#1E1E1E', ink: '#3A3A3A', gray: '#9A928C', cream: '#FFF8F1', white: '#FFFFFF',
+  cubeDark: '#2E2E2E', cubeDarkEdge: '#111111',
+};
+const F = "'Jua', sans-serif";
+
+// ---------- easing / timing helpers ----------
+const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
+const lerp = (a, b, k) => a + (b - a) * k;
+const p = (t, start, dur) => clamp((t - start) / dur);
+const eOut = x => 1 - Math.pow(1 - x, 3);
+const eIn = x => x * x * x;
+const eIO = x => x < .5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
+const eBack = x => { const c1 = 2.2, c3 = c1 + 1; return x <= 0 ? 0 : 1 + c3 * Math.pow(x - 1, 3) + c1 * Math.pow(x - 1, 2); };
+// in → hold → out envelope (0..1)
+const env = (t, s, e, fi = .4, fo = .4) => Math.min(eOut(p(t, s, fi)), 1 - eIn(p(t, e - fo, fo)));
+const pop = (t, s, d = .5) => eBack(p(t, s, d));
+function rng(seed) { return () => (seed = (seed * 16807) % 2147483647) / 2147483647; }
+
+// ---------- primitives ----------
+function bg(color) { ctx.fillStyle = color; ctx.fillRect(0, 0, W, H); }
+function circle(x, y, r, color, alpha = 1) {
+  if (r <= 0 || alpha <= 0) return;
+  ctx.save(); ctx.globalAlpha *= alpha; ctx.fillStyle = color;
+  ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+}
+function rrect(x, y, w, h, r, fill, alpha = 1, stroke = null, lw = 4, dash = null) {
+  if (alpha <= 0 || w <= 0 || h <= 0) return;
+  ctx.save(); ctx.globalAlpha *= alpha;
+  ctx.beginPath(); ctx.roundRect(x, y, w, h, Math.min(r, w / 2, h / 2));
+  if (fill) { ctx.fillStyle = fill; ctx.fill(); }
+  if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = lw; if (dash) ctx.setLineDash(dash); ctx.stroke(); }
+  ctx.restore();
+}
+function text(str, x, y, { size = 60, color = C.black, align = 'center', alpha = 1, scale = 1, base = 'middle' } = {}) {
+  if (alpha <= 0 || scale <= 0) return;
+  ctx.save(); ctx.globalAlpha *= alpha; ctx.translate(x, y); ctx.scale(scale, scale);
+  ctx.font = `${size}px ${F}`; ctx.fillStyle = color; ctx.textAlign = align; ctx.textBaseline = base;
+  ctx.fillText(str, 0, 0); ctx.restore();
+}
+function measure(str, size) { ctx.save(); ctx.font = `${size}px ${F}`; const w = ctx.measureText(str).width; ctx.restore(); return w; }
+// 여러 색 조각으로 된 한 줄 텍스트: [[문자열, 색], ...]
+function rich(parts, x, y, size, { alpha = 1, scale = 1, align = 'center' } = {}) {
+  if (alpha <= 0 || scale <= 0) return;
+  const total = parts.reduce((s, [str]) => s + measure(str, size), 0);
+  ctx.save(); ctx.globalAlpha *= alpha; ctx.translate(x, y); ctx.scale(scale, scale);
+  let cx = align === 'center' ? -total / 2 : align === 'right' ? -total : 0;
+  for (const [str, col] of parts) { text(str, cx, 0, { size, color: col, align: 'left' }); cx += measure(str, size); }
+  ctx.restore();
+}
+// 두 자리 수: 십의 자리 = 레드, 일의 자리 = 블랙
+function num(n, x, y, size, opt = {}) {
+  const s = String(n);
+  if (s.length === 1) return rich([[s, C.black]], x, y, size, opt);
+  if (s.length === 3) return rich([[s, C.red]], x, y, size, opt);
+  rich([[s[0], C.red], [s[1], C.black]], x, y, size, opt);
+}
+function pill(str, x, y, { size = 50, fill = C.red, color = C.white, k = 1, padX = 34, h = null, stroke = null } = {}) {
+  if (k <= 0) return;
+  const w = measure(str, size) + padX * 2, hh = h || size * 1.6;
+  ctx.save(); ctx.translate(x, y); ctx.scale(k, k);
+  rrect(-w / 2, -hh / 2, w, hh, hh / 2, fill, 1, stroke, 4);
+  text(str, 0, 3, { size, color });
+  ctx.restore();
+}
+function arrow(x0, y0, x1, y1, lift, k, color = C.red, w = 7) {
+  if (k <= 0) return;
+  const cx = (x0 + x1) / 2, cy = Math.min(y0, y1) - lift;
+  const N = 40, pts = [];
+  for (let i = 0; i <= N * k; i++) { const u = i / N; pts.push([(1 - u) * (1 - u) * x0 + 2 * (1 - u) * u * cx + u * u * x1, (1 - u) * (1 - u) * y0 + 2 * (1 - u) * u * cy + u * u * y1]); }
+  ctx.save(); ctx.strokeStyle = color; ctx.lineWidth = w; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.setLineDash([2, 16]);
+  ctx.beginPath(); pts.forEach(([x, y], i) => i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)); ctx.stroke();
+  ctx.setLineDash([]);
+  if (k >= 1) {
+    const [ax, ay] = pts[pts.length - 2], [bx, by] = pts[pts.length - 1], a = Math.atan2(by - ay, bx - ax);
+    ctx.fillStyle = color; ctx.translate(bx, by); ctx.rotate(a);
+    ctx.beginPath(); ctx.moveTo(8, 0); ctx.lineTo(-18, -14); ctx.lineTo(-18, 14); ctx.closePath(); ctx.fill();
+  }
+  ctx.restore();
+}
+
+// ---------- 블록 (10개씩 묶음 / 낱개) ----------
+const CUBE = 34, PITCH = 37, ROD_H = PITCH * 10 - 3;
+function cube(x, y, s, fill, edge) {
+  if (s <= 0) return;
+  ctx.save(); ctx.translate(x + CUBE / 2, y + CUBE / 2); ctx.scale(s, s);
+  rrect(-CUBE / 2, -CUBE / 2, CUBE, CUBE, 7, fill, 1, edge, 3);
+  rrect(-CUBE / 2 + 6, -CUBE / 2 + 5, CUBE - 18, 6, 3, 'rgba(255,255,255,.45)');
+  ctx.restore();
+}
+// 10개씩 묶음 막대: 아래에서부터 쌓임 (k: 0..1)
+function rod(x, yBottom, k, { fill = C.red, edge = C.redDeep, alpha = 1 } = {}) {
+  if (k <= 0 || alpha <= 0) return;
+  ctx.save(); ctx.globalAlpha *= alpha;
+  for (let i = 0; i < 10; i++) {
+    const s = eBack(clamp(k * 10 - i * .75));
+    cube(x, yBottom - (i + 1) * PITCH + 3, s, fill, edge);
+  }
+  ctx.restore();
+}
+// 한 묶음(십 막대 tens개 + 낱개 ones개). 반환: 영역 정보
+function group(tens, ones, x, yBottom, t, start, { rodGap = 56, stagger = .18, alpha = 1, onesStart = null, glowTens = 0, glowOnes = 0 } = {}) {
+  const onesX = x + tens * rodGap + 14;
+  if (glowTens > 0) rrect(x - 16, yBottom - ROD_H - 16, (tens - 1) * rodGap + CUBE + 32, ROD_H + 32, 20, C.pink, glowTens * alpha, C.redSoft, 5);
+  if (glowOnes > 0 && ones > 0) rrect(onesX - 16, yBottom - ones * PITCH - 13, CUBE + 32, ones * PITCH + 29, 20, '#EDEDED', glowOnes * alpha, C.black, 5);
+  for (let i = 0; i < tens; i++) rod(x + i * rodGap, yBottom, p(t, start + i * stagger, .45), { alpha });
+  const os = onesStart ?? start + tens * stagger + .2;
+  ctx.save(); ctx.globalAlpha *= alpha;
+  for (let j = 0; j < ones; j++) cube(onesX, yBottom - (j + 1) * PITCH + 3, pop(t, os + j * .12, .4), C.cubeDark, C.cubeDarkEdge);
+  ctx.restore();
+  const right = ones > 0 ? onesX + CUBE : x + (tens - 1) * rodGap + CUBE;
+  return { left: x, right, cx: (x + right) / 2, tensCx: x + ((tens - 1) * rodGap + CUBE) / 2, onesCx: onesX + CUBE / 2 };
+}
+
+// ---------- 캐릭터 (레드 방울이) ----------
+function mascot(x, y, s, t, { look = 0 } = {}) {
+  const bounce = Math.abs(Math.sin(t * 3.2)) * 14;
+  const sq = 1 + .05 * Math.sin(t * 6.4);
+  ctx.save(); ctx.translate(x, y - bounce * s); ctx.scale(s / sq, s * sq);
+  // 그림자
+  ctx.save(); ctx.globalAlpha = .12; ctx.fillStyle = '#000'; ctx.beginPath(); ctx.ellipse(0, 96 + bounce, 70, 12, 0, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+  // 새싹
+  ctx.fillStyle = C.black;
+  ctx.beginPath(); ctx.moveTo(0, -78); ctx.quadraticCurveTo(28, -120, 52, -104); ctx.quadraticCurveTo(34, -76, 0, -78); ctx.fill();
+  ctx.strokeStyle = C.black; ctx.lineWidth = 6; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(0, -74); ctx.lineTo(0, -92); ctx.stroke();
+  // 발
+  circle(-30, 84, 18, C.black); circle(30, 84, 18, C.black);
+  // 몸
+  circle(0, 0, 88, C.red);
+  circle(-28, -40, 20, 'rgba(255,255,255,.35)');
+  // 눈 (깜빡임)
+  const blink = ((t % 3.1) < .12) ? .15 : 1;
+  [-30, 30].forEach(ex => {
+    ctx.save(); ctx.translate(ex, -8); ctx.scale(1, blink);
+    circle(0, 0, 21, C.white); circle(look * 6, 3, 11, C.black); circle(look * 6 + 4, -1, 4, C.white);
+    ctx.restore();
+  });
+  circle(-54, 22, 13, C.redSoft, .9); circle(54, 22, 13, C.redSoft, .9);
+  ctx.strokeStyle = C.white; ctx.lineWidth = 7;
+  ctx.beginPath(); ctx.arc(0, 22, 20, .15 * Math.PI, .85 * Math.PI); ctx.stroke();
+  ctx.restore();
+}
+
+// ---------- 공통 배경 / 헤더 / 자막 ----------
+function kidsBg(t) {
+  bg(C.cream);
+  const g = 90, off = (t * 10) % g;
+  ctx.save(); ctx.fillStyle = C.pinkDot; ctx.globalAlpha = .55;
+  for (let y = -g; y < H + g; y += g) for (let x = -g; x < W + g; x += g) {
+    const odd = Math.round((y + g) / g) % 2;
+    ctx.beginPath(); ctx.arc(x + off + (odd ? g / 2 : 0), y + off * .5, 5, 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.restore();
+}
+const CONCEPTS = [
+  [7, 31, 1, '60, 70, 80, 90 알아보기'],
+  [31, 45, 2, '99까지의 수'],
+  [45, 71, 3, '수의 순서'],
+  [71, 89, 4, '두 수의 크기 비교'],
+  [89, 106, 5, '짝수와 홀수'],
+];
+function header(t) {
+  const c = CONCEPTS.find(c => t >= c[0] && t < c[1]);
+  if (!c) return;
+  const k = pop(t, c[0] + .15, .6);
+  ctx.save(); ctx.shadowColor = 'rgba(230,0,18,.15)'; ctx.shadowBlur = 24; ctx.shadowOffsetY = 8;
+  rrect(60, 36, 1800, 112, 56, C.white);
+  ctx.restore();
+  pill(`개념 ${c[2]}`, 190, 92, { size: 46, k });
+  text(c[3], 320, 95, { size: 58, color: C.black, align: 'left', alpha: eOut(p(t, c[0] + .3, .5)) });
+  text('1. 100까지의 수', 1810, 95, { size: 38, color: C.gray, align: 'right' });
+}
+const SUBS = [
+  [7.6, 13, '10개씩 묶음을 세어 볼까요? 10, 20, 30, 40, 50, 60!'],
+  [13, 16, '10개씩 묶음 6개를 60이라고 해요.'],
+  [16, 19.2, '60은 \'육십\' 또는 \'예순\'이라고 읽어요.'],
+  [19.4, 23.4, '10개씩 묶음 7개는 70, \'칠십\' 또는 \'일흔\'이에요.'],
+  [23.4, 26.9, '10개씩 묶음 8개는 80, \'팔십\' 또는 \'여든\'이에요.'],
+  [26.9, 30.6, '10개씩 묶음 9개는 90, \'구십\' 또는 \'아흔\'이에요.'],
+  [31.6, 36, '10개씩 묶음 7개와 낱개 3개가 있어요.'],
+  [36, 39.4, '이것을 73이라고 해요.'],
+  [39.4, 44.6, '73은 \'칠십삼\' 또는 \'일흔셋\'이라고 읽어요.'],
+  [45.6, 49.2, '90보다 1만큼 더 작은 수는 89예요.'],
+  [49.2, 52.8, '90보다 1만큼 더 큰 수는 91이에요.'],
+  [53.3, 57, '51부터 100까지 수의 순서를 알아볼까요?'],
+  [57, 61.8, '오른쪽으로 한 칸 갈 때마다 1씩 커져요!'],
+  [62.4, 65.2, '99보다 1만큼 더 큰 수는 얼마일까요?'],
+  [65.2, 68, '낱개 10개는 10개씩 묶음 1개! 그래서 100이에요.'],
+  [68, 70.6, '100은 \'백\'이라고 읽어요.'],
+  [71.6, 74.5, '56과 62, 어느 수가 더 클까요?'],
+  [74.5, 77, '10개씩 묶음의 수를 먼저 비교해요. 5 < 6'],
+  [77, 80.4, '56은 62보다 작아요. 62는 56보다 커요.'],
+  [80.8, 83.5, '94와 91은 10개씩 묶음의 수가 9로 같아요.'],
+  [83.5, 86, '묶음의 수가 같으면 낱개의 수를 비교해요. 4 > 1'],
+  [86, 88.6, '94는 91보다 커요. 91은 94보다 작아요.'],
+  [89.6, 92.6, '6개와 7개를 둘씩 짝을 지어 볼까요?'],
+  [92.6, 95.2, '6은 남는 것이 없어요. 이런 수를 짝수라고 해요.'],
+  [95.2, 97.4, '7은 하나가 남아요. 이런 수를 홀수라고 해요.'],
+  [97.8, 101.4, '2, 4, 6, 8, 10처럼 둘씩 짝을 지을 때 남는 것이 없는 수는 짝수!'],
+  [101.4, 105.6, '1, 3, 5, 7, 9처럼 둘씩 짝을 지을 때 하나가 남는 수는 홀수!'],
+];
+function subtitle(t) {
+  const s = SUBS.find(s => t >= s[0] && t < s[1]);
+  if (!s) return;
+  const a = env(t, s[0], s[1], .25, .25);
+  const w = measure(s[2], 50) + 110;
+  ctx.save(); ctx.globalAlpha = a;
+  ctx.shadowColor = 'rgba(0,0,0,.12)'; ctx.shadowBlur = 20; ctx.shadowOffsetY = 6;
+  rrect(W / 2 - w / 2, 948, w, 92, 46, C.white, 1, C.black, 4);
+  ctx.restore();
+  circle(W / 2 - w / 2 + 44, 994, 12 * a, C.red);
+  text(s[2], W / 2 + 14, 998, { size: 50, color: C.black, alpha: a });
+}
+// 개념 전환: 레드 원이 커졌다가 작아짐
+function transition(t) {
+  for (const T of [31, 45, 71, 89, 106]) {
+    const a = p(t, T - .45, .45), b = p(t, T, .45);
+    const R = Math.hypot(W, H) / 2 + 20;
+    if (a > 0 && a < 1) circle(W / 2, H / 2, eIn(a) * R, C.red);
+    if (t >= T && b < 1) circle(W / 2, H / 2, (1 - eOut(b)) * R, C.red);
+  }
+  // 타이틀 → 개념 1
+  const b = p(t, 7, .5);
+  if (t >= 7 && b < 1) circle(W / 2, H / 2, (1 - eOut(b)) * (Math.hypot(W, H) / 2 + 20), C.red);
+}
+
+// ============================================================
+// SCENES
+// ============================================================
+
+// 0–7s : 타이틀
+function sTitle(t) {
+  bg(C.red);
+  const r = rng(3);
+  for (let i = 0; i < 18; i++) {
+    const x = r() * W, y = r() * H, s = 20 + r() * 30, sp = .4 + r();
+    cube(x, (y - t * 30 * sp + H * 2) % (H + 100) - 50, pop(t, .1 + i * .05) * s / CUBE, 'rgba(255,255,255,.18)', null);
+  }
+  mascot(470, 560, 1.6 * pop(t, .2, .7), t);
+  text('수학 1-2  ·  1단원', 1220, 300, { size: 54, color: C.white, alpha: eOut(p(t, .6, .5)) });
+  text('100까지의 수', 1220, 470, { size: 190, color: C.white, scale: pop(t, .9, .7) });
+  pill('단원 개념 정리', 1220, 650, { size: 64, fill: C.white, color: C.red, k: pop(t, 1.6, .6) });
+  const dots = ['60~90', '99까지', '순서', '크기 비교', '짝수·홀수'];
+  dots.forEach((d, i) => pill(d, 870 + i * 176, 800, { size: 30, fill: C.black, color: C.white, padX: 20, k: pop(t, 2.3 + i * .15, .5) }));
+  text('재능교육', W - 90, H - 60, { size: 40, color: C.white, align: 'right', alpha: eOut(p(t, 2.5, .6)) });
+}
+
+// 7–31s : 개념 1
+function s1(t) {
+  const X0 = 190, GAP = 76, YB = 780;
+  const starts = [8.2, 9.0, 9.8, 10.6, 11.4, 12.2, 20.0, 23.6, 27.2];
+  const out = 1 - eIn(p(t, 30.4, .5));
+  starts.forEach((s, i) => {
+    rod(X0 + i * GAP, YB, p(t, s, .5), { alpha: out });
+    if (i < 6) {
+      const la = pop(t, s + .45, .45) * (1 - eIn(p(t, 18.6, .4)));
+      text(String((i + 1) * 10), X0 + i * GAP + CUBE / 2, YB - ROD_H - 44, { size: 44, color: C.red, scale: la });
+    }
+  });
+  const nRods = starts.filter(s => t >= s + .3).length;
+  if (nRods > 0) text(`10개씩 묶음 ${nRods}개`, X0 + ((Math.max(nRods, 1) - 1) * GAP + CUBE) / 2, YB + 60, { size: 46, color: C.ink, alpha: out });
+  // 1-a: 60 카드
+  const ca = env(t, 13, 19.2, .4, .4);
+  if (ca > 0) {
+    ctx.save(); ctx.globalAlpha = ca;
+    rrect(1000, 250, 780, 600, 50, C.white, 1, C.pink, 8);
+    ctx.restore();
+    text('10개씩 묶음 6개를', 1390, 350, { size: 62, color: C.black, alpha: ca });
+    num(60, 1390, 530, 250, { scale: pop(t, 13.6, .6), alpha: ca });
+    pill('육십', 1220, 740, { size: 60, k: pop(t, 16.1, .5) * ca });
+    text('또는', 1390, 745, { size: 44, color: C.gray, alpha: eOut(p(t, 16.4, .4)) * ca });
+    pill('예순', 1560, 740, { size: 60, fill: C.black, k: pop(t, 16.7, .5) * ca });
+  }
+  // 1-b: 표
+  const ta = env(t, 19.2, 30.9, .4, .5);
+  if (ta > 0) {
+    const tx = 960, cw = [290, 210, 330], ty = 270, rh = 120;
+    ctx.save(); ctx.globalAlpha = ta;
+    rrect(tx, ty, cw[0] + cw[1] + cw[2], 100, 26, C.red);
+    ['10개씩 묶음', '수', '읽기'].forEach((h, i) => text(h, tx + cw.slice(0, i).reduce((a, b) => a + b, 0) + cw[i] / 2, ty + 54, { size: 48, color: C.white }));
+    const rows = [[7, 70, '칠십, 일흔', 19.9], [8, 80, '팔십, 여든', 23.5], [9, 90, '구십, 아흔', 27.1]];
+    rows.forEach(([a, b, c, s], i) => {
+      const y = ty + 100 + i * rh, k = eOut(p(t, s, .4));
+      const cur = t >= s && (i === 2 || t < rows[i + 1][3]);
+      rrect(tx, y + 8, cw[0] + cw[1] + cw[2], rh - 12, 22, cur ? C.pink : C.white, k, cur ? C.redSoft : '#EEE3DA', 4);
+      const cy = y + rh / 2 + 6;
+      text(String(a), tx + cw[0] / 2, cy, { size: 66, color: C.red, scale: pop(t, s + .1, .5) });
+      num(b, tx + cw[0] + cw[1] / 2, cy, 66, { scale: pop(t, s + .35, .5) });
+      text(c, tx + cw[0] + cw[1] + cw[2] / 2, cy, { size: 54, color: C.black, scale: pop(t, s + .7, .5) });
+    });
+    ctx.restore();
+  }
+}
+
+// 31–45s : 개념 2
+function s2(t) {
+  const out = 1 - eIn(p(t, 44.4, .5));
+  const g = group(7, 3, 250, 760, t, 32, { rodGap: 76, stagger: .25, onesStart: 34.4, alpha: out });
+  text('10개씩 묶음 7개', g.tensCx, 830, { size: 50, color: C.red, alpha: eOut(p(t, 33.9, .4)) * out });
+  text('낱개 3개', g.onesCx + 20, 830, { size: 50, color: C.black, alpha: eOut(p(t, 35, .4)) * out });
+  // 73 카드
+  const ca = eOut(p(t, 36, .4)) * out;
+  if (ca > 0) {
+    ctx.save(); ctx.globalAlpha = ca; rrect(1100, 250, 680, 620, 50, C.white, 1, C.pink, 8); ctx.restore();
+    num(73, 1440, 470, 300, { scale: pop(t, 36.2, .6), alpha: out });
+    // 자리 설명
+    text('10개씩 묶음', 1340, 640, { size: 34, color: C.red, alpha: eOut(p(t, 37, .4)) * out });
+    text('낱개', 1545, 640, { size: 34, color: C.black, alpha: eOut(p(t, 37.3, .4)) * out });
+    pill('칠십삼', 1250, 770, { size: 56, k: pop(t, 39.6, .5) * out });
+    text('또는', 1440, 775, { size: 40, color: C.gray, alpha: eOut(p(t, 39.9, .4)) * out });
+    pill('일흔셋', 1630, 770, { size: 56, fill: C.black, k: pop(t, 40.2, .5) * out });
+  }
+}
+
+// 45–71s : 개념 3
+function s3(t) {
+  // 3-a 89 · 90 · 91
+  const aOut = 1 - eIn(p(t, 52.6, .45));
+  if (aOut > 0) {
+    const xs = [600, 960, 1320], y = 520, labels = [89, 90, 91], st = [47.2, 45.6, 49.6];
+    xs.forEach((x, i) => {
+      const k = pop(t, st[i], .55) * aOut;
+      if (k <= 0) return;
+      ctx.save(); ctx.translate(x, y); ctx.scale(k, k);
+      rrect(-140, -95, 280, 190, 36, i === 1 ? C.white : '#FFF1D6', 1, i === 1 ? C.black : C.red, 6, i === 1 ? null : [16, 12]);
+      ctx.restore();
+      num(labels[i], x, y + 6, 120, { scale: k });
+    });
+    ctx.save(); ctx.globalAlpha = aOut;
+    arrow(900, 410, 660, 410, 90, eOut(p(t, 46.4, .8)));
+    arrow(1020, 410, 1260, 410, 90, eOut(p(t, 48.8, .8)));
+    ctx.restore();
+    pill('1만큼 더 작은 수', 780, 270, { size: 40, fill: C.white, color: C.red, stroke: C.red, k: pop(t, 46.8, .5) * aOut });
+    pill('1만큼 더 큰 수', 1140, 270, { size: 40, fill: C.red, color: C.white, k: pop(t, 49.2, .5) * aOut });
+    // 캐릭터가 폴짝폴짝
+    let mx = 960, my = 790;
+    const h1 = p(t, 46.5, .6), h2 = p(t, 48.7, .9);
+    if (t < 48.7) { mx = lerp(960, 600, eIO(h1)); my = 790 - Math.sin(h1 * Math.PI) * 120; }
+    else { mx = lerp(600, 1320, eIO(h2)); my = 790 - Math.sin(h2 * Math.PI) * 170; }
+    mascot(mx, my, .75 * pop(t, 45.3, .6) * aOut, t, { look: t < 48.7 ? -1 : 1 });
+  }
+  // 3-b 51~100 수 배열표
+  const bA = env(t, 53, 62, .3, .45);
+  if (bA > 0) {
+    const cw = 128, ch = 104, gx = (W - cw * 10) / 2, gy = 250;
+    const walk = clamp((t - 57.2) / 3.8) * 50;
+    for (let i = 0; i < 50; i++) {
+      const n = 51 + i, r = Math.floor(i / 10), c = i % 10;
+      const k = pop(t, 53.3 + (r + c) * .07, .45) * bA;
+      if (k <= 0) continue;
+      const x = gx + c * cw, y = gy + r * ch;
+      const cur = t > 57.2 && t < 61.2 && Math.floor(walk) === i;
+      const done = t > 57.2 && i < walk;
+      ctx.save(); ctx.translate(x + cw / 2, y + ch / 2); ctx.scale(k * (cur ? 1.12 : 1), k * (cur ? 1.12 : 1));
+      rrect(-cw / 2 + 5, -ch / 2 + 5, cw - 10, ch - 10, 18, cur ? C.red : done ? C.pink : C.white, 1, cur ? C.redDeep : '#EADBD0', 3);
+      ctx.restore();
+      if (cur) text(String(n), x + cw / 2, y + ch / 2 + 4, { size: 54, color: C.white, scale: k * 1.12 });
+      else num(n, x + cw / 2, y + ch / 2 + 4, 54, { scale: k });
+    }
+    // 아래 화살표 힌트
+    const ha = env(t, 57.4, 61.8, .4, .4);
+    arrow(gx + 40, gy + 5 * ch + 50, gx + 10 * cw - 40, gy + 5 * ch + 50, -10, eOut(p(t, 57.4, 1.2)) * (ha > 0 ? 1 : 0), C.red, 6);
+    text('1씩 커져요', gx + 10 * cw - 40, gy + 5 * ch + 110, { size: 40, color: C.red, align: 'right', alpha: ha });
+  }
+  // 3-c 100 알아보기
+  const cA = env(t, 62.1, 70.9, .3, .5);
+  if (cA > 0) {
+    const X0 = 230, GAP = 64, YB = 790;
+    for (let i = 0; i < 9; i++) rod(X0 + i * GAP, YB, p(t, 62.3 + i * .1, .4), { alpha: cA });
+    const ox = X0 + 9 * GAP + 20;
+    const merge = eIO(p(t, 66, .7));
+    const onesFill = merge > .5 ? C.red : C.cubeDark, onesEdge = merge > .5 ? C.redDeep : C.cubeDarkEdge;
+    ctx.save(); ctx.globalAlpha = cA;
+    if (merge > 0 && merge < 1) rrect(ox - 14, YB - ROD_H - 14, CUBE + 28, ROD_H + 28, 18, null, Math.sin(merge * Math.PI), C.red, 8);
+    for (let j = 0; j < 10; j++) {
+      const s = j < 9 ? pop(t, 63.2 + j * .08, .4) : pop(t, 65.3, .6);
+      cube(ox, YB - (j + 1) * PITCH + 3, s, onesFill, onesEdge);
+    }
+    ctx.restore();
+    // +1 강조
+    const plus = env(t, 65.2, 66.4, .2, .3);
+    pill('+1', ox + CUBE / 2 + 70, YB - ROD_H + 10, { size: 44, k: pop(t, 65.2, .4) * plus });
+    // 오른쪽 숫자
+    ctx.save(); ctx.globalAlpha = cA; rrect(1150, 250, 640, 620, 50, C.white, 1, C.pink, 8); ctx.restore();
+    if (t < 65.6) num(99, 1470, 470, 260, { scale: pop(t, 62.8, .5), alpha: cA });
+    else num(100, 1470, 470, 260, { scale: pop(t, 65.6, .6), alpha: cA });
+    text(t < 65.6 ? '99보다 1만큼 더 큰 수는?' : '99보다 1만큼 더 큰 수', 1470, 650, { size: 44, color: C.ink, alpha: cA });
+    pill('백', 1470, 770, { size: 70, k: pop(t, 68, .5) * cA, padX: 60 });
+  }
+}
+
+// 71–89s : 개념 4
+function compare(t, T, A, B, sym, tags) {
+  const out = 1 - eIn(p(t, T + 8.9, .45));
+  if (out <= 0) return;
+  const gap = A[0] > 6 ? 46 : 60;
+  const wA = (A[0] - 1) * gap + CUBE + 14 + CUBE, wB = (B[0] - 1) * gap + CUBE + 14 + CUBE;
+  const ax = 480 - wA / 2, bx = 1440 - wB / 2, YB = 800;
+  const hlT = t > T + 3.4 ? eOut(p(t, T + 3.4, .4)) : 0;
+  const hlO = tags.length > 1 && t > T + 5.2 ? eOut(p(t, T + 5.2, .4)) : 0;
+  const gA = group(A[0], A[1], ax, YB, t, T + .3, { rodGap: gap, stagger: .12, alpha: out, glowTens: hlT * (1 - hlO), glowOnes: hlO });
+  const gB = group(B[0], B[1], bx, YB, t, T + .9, { rodGap: gap, stagger: .12, alpha: out, glowTens: hlT * (1 - hlO), glowOnes: hlO });
+  const nA = A[0] * 10 + A[1], nB = B[0] * 10 + B[1];
+  num(nA, 480, 300, 150, { scale: pop(t, T + 1.6, .5) * out });
+  num(nB, 1440, 300, 150, { scale: pop(t, T + 2.1, .5) * out });
+  // 비교 태그
+  tags.forEach((tg, i) => {
+    const s = T + 3.7 + i * 1.8, last = i === tags.length - 1;
+    const a = last ? 1 : 1 - eIn(p(t, T + 5.2, .3));
+    pill(tg, 960, 470, { size: 44, fill: i === 0 ? C.red : C.black, k: pop(t, s, .5) * a * out });
+  });
+  // 부등호
+  const sk = pop(t, T + (tags.length > 1 ? 7 : 5.6), .6) * out;
+  if (sk > 0) {
+    circle(960, 300, 90 * sk, C.white); ctx.save(); ctx.globalAlpha = out;
+    ctx.beginPath(); ctx.arc(960, 300, 90 * sk, 0, Math.PI * 2); ctx.strokeStyle = C.red; ctx.lineWidth = 6; ctx.stroke(); ctx.restore();
+    text(sym, 960, 306, { size: 150, color: C.red, scale: sk });
+  }
+}
+function s4(t) {
+  compare(t, 71, [5, 6], [6, 2], '<', ['10개씩 묶음  5 < 6']);
+  compare(t, 80, [9, 4], [9, 1], '>', ['10개씩 묶음  9 = 9', '낱개  4 > 1']);
+}
+
+// 89–106s : 개념 5
+function pairs(t, n, cx, T, isEven) {
+  const out = 1 - eIn(p(t, 97.1, .4));
+  const r = rng(n * 31), R = 36;
+  const np = Math.ceil(n / 2), pw = 110;
+  for (let i = 0; i < n; i++) {
+    const sx = cx + (r() - .5) * 560, sy = 540 + (r() - .5) * 300;
+    const pi = Math.floor(i / 2), row = i % 2;
+    const tx = cx - (np - 1) * pw / 2 + pi * pw, ty = 480 + row * 110;
+    const m = eIO(p(t, 91 + i * .12, .8));
+    let x = lerp(sx, tx, m), y = lerp(sy, ty, m);
+    const lone = !isEven && i === n - 1;
+    if (lone && t > 95.2) x += Math.sin((t - 95.2) * 22) * 8 * (1 - p(t, 95.2, 1.2));
+    const k = pop(t, 89.6 + i * .08, .5) * out;
+    if (i % 2 === 0 && !(lone)) rrect(tx - R - 12, 480 - R - 12, 2 * R + 24, 110 + 2 * R + 24, 40, C.pink, eOut(p(t, 92.3 + pi * .1, .4)) * out, C.redSoft, 4);
+    ctx.save(); ctx.translate(x, y); ctx.scale(k, k);
+    circle(0, 0, R, lone && t > 95.2 ? C.black : C.red);
+    circle(-12, -12, 9, 'rgba(255,255,255,.5)');
+    ctx.restore();
+  }
+  text(String(n), cx, 300, { size: 130, color: C.black, scale: pop(t, 89.6, .5) * out });
+  const lT = isEven ? 92.8 : 95.4;
+  text(isEven ? '남는 것이 없어요!' : '하나가 남아요!', cx, 760, { size: 50, color: C.ink, alpha: eOut(p(t, lT, .4)) * out });
+  pill(isEven ? '짝수' : '홀수', cx, 850, { size: 60, fill: isEven ? C.red : C.black, k: pop(t, lT + .3, .5) * out, padX: 50 });
+}
+function s5(t) {
+  if (t < 97.6) {
+    ctx.save(); ctx.globalAlpha = 1 - eIn(p(t, 97.1, .4));
+    rrect(958, 230, 4, 680, 2, '#EADBD0'); ctx.restore();
+    pairs(t, 6, 520, 89, true);
+    pairs(t, 7, 1400, 89, false);
+    return;
+  }
+  const out = 1 - eIn(p(t, 105.6, .4));
+  const rows = [
+    { label: '짝수', y: 420, nums: [2, 4, 6, 8, 10], fill: C.red, s: 98.1, desc: '둘씩 짝을 지을 때 남는 것이 없는 수' },
+    { label: '홀수', y: 720, nums: [1, 3, 5, 7, 9], fill: C.black, s: 101.6, desc: '둘씩 짝을 지을 때 하나가 남는 수' },
+  ];
+  rows.forEach(rw => {
+    ctx.save(); ctx.globalAlpha = eOut(p(t, rw.s - .3, .4)) * out;
+    rrect(140, rw.y - 125, 1640, 270, 60, C.white, 1, rw.fill === C.red ? C.pink : '#E6E0DA', 6);
+    ctx.restore();
+    pill(rw.label, 320, rw.y + 5, { size: 72, fill: rw.fill, k: pop(t, rw.s, .5) * out, padX: 44 });
+    text(rw.desc, 1160, rw.y + 112, { size: 32, color: C.gray, alpha: eOut(p(t, rw.s + .3, .4)) * out });
+    rw.nums.forEach((n, i) => {
+      const k = pop(t, rw.s + .5 + i * .3, .5) * out;
+      const x = 690 + i * 235;
+      ctx.save(); ctx.translate(x, rw.y - 10); ctx.scale(k, k);
+      circle(0, 0, 82, rw.fill === C.red ? C.pink : '#EDEDED');
+      ctx.restore();
+      text(String(n), x, rw.y - 4, { size: 100, color: rw.fill, scale: k });
+    });
+  });
+}
+
+// 106–114s : 정리
+function sEnd(t) {
+  bg(C.red);
+  const r = rng(9);
+  for (let i = 0; i < 16; i++) {
+    const x = r() * W, y = r() * H, s = 20 + r() * 30, sp = .4 + r();
+    cube(x, (y - t * 30 * sp + H * 2) % (H + 100) - 50, s / CUBE, 'rgba(255,255,255,.16)', null);
+  }
+  mascot(430, 560, 1.5 * pop(t, 106.3, .7), t);
+  text('오늘 배운 개념', 1250, 220, { size: 76, color: C.white, scale: pop(t, 106.5, .5) });
+  CONCEPTS.forEach((c, i) => {
+    const k = pop(t, 107 + i * .3, .5);
+    ctx.save(); ctx.translate(1250, 340 + i * 108); ctx.scale(k, k);
+    rrect(-400, -44, 800, 88, 44, C.white);
+    ctx.restore();
+    if (k > 0) {
+      pill(`개념 ${c[2]}`, 1250 - 400 + 90, 340 + i * 108, { size: 34, k, padX: 20 });
+      text(c[3], 1250 - 400 + 190, 344 + i * 108, { size: 44, color: C.black, align: 'left', scale: 1, alpha: eOut(p(t, 107.1 + i * .3, .3)) });
+    }
+  });
+  text('스스로 정리 끝! 참 잘했어요 ♥', 1250, 930, { size: 60, color: C.white, scale: pop(t, 109, .6) });
+  text('재능교육', W - 90, H - 50, { size: 36, color: C.white, align: 'right', alpha: eOut(p(t, 109.5, .5)) });
+  const f = p(t, 113, 1);
+  if (f > 0) { ctx.fillStyle = `rgba(0,0,0,${eIO(f)})`; ctx.fillRect(0, 0, W, H); }
+}
+
+function draw(t) {
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.globalAlpha = 1; ctx.shadowBlur = 0; ctx.shadowColor = 'transparent'; ctx.setLineDash([]);
+  if (t < 7) sTitle(t);
+  else if (t >= 106) sEnd(t);
+  else {
+    kidsBg(t);
+    if (t < 31) s1(t);
+    else if (t < 45) s2(t);
+    else if (t < 71) s3(t);
+    else if (t < 89) s4(t);
+    else s5(t);
+    header(t);
+    subtitle(t);
+  }
+  transition(t);
+}
+
+// ---------- preview player ----------
+const seekEl = document.getElementById('seek'), timeEl = document.getElementById('time'), playEl = document.getElementById('play');
+let playing = false, t0 = 0, tCur = 0;
+function show(t) { tCur = t; draw(t); seekEl.value = t; timeEl.textContent = t.toFixed(2) + 's'; }
+function loop(now) {
+  if (!playing) return;
+  const t = (now - t0) / 1000;
+  if (t >= DURATION) { playing = false; playEl.textContent = '▶ 재생'; show(DURATION); return; }
+  show(t); requestAnimationFrame(loop);
+}
+playEl.onclick = () => {
+  playing = !playing; playEl.textContent = playing ? '❚❚ 정지' : '▶ 재생';
+  if (playing) { if (tCur >= DURATION) tCur = 0; t0 = performance.now() - tCur * 1000; requestAnimationFrame(loop); }
+};
+seekEl.oninput = () => { show(+seekEl.value); if (playing) t0 = performance.now() - tCur * 1000; };
+
+window.draw = draw;
+window.DURATION = DURATION;
+window.ready = document.fonts.load(`100px 'Jua'`, '가').then(fs => {
+  if (!fs.length) throw new Error('Jua 폰트를 불러오지 못했습니다 (fonts/Jua-Regular.ttf)');
+}).then(() => document.fonts.ready).then(() => { if (location.search.includes('render')) document.body.classList.add('render'); show(0); return true; });
+</script>
+</body>
+</html>
