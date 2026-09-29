@@ -1,0 +1,672 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>광합성 종이공예 과학 영상</title>
+<style>
+  @font-face { font-family: 'Jua'; src: url('fonts/Jua-Regular.ttf') format('truetype'); font-display: block; }
+  @font-face { font-family: 'Noto Sans KR'; src: url('fonts/NotoSansKR.ttf') format('truetype'); font-weight: 100 900; font-display: block; }
+  html, body { margin: 0; background: #111; }
+  body { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 12px; font-family: 'Jua', sans-serif; color: #ddd; }
+  canvas { width: min(100%, 1280px); aspect-ratio: 16 / 9; display: block; background: #000; }
+  .bar { display: flex; gap: 12px; align-items: center; width: min(100%, 1280px); }
+  .bar input { flex: 1; }
+  body.render { padding: 0; gap: 0; }
+  body.render canvas { width: 1920px; height: 1080px; }
+  body.render .bar { display: none; }
+</style>
+</head>
+<body>
+<script src="timeline.js"></script>
+<canvas id="c" width="1920" height="1080"></canvas>
+<div class="bar">
+  <button id="play">▶ 재생</button>
+  <input id="seek" type="range" min="0" max="200" step="0.01" value="0">
+  <span id="time">0.00s</span>
+</div>
+<script>
+// ------------------------------------------------------------
+// 광합성 종이공예(페이퍼 컷아웃) 과학 모션그래픽
+// draw(t) 는 시간 t(초)만으로 화면을 그리는 순수 함수 → 프레임 단위 렌더 가능
+// · 종이 질감: 절차적으로 만든 종이결 텍스처를 multiply 로 얹음
+// · 겹친 종이: 도형마다 그림자를 줘서 층이 쌓인 느낌
+// · 스톱모션: 애니메이션 시간을 15fps 로 끊고, 6fps 로 종이가 살짝 떨림
+// 자막과 시간 늘리기(WARP)는 tools/make_audio.py 가 만든 timeline.js 에서 읽음
+// ------------------------------------------------------------
+const W = 1920, H = 1080, BASE_DURATION = 148;
+const WARP = window.WARP || [];
+const SUBS = window.SUBS || [];
+const v2r = v => WARP.reduce((r, [vs, ve, f]) => v > vs ? r + (Math.min(v, ve) - vs) * (f - 1) : r, v);
+function r2v(r) {
+  let v = 0, rr = 0;
+  for (const [vs, ve, f] of WARP) {
+    if (r < rr + (vs - v)) return v + (r - rr);
+    rr += vs - v; v = vs;
+    const seg = (ve - vs) * f;
+    if (r < rr + seg) return vs + (r - rr) / f;
+    rr += seg; v = ve;
+  }
+  return v + (r - rr);
+}
+const DURATION = v2r(BASE_DURATION);
+const cv = document.getElementById('c');
+const ctx = cv.getContext('2d');
+
+const INK = '#3B2F25', CREAM = '#F3EAD8', WHITE = '#FCF9F3', KRAFT = '#D8BC92';
+const GREEN = '#66B85C', GREEN_D = '#2F7D46', GREEN_L = '#9AD46F', CELL = '#DDF0C8';
+const SKY = '#CDE8F4', SKY_D = '#86C5E3', SUN = '#FFC93C', SUN_D = '#FF9F1C';
+const SOIL = '#8B5A3C', ROOT = '#E2C08D', WATER = '#4FA8E8', RED = '#E60012', GRAY = '#5A5A5A', PINK = '#F4A6B8', STARCH = '#F2D9A0';
+const F = "'Jua', 'Noto Sans KR', sans-serif";
+
+// ---------- easing / timing ----------
+const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
+const lerp = (a, b, k) => a + (b - a) * k;
+const p = (t, s, d) => clamp((t - s) / d);
+const eOut = x => 1 - Math.pow(1 - x, 3);
+const eIn = x => x * x * x;
+const eIO = x => x < .5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
+const eBack = x => { const c1 = 2.0, c3 = c1 + 1; return x <= 0 ? 0 : 1 + c3 * Math.pow(x - 1, 3) + c1 * Math.pow(x - 1, 2); };
+const env = (t, s, e, fi = .4, fo = .4) => Math.min(eOut(p(t, s, fi)), 1 - eIn(p(t, e - fo, fo)));
+const pop = (t, s, d = .5) => eBack(p(t, s, d));
+function rng(seed) { return () => (seed = (seed * 16807) % 2147483647) / 2147483647; }
+let ST = 0, STEP = 0, PID = 0;   // 스톱모션 시간, 떨림 단계, 종이 조각 번호
+
+// ---------- 종이 질감 ----------
+function makeTexture() {
+  const c = document.createElement('canvas'); c.width = c.height = 512;
+  const g = c.getContext('2d'), r = rng(11);
+  g.fillStyle = '#fff'; g.fillRect(0, 0, 512, 512);
+  for (let i = 0; i < 40; i++) {              // 큰 얼룩
+    const x = r() * 512, y = r() * 512, rad = 60 + r() * 120, gr = g.createRadialGradient(x, y, 0, x, y, rad);
+    gr.addColorStop(0, 'rgba(150,120,90,.05)'); gr.addColorStop(1, 'rgba(150,120,90,0)');
+    g.fillStyle = gr; g.fillRect(x - rad, y - rad, rad * 2, rad * 2);
+  }
+  for (let i = 0; i < 9000; i++) {            // 잔 알갱이
+    g.fillStyle = `rgba(${100 + r() * 60 | 0},${80 + r() * 40 | 0},60,${.03 + r() * .06})`;
+    g.fillRect(r() * 512, r() * 512, 1 + r() * 1.6, 1 + r() * 1.6);
+  }
+  g.lineWidth = 1;
+  for (let i = 0; i < 520; i++) {             // 종이 섬유
+    const x = r() * 512, y = r() * 512, a = r() * 6.28, l = 4 + r() * 16;
+    g.strokeStyle = `rgba(120,90,60,${.04 + r() * .06})`;
+    g.beginPath(); g.moveTo(x, y); g.lineTo(x + Math.cos(a) * l, y + Math.sin(a) * l); g.stroke();
+  }
+  return c;
+}
+const PAT = ctx.createPattern(makeTexture(), 'repeat');
+
+function jit(seed) { return [Math.sin(STEP * 12.9898 + seed * 78.233) * 1.3, Math.cos(STEP * 7.531 + seed * 39.346) * 1.3]; }
+// 종이 한 장: 그림자 → 색 → 종이결 → 가장자리 하이라이트
+function paper(build, color, o = {}) {
+  const { lift = 1, alpha = 1, tex = true, edge = true, j = true } = o;
+  if (alpha <= 0) return;
+  const id = PID++;
+  ctx.save(); ctx.globalAlpha *= alpha;
+  if (j) { const [jx, jy] = jit(id); ctx.translate(jx, jy); }
+  if (lift > 0) { ctx.shadowColor = 'rgba(70,45,20,.34)'; ctx.shadowBlur = 5 + 7 * lift; ctx.shadowOffsetX = 2 * lift; ctx.shadowOffsetY = 4 * lift; }
+  build(); ctx.fillStyle = color; ctx.fill();
+  ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0; ctx.shadowOffsetX = 0; ctx.shadowOffsetY = 0;
+  if (tex) { ctx.save(); build(); ctx.clip(); ctx.globalCompositeOperation = 'multiply'; ctx.fillStyle = PAT; ctx.fillRect(-4000, -4000, 8000, 8000); ctx.restore(); }
+  if (edge) { build(); ctx.lineWidth = 2.2; ctx.strokeStyle = 'rgba(255,255,255,.4)'; ctx.stroke(); }
+  ctx.restore();
+}
+function paperBg(color) {
+  ctx.fillStyle = color; ctx.fillRect(0, 0, W, H);
+  ctx.save(); ctx.globalCompositeOperation = 'multiply'; ctx.fillStyle = PAT; ctx.fillRect(0, 0, W, H); ctx.restore();
+  const g = ctx.createRadialGradient(W / 2, H / 2, H * .45, W / 2, H / 2, H * 1.05);
+  g.addColorStop(0, 'rgba(90,60,30,0)'); g.addColorStop(1, 'rgba(90,60,30,.16)');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+}
+
+// ---------- 모양(경로) 만들기 ----------
+const B = {
+  circle: (x, y, r) => () => { ctx.beginPath(); ctx.arc(x, y, Math.max(0.01, r), 0, Math.PI * 2); },
+  ellipse: (x, y, rx, ry, rot = 0) => () => { ctx.beginPath(); ctx.ellipse(x, y, Math.max(.01, rx), Math.max(.01, ry), rot, 0, Math.PI * 2); },
+  rrect: (x, y, w, h, r) => () => { ctx.beginPath(); ctx.roundRect(x, y, Math.max(.01, w), Math.max(.01, h), Math.min(r, Math.abs(w) / 2, Math.abs(h) / 2)); },
+  poly: pts => () => { ctx.beginPath(); pts.forEach(([x, y], i) => i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)); ctx.closePath(); },
+  blob: (cx, cy, rx, ry, seed, amp = .05, n = 26) => {          // 가위로 오린 듯한 울퉁불퉁한 원
+    const rr = rng(seed), pts = [];
+    for (let i = 0; i < n; i++) { const a = i / n * Math.PI * 2, k = 1 + (rr() - .5) * 2 * amp; pts.push([cx + Math.cos(a) * rx * k, cy + Math.sin(a) * ry * k]); }
+    const m = (a, b) => [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+    return () => {
+      ctx.beginPath(); const s = m(pts[n - 1], pts[0]); ctx.moveTo(s[0], s[1]);
+      for (let i = 0; i < n; i++) { const c = pts[i], e = m(pts[i], pts[(i + 1) % n]); ctx.quadraticCurveTo(c[0], c[1], e[0], e[1]); }
+      ctx.closePath();
+    };
+  },
+  star: (x, y, r) => () => { ctx.beginPath(); for (let i = 0; i < 8; i++) { const a = i / 8 * Math.PI * 2 - Math.PI / 2, rr = i % 2 ? r * .32 : r; ctx.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr); } ctx.closePath(); },
+  hex: (x, y, r) => () => { ctx.beginPath(); for (let i = 0; i < 6; i++) { const a = i / 6 * Math.PI * 2 + Math.PI / 6; ctx.lineTo(x + Math.cos(a) * r, y + Math.sin(a) * r); } ctx.closePath(); },
+};
+function leafPath(x, y, len, wid, ang) {
+  const c = Math.cos(ang), s = Math.sin(ang), P = (px, py) => [x + px * c - py * s, y + px * s + py * c];
+  return () => { ctx.beginPath(); ctx.moveTo(...P(0, 0)); ctx.quadraticCurveTo(...P(len * .35, -wid * 1.25), ...P(len, 0)); ctx.quadraticCurveTo(...P(len * .35, wid * 1.25), ...P(0, 0)); ctx.closePath(); };
+}
+function leaf(x, y, len, wid, ang, color = GREEN, alpha = 1) {
+  if (len < 2) return;
+  paper(leafPath(x, y, len, wid, ang), color, { alpha });
+  const c = Math.cos(ang), s = Math.sin(ang), P = (px, py) => [x + px * c - py * s, y + px * s + py * c];
+  ctx.save(); ctx.globalAlpha *= alpha; ctx.strokeStyle = 'rgba(255,255,255,.5)'; ctx.lineWidth = 3; ctx.lineCap = 'round'; ctx.beginPath();
+  ctx.moveTo(...P(0, 0)); ctx.lineTo(...P(len * .92, 0));
+  for (const t of [.3, .5, .7]) for (const sd of [-1, 1]) { ctx.moveTo(...P(len * t, 0)); ctx.lineTo(...P(len * (t + .13), sd * wid * .62 * (1 - t))); }
+  ctx.stroke(); ctx.restore();
+}
+
+// ---------- 글자 ----------
+function label(str, x, y, { size = 60, color = INK, align = 'center', alpha = 1, scale = 1, rot = 0, shadow = true } = {}) {
+  if (alpha <= 0 || scale <= 0) return;
+  ctx.save(); ctx.globalAlpha *= alpha; ctx.translate(x, y); ctx.rotate(rot); ctx.scale(scale, scale);
+  ctx.font = `${size}px ${F}`; ctx.textAlign = align; ctx.textBaseline = 'middle';
+  if (shadow) { ctx.fillStyle = 'rgba(60,40,20,.22)'; ctx.fillText(str, 1.5, 3.5); }
+  ctx.fillStyle = color; ctx.fillText(str, 0, 0); ctx.restore();
+}
+function measure(str, size) { ctx.save(); ctx.font = `${size}px ${F}`; const w = ctx.measureText(str).width; ctx.restore(); return w; }
+// 화학식: 문자 뒤의 숫자는 아래첨자로
+function chemParts(str, size) {
+  const parts = []; let prev = '';
+  for (const ch of str) {
+    const sub = /[0-9]/.test(ch) && /[A-Za-z)]/.test(prev);
+    const s = sub ? size * .62 : size;
+    ctx.save(); ctx.font = `${s}px ${F}`; const w = ctx.measureText(ch).width; ctx.restore();
+    parts.push({ ch, sub, s, w }); prev = ch;
+  }
+  return parts;
+}
+function chemWidth(str, size) { return chemParts(str, size).reduce((a, b) => a + b.w, 0); }
+function chem(str, x, y, { size = 50, color = INK, align = 'center', alpha = 1, scale = 1 } = {}) {
+  if (alpha <= 0 || scale <= 0) return;
+  const parts = chemParts(str, size), total = parts.reduce((a, b) => a + b.w, 0);
+  ctx.save(); ctx.globalAlpha *= alpha; ctx.translate(x, y); ctx.scale(scale, scale);
+  let cx = align === 'center' ? -total / 2 : align === 'right' ? -total : 0;
+  parts.forEach(({ ch, sub, s, w }) => { ctx.font = `${s}px ${F}`; ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.fillStyle = color; ctx.fillText(ch, cx, sub ? size * .22 : 0); cx += w; });
+  ctx.restore();
+}
+function tag(str, x, y, { size = 48, fill = WHITE, color = INK, k = 1, padX = 32, padY = 14, rot = 0, alpha = 1, isChem = false } = {}) {
+  if (k <= 0 || alpha <= 0) return;
+  const w = (isChem ? chemWidth(str, size) : measure(str, size)) + padX * 2, h = size + padY * 2;
+  ctx.save(); ctx.translate(x, y); ctx.rotate(rot); ctx.scale(k, k);
+  paper(B.rrect(-w / 2, -h / 2, w, h, h * .32), fill, { alpha, lift: 1 });
+  if (isChem) chem(str, 0, 3, { size, color, alpha }); else label(str, 0, 3, { size, color, shadow: false, alpha });
+  ctx.restore();
+}
+function arrowP(x0, y0, x1, y1, th, color, k = 1, alpha = 1) {
+  if (k <= 0) return;
+  const a = Math.atan2(y1 - y0, x1 - x0), d = Math.hypot(x1 - x0, y1 - y0) * k;
+  ctx.save(); ctx.translate(x0, y0); ctx.rotate(a);
+  paper(() => { ctx.beginPath(); ctx.moveTo(0, -th / 2); ctx.lineTo(d - th * 1.2, -th / 2); ctx.lineTo(d - th * 1.2, -th); ctx.lineTo(d, 0); ctx.lineTo(d - th * 1.2, th); ctx.lineTo(d - th * 1.2, th / 2); ctx.lineTo(0, th / 2); ctx.closePath(); }, color, { alpha, lift: .8 });
+  ctx.restore();
+}
+function pointer(x0, y0, x1, y1, k = 1, alpha = 1) {
+  if (k <= 0) return;
+  ctx.save(); ctx.globalAlpha *= alpha; ctx.strokeStyle = INK; ctx.lineWidth = 4; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(lerp(x0, x1, k), lerp(y0, y1, k)); ctx.stroke();
+  if (k >= 1) circle(x1, y1, 7, INK); ctx.restore();
+}
+function circle(x, y, r, c, a = 1) { if (r <= 0 || a <= 0) return; ctx.save(); ctx.globalAlpha *= a; ctx.fillStyle = c; ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill(); ctx.restore(); }
+function along(P, u) {
+  const L = [0]; for (let i = 1; i < P.length; i++) L.push(L[i - 1] + Math.hypot(P[i][0] - P[i - 1][0], P[i][1] - P[i - 1][1]));
+  const d = clamp(u) * L[L.length - 1]; let i = 1; while (i < L.length - 1 && L[i] < d) i++;
+  const f = (d - L[i - 1]) / ((L[i] - L[i - 1]) || 1); return [lerp(P[i - 1][0], P[i][0], f), lerp(P[i - 1][1], P[i][1], f)];
+}
+
+// ---------- 분자 ----------
+const atom = (x, y, r, c, a = 1) => paper(B.circle(x, y, r), c, { lift: .5, alpha: a, j: false });
+function co2(x, y, s = 1, a = 1) { atom(x - 30 * s, y, 14 * s, RED, a); atom(x + 30 * s, y, 14 * s, RED, a); atom(x, y, 18 * s, GRAY, a); }
+function h2o(x, y, s = 1, a = 1) { atom(x - 22 * s, y + 16 * s, 10 * s, WHITE, a); atom(x + 22 * s, y + 16 * s, 10 * s, WHITE, a); atom(x, y, 18 * s, RED, a); }
+function o2(x, y, s = 1, a = 1) { atom(x - 14 * s, y, 15 * s, RED, a); atom(x + 14 * s, y, 15 * s, RED, a); }
+function glucose(x, y, s = 1, a = 1, color = PINK) {
+  paper(B.hex(x, y, 46 * s), color, { alpha: a, j: false });
+  for (let i = 0; i < 6; i++) { const ang = i / 6 * Math.PI * 2 + Math.PI / 6; circle(x + Math.cos(ang) * 46 * s * .68, y + Math.sin(ang) * 46 * s * .68, 6.5 * s, i === 0 ? RED : GRAY, a); }
+  circle(x, y, 8 * s, 'rgba(255,255,255,.55)', a);
+}
+
+// ---------- 하늘·땅·식물 ----------
+function cloud(x, y, s, k = 1) {
+  if (k <= 0) return; ctx.save(); ctx.translate(x, y); ctx.scale(s * k, s * k);
+  const o = { lift: .6, edge: false, j: false };
+  paper(B.circle(-60, 10, 52), WHITE, o); paper(B.circle(10, -22, 68), WHITE, o); paper(B.circle(78, 8, 50), WHITE, o); paper(B.rrect(-108, 6, 236, 56, 28), WHITE, o);
+  ctx.restore();
+}
+function sun(x, y, r, k = 1, ts = 0) {
+  if (k <= 0) return; ctx.save(); ctx.translate(x, y); ctx.scale(k, k);
+  for (let i = 0; i < 12; i++) {
+    const a = i / 12 * Math.PI * 2 + ts * .3, c = Math.cos(a), s = Math.sin(a), n = [-s, c];
+    paper(B.poly([[c * r * 1.05 + n[0] * r * .2, s * r * 1.05 + n[1] * r * .2], [c * r * 1.6, s * r * 1.6], [c * r * 1.05 - n[0] * r * .2, s * r * 1.05 - n[1] * r * .2]]), i % 2 ? SUN : SUN_D, { lift: .6, j: false });
+  }
+  paper(B.circle(0, 0, r), SUN, { lift: 1, j: false });
+  circle(-r * .32, -r * .1, r * .08, INK); circle(r * .32, -r * .1, r * .08, INK);
+  circle(-r * .52, r * .22, r * .12, SUN_D, .6); circle(r * .52, r * .22, r * .12, SUN_D, .6);
+  ctx.strokeStyle = INK; ctx.lineWidth = 5; ctx.lineCap = 'round'; ctx.beginPath(); ctx.arc(0, r * .12, r * .3, .2 * Math.PI, .8 * Math.PI); ctx.stroke();
+  ctx.restore();
+}
+const hill = (cx, cy, rx, ry, color, seed, lift = 1) => paper(B.blob(cx, cy, rx, ry, seed, .03, 30), color, { lift });
+const stemPt = (x, y, h, u) => [x + 16 * Math.sin(u * 3.2), y - h * u];
+// 식물: leaves = [[줄기 위치 u, 방향(-1 왼쪽/1 오른쪽), 길이, 폭, 각도 보정], ...]
+function plant(x, y, h, g, ts, leaves, sw = 22) {
+  if (g <= 0) return;
+  paper(B.blob(x, y + 14, 130, 36, 21, .06, 20), SOIL, { lift: .8 });
+  ctx.save(); ctx.shadowColor = 'rgba(70,45,20,.3)'; ctx.shadowBlur = 8; ctx.shadowOffsetX = 2; ctx.shadowOffsetY = 4;
+  ctx.strokeStyle = GREEN_D; ctx.lineWidth = sw; ctx.lineCap = 'round'; ctx.beginPath();
+  for (let i = 0; i <= 20; i++) { const [px, py] = stemPt(x, y, h * g, i / 20); i ? ctx.lineTo(px, py) : ctx.moveTo(px, py); }
+  ctx.stroke(); ctx.restore();
+  leaves.forEach(([u, side, len, wid, adj = 0], i) => {
+    const k = eOut(clamp((g - u * .55) / .4)); if (k <= 0) return;
+    const [px, py] = stemPt(x, y, h * g, u);
+    const ang = (side < 0 ? -Math.PI + .5 + adj : -.5 - adj) + Math.sin(ts * 1.6 + i) * .05 * (side < 0 ? -1 : 1);
+    leaf(px, py, len * k, wid * k, ang, i % 2 ? '#5AAE52' : GREEN);
+  });
+}
+const LEAVES = [[.42, -1, 200, 62], [.55, 1, 210, 66], [.72, -1, 250, 76], [.86, 1, 250, 76], [1, -1, 160, 54, .55], [1, 1, 160, 54, .55]];
+
+// ============================================================
+// 장면
+// ============================================================
+
+// 0–7 : 타이틀
+function sTitle(t) {
+  paperBg(SKY);
+  [[300, 230, 1], [1480, 150, .8], [860, 110, .6]].forEach(([x, y, s], i) => cloud(x + Math.sin(ST * .35 + i) * 20, y, s, pop(t, .1 + i * .25, .6)));
+  sun(1660, 270, 78, pop(t, .3, .7), ST);
+  hill(640, 1160, 1080, 420, GREEN_L, 5, 1.5); hill(1500, 1190, 900, 380, GREEN, 8, 1.5);
+  plant(540, 870, 360, eOut(p(t, .6, 1.8)), ST, LEAVES);
+  ctx.save(); ctx.translate(1240, 470); ctx.rotate(-.03); ctx.scale(pop(t, 1.0, .8), pop(t, 1.0, .8));
+  paper(B.rrect(-430, -150, 860, 300, 46), WHITE, { lift: 1.6 });
+  label('광합성', 0, 8, { size: 220, color: GREEN_D });
+  ctx.restore();
+  tag('식물은 어떻게 양분을 만들까요?', 1250, 700, { size: 48, fill: SUN, k: pop(t, 2.0, .6), rot: .02 });
+  tag('재능교육', 1720, 1000, { size: 34, fill: RED, color: '#fff', k: pop(t, 2.6, .5), padX: 24, padY: 10 });
+}
+
+// 7–22 : 궁금해요
+function s1(t) {
+  paperBg(CREAM);
+  hill(960, 1180, 1300, 360, GREEN_L, 3, 1);
+  const bo = 1 - eIn(p(t, 15, .5)), bx = 520, by = 700;
+  if (bo > 0) {
+    const k = pop(t, 7.6, .6) * bo;
+    ctx.save(); ctx.translate(bx, by); ctx.scale(k, k);
+    paper(() => { ctx.beginPath(); ctx.moveTo(-170, 0); ctx.quadraticCurveTo(-160, 150, 0, 156); ctx.quadraticCurveTo(160, 150, 170, 0); ctx.closePath(); }, '#6FA8D6');
+    paper(B.blob(0, -30, 148, 74, 4, .06, 24), WHITE, { lift: .6 });
+    paper(B.rrect(-186, -12, 372, 28, 14), '#4E88BA', { lift: .8 });
+    ctx.save(); ctx.translate(230, -70); ctx.rotate(.7);
+    paper(B.rrect(-9, -10, 18, 210, 9), '#C8A26E', { lift: .8 }); paper(B.ellipse(0, -30, 34, 46), '#C8A26E', { lift: .8 });
+    ctx.restore(); ctx.restore();
+    tag('밥', bx, by + 250, { size: 56, fill: WHITE, k: pop(t, 8.0, .5) * bo });
+    const xk = pop(t, 9.2, .5) * bo;
+    if (xk > 0) { ctx.save(); ctx.translate(bx + 30, by - 30); ctx.scale(xk, xk); [.78, -.78].forEach(r => { ctx.save(); ctx.rotate(r); paper(B.rrect(-150, -16, 300, 32, 16), RED, { lift: 1.2 }); ctx.restore(); }); ctx.restore(); }
+  }
+  const px = lerp(1330, 960, eIO(p(t, 15.6, 1.4))), g = eOut(p(t, 11.3, 3.0));
+  plant(px, 890, 470, g, ST, LEAVES);
+  const qo = 1 - eIn(p(t, 15, .4));
+  [[px - 190, 520, 12.4, RED], [px + 210, 470, 13.2, SUN_D], [px - 40, 330, 14.0, GREEN_D]].forEach(([x, y, s, c]) => label('?', x, y + Math.sin(ST * 3 + x) * 8, { size: 150, color: c, scale: pop(t, s, .5) * qo }));
+  const sp = env(t, 15.8, 21.5, .5, .5);
+  if (sp > 0) [[px - 250, 560], [px + 260, 520], [px - 120, 420], [px + 130, 380], [px, 300]].forEach(([x, y], i) => {
+    const s = .5 + .5 * Math.abs(Math.sin(ST * 3 + i * 1.3)); paper(B.star(x, y, 34 * s), SUN, { lift: .6, alpha: sp, j: false });
+  });
+  tag('광합성', 960, 200, { size: 110, fill: WHITE, color: GREEN_D, k: pop(t, 16.2, .6), padX: 52, padY: 20, rot: -.02 });
+  tag('잎에서 스스로 양분을 만들어요', 960, 340, { size: 46, fill: SUN, k: pop(t, 17.2, .6), rot: .015 });
+}
+
+// 22–48 : 광합성의 재료
+function s2(t) {
+  paperBg(SKY);
+  cloud(1300, 180, .7); cloud(700, 130, .55);
+  const X = 960, YB = 800, HT = 400;
+  hill(960, 1010, 1100, 230, SOIL, 31, 1.2);
+  hill(960, 806, 1100, 52, GREEN, 32, 1);
+  // 뿌리
+  const roots = [[[X, YB], [X - 60, 880], [X - 130, 930], [X - 190, 990]], [[X, YB], [X + 40, 890], [X + 120, 940], [X + 170, 1010]], [[X, YB], [X - 10, 900], [X - 20, 980], [X + 10, 1050]], [[X - 80, 890], [X - 150, 900], [X - 220, 930]]];
+  ctx.save(); ctx.shadowColor = 'rgba(40,20,10,.35)'; ctx.shadowBlur = 5; ctx.shadowOffsetY = 3; ctx.strokeStyle = ROOT; ctx.lineWidth = 11; ctx.lineCap = 'round';
+  roots.forEach(r => { ctx.beginPath(); r.forEach(([x, y], i) => i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)); ctx.stroke(); }); ctx.restore();
+  plant(X, YB, HT, 1, ST, [[.42, -1, 260, 80], [.55, 1, 270, 84], [.72, -1, 300, 88, -.05], [.86, 1, 290, 84, .1], [1, -1, 180, 60, .6], [1, 1, 180, 60, .6]]);
+  sun(330, 270, 82, pop(t, 22.4, .7), ST);
+  // 재료 태그
+  const items = [['빛', SUN, 26.6, 31.6], ['물', WATER, 31.6, 37.6], ['이산화탄소', '#D9D4CC', 37.6, 47], ];
+  const tagX = [1200, 1430, 1720];
+  items.forEach(([s, f, a, b], i) => {
+    const on = t >= a && t < b, pulse = on ? 1 + .07 * Math.sin(ST * 7) : 1;
+    tag(s, tagX[i], 225, { size: 50, fill: f, color: f === WATER ? '#fff' : INK, k: pop(t, 22.8 + i * .7, .5) * pulse, rot: (i - 1) * .03 });
+  });
+  // 빛 반짝이
+  const lp = eOut(p(t, 26.6, .6));
+  if (lp > 0) [[1090, 425], [845, 525]].forEach(([tx, ty], m) => {
+    for (let i = 0; i < 5; i++) {
+      const u = ((t - 26.6) * .3 + i / 5 + m * .1) % 1, x = lerp(400, tx, u), y = lerp(300, ty, u);
+      paper(B.star(x, y, 22 * (.6 + .4 * Math.sin(ST * 6 + i))), SUN, { lift: .4, alpha: lp * Math.min(1, u * 6) * (1 - eIn(clamp((u - .85) / .15))), j: false });
+    }
+  });
+  // 물방울
+  const wp = eOut(p(t, 31.6, .6));
+  if (wp > 0) {
+    const paths = [[[770, 960], [880, 890], [960, 820], [975, 600], [975, 512], [1100, 440]], [[1150, 990], [1050, 900], [965, 820], [975, 600], [975, 512], [1100, 440]]];
+    paths.forEach((P, m) => { for (let i = 0; i < 5; i++) {
+      const u = ((t - 31.6) * .13 + i / 5 + m * .1) % 1, [x, y] = along(P, u), a = wp * Math.min(1, u * 8) * (1 - eIn(clamp((u - .9) / .1)));
+      paper(() => { ctx.beginPath(); ctx.moveTo(x, y - 24); ctx.quadraticCurveTo(x + 18, y + 2, x, y + 14); ctx.quadraticCurveTo(x - 18, y + 2, x, y - 24); }, WATER, { lift: .4, alpha: a, j: false });
+    } });
+    label('H', 0, 0, { alpha: 0 });
+  }
+  // 이산화탄소
+  const cp = eOut(p(t, 37.6, .6));
+  if (cp > 0) for (let i = 0; i < 5; i++) {
+    const u = ((t - 37.6) * .12 + i / 5) % 1, x = lerp(1830, 1110, u), y = lerp(300 + i * 40, 470, u);
+    co2(x, y, .8, cp * Math.min(1, u * 8) * (1 - eIn(clamp((u - .9) / .1))));
+  }
+  // 기공 확대
+  const sv = env(t, 39.6, 46.8, .5, .5);
+  if (sv > 0) {
+    const cx = 1580, cy = 690, r = 200;
+    ctx.save(); ctx.globalAlpha *= sv; ctx.translate(cx, cy); ctx.scale(.7 + .3 * sv, .7 + .3 * sv);
+    paper(B.circle(0, 0, r + 16), WHITE, { lift: 1.6 }); paper(B.circle(0, 0, r), GREEN_L, { lift: 0 });
+    ctx.save(); B.circle(0, 0, r)(); ctx.clip();
+    for (let y = -r; y < r; y += 70) for (let x = -r; x < r; x += 70) paper(B.rrect(x + 6, y + 6, 58, 58, 16), '#B5E08A', { lift: .3, edge: false, j: false });
+    paper(B.ellipse(0, 0, 70, 100), '#2F5F33', { lift: 0, j: false });
+    paper(B.ellipse(-46, 0, 34, 96), GREEN_D, { lift: 1.2, j: false }); paper(B.ellipse(46, 0, 34, 96), GREEN_D, { lift: 1.2, j: false });
+    ctx.restore();
+    ctx.restore();
+    for (let i = 0; i < 3; i++) { const u = ((t - 39.6) * .35 + i / 3) % 1; co2(cx, lerp(cy - 250, cy + 60, u), .55, sv * (1 - eIn(clamp((u - .85) / .15)))); }
+    tag('기공', cx, cy - 250, { size: 50, fill: WHITE, k: pop(t, 40.0, .5) * sv });
+  }
+}
+
+// 48–68 : 엽록체
+function s3(t) {
+  paperBg('#EFE6D2');
+  // A 잎 + 돋보기
+  const a = env(t, 48.4, 53.8, .5, .5);
+  if (a > 0) {
+    ctx.save(); ctx.globalAlpha *= a;
+    leaf(250, 640, 1050, 330, -.12, GREEN, 1);
+    const cx = 1330, cy = 500, r = 210;
+    paper(B.circle(cx, cy, r + 26), '#B98A5A', { lift: 1.5 }); paper(B.circle(cx, cy, r), '#EAF6DC', { lift: 0 });
+    ctx.save(); B.circle(cx, cy, r)(); ctx.clip();
+    for (let y = cy - r; y < cy + r; y += 105) for (let x = cx - r; x < cx + r; x += 105) {
+      paper(B.rrect(x + 6, y + 6, 93, 93, 22), CELL, { lift: .3, edge: false, j: false });
+      circle(x + 30, y + 40, 12, GREEN_D); circle(x + 66, y + 62, 12, GREEN_D); circle(x + 62, y + 26, 10, GREEN);
+    }
+    ctx.restore();
+    ctx.save(); ctx.translate(cx + 150, cy + 200); ctx.rotate(.8); paper(B.rrect(-22, 0, 44, 250, 20), '#B98A5A', { lift: 1.3 }); ctx.restore();
+    tag('잎', 480, 900, { size: 60, fill: WHITE, k: pop(t, 48.8, .5) });
+    ctx.restore();
+  }
+  // B 세포
+  const b = env(t, 53.0, 59.0, .5, .5);
+  if (b > 0) {
+    ctx.save(); ctx.globalAlpha *= b; const r = rng(77);
+    for (let ry = 0; ry < 2; ry++) for (let rx = 0; rx < 3; rx++) {
+      const x = 260 + rx * 460, y = 210 + ry * 330;
+      paper(B.rrect(x, y, 430, 300, 46), '#C6E4A8', { lift: 1 }); paper(B.rrect(x + 14, y + 14, 402, 272, 36), CELL, { lift: 0, edge: false });
+      for (let i = 0; i < 6; i++) { const cx = x + 60 + r() * 310, cy = y + 60 + r() * 180; paper(B.ellipse(cx, cy, 34, 20, r() * 3), GREEN, { lift: .5, j: false }); circle(cx - 8, cy, 5, GREEN_D); circle(cx + 9, cy + 3, 5, GREEN_D); }
+    }
+    pointer(690, 250, 690, 130, eOut(p(t, 53.6, .5)), 1);
+    tag('세포', 690, 100, { size: 50, fill: WHITE, k: pop(t, 53.6, .5) });
+    const cx0 = 1060, cy0 = 660; paper(B.ellipse(cx0, cy0, 34, 20, .4), '#3F9A4A', { lift: 1.4, j: false });
+    pointer(cx0 + 20, cy0 + 20, 1340, 900, eOut(p(t, 55.2, .5)), 1);
+    tag('엽록체', 1440, 910, { size: 56, fill: GREEN_L, k: pop(t, 55.2, .5), rot: .02 });
+    ctx.restore();
+  }
+  // C 엽록체 확대
+  const c = env(t, 58.6, 65.6, .5, .5);
+  if (c > 0) {
+    ctx.save(); ctx.globalAlpha *= c; ctx.translate(960, 560); const s = .85 + .15 * eOut(p(t, 58.6, .8)); ctx.scale(s, s);
+    paper(B.ellipse(0, 0, 580, 340), '#3F9A4A', { lift: 2 }); paper(B.ellipse(0, 0, 548, 312), GREEN, { lift: 0, edge: false });
+    [[-280, -60], [-90, 40], [110, -70], [300, 30]].forEach(([gx, gy]) => { for (let i = 0; i < 4; i++) paper(B.ellipse(gx, gy + i * 34 - 50, 96, 22), GREEN_D, { lift: .6, j: false }); });
+    const r = rng(5);
+    for (let i = 0; i < 44; i++) { const dx = (r() - .5) * 900, dy = (r() - .5) * 460; if ((dx / 500) ** 2 + (dy / 290) ** 2 < 1) paper(B.circle(dx, dy, 9), '#1F5A31', { lift: .3, j: false }); }
+    ctx.restore();
+    const la = pop(t, 59.4, .6) * c;
+    tag('엽록체', 960, 190, { size: 60, fill: WHITE, k: la });
+    pointer(1330, 760, 1130, 660, eOut(p(t, 60.4, .5)), c);
+    tag('엽록소', 1450, 790, { size: 54, fill: '#C9E9A5', k: pop(t, 60.4, .5) * c, rot: .02 });
+    const lp = eOut(p(t, 61.4, .6)) * c;
+    if (lp > 0) for (let i = 0; i < 5; i++) {
+      const u = ((t - 61.4) * .35 + i / 5) % 1, x = lerp(300, 820, u), y = lerp(260, 520, u);
+      paper(B.star(x, y, 24 * (.6 + .4 * Math.sin(ST * 6 + i))), SUN, { lift: .4, alpha: lp * (1 - eIn(clamp((u - .85) / .15))), j: false });
+    }
+    sun(230, 230, 60, pop(t, 61.2, .6) * c, ST);
+  }
+}
+
+// 68–92 : 광합성 식
+function s4(t) {
+  paperBg('#F3E7D3');
+  ctx.save(); ctx.translate(960, 400);
+  paper(B.ellipse(0, 0, 500, 240), '#3F9A4A', { lift: 2 }); paper(B.ellipse(0, 0, 472, 216), GREEN, { lift: 0, edge: false });
+  [[-250, -30], [-70, 30], [110, -40], [270, 20]].forEach(([gx, gy]) => { for (let i = 0; i < 3; i++) paper(B.ellipse(gx, gy + i * 32 - 36, 80, 19), GREEN_D, { lift: .5, j: false }); });
+  ctx.restore();
+  tag('엽록체', 960, 180, { size: 46, fill: WHITE, k: pop(t, 68.6, .5) });
+  const inA = eOut(p(t, 68.8, .5));
+  for (let i = 0; i < 5; i++) {
+    const u = ((t - 68.8) * .22 + i * .2) % 1, x = lerp(140, 800, u), y = 270 + i * 55, a = inA * Math.min(1, u * 8) * (1 - eIn(clamp((u - .82) / .18)));
+    if (i % 2) h2o(x, y, 1.25, a); else co2(x, y, 1.25, a);
+  }
+  tag('이산화탄소', 250, 200, { size: 44, fill: '#D9D4CC', k: pop(t, 69.2, .5), padX: 22, padY: 8 });
+  tag('물', 430, 200, { size: 44, fill: WATER, color: '#fff', k: pop(t, 69.6, .5), padX: 26, padY: 8 });
+  sun(330, 560, 66, pop(t, 70.2, .6), ST);
+  for (let i = 0; i < 4; i++) { const u = ((t - 70.4) * .3 + i / 4) % 1; paper(B.star(lerp(400, 800, u), lerp(560, 420, u), 20 * (.6 + .4 * Math.sin(ST * 6 + i))), SUN, { lift: .4, alpha: eOut(p(t, 70.4, .5)) * (1 - eIn(clamp((u - .85) / .15))), j: false }); }
+  tag('빛에너지', 330, 660, { size: 42, fill: SUN, k: pop(t, 70.6, .5), padX: 22, padY: 8 });
+  const outA = eOut(p(t, 73.6, .5));
+  if (outA > 0) for (let i = 0; i < 5; i++) {
+    const u = ((t - 73.6) * .22 + i * .2) % 1, x = lerp(1130, 1780, u), y = 270 + i * 55, a = outA * Math.min(1, u * 6) * (1 - eIn(clamp((u - .85) / .15)));
+    if (i % 2) o2(x, y, 1.4, a); else glucose(x, y, .8, a);
+  }
+  tag('포도당', 1480, 200, { size: 44, fill: PINK, k: pop(t, 74.0, .5), padX: 22, padY: 8 });
+  tag('산소', 1690, 200, { size: 44, fill: SKY, k: pop(t, 74.4, .5), padX: 26, padY: 8 });
+  // 식
+  const y = 790, seq = [['이산화탄소', '#D9D4CC', INK, 80.6], ['+', null, INK, 81.4], ['물', WATER, '#fff', 82.2], ['→', null, INK, 83.2], ['포도당', PINK, INK, 84.4], ['+', null, INK, 85.2], ['산소', SKY, INK, 86.0]];
+  const widths = seq.map(([s, f]) => f ? measure(s, 58) + 64 : s === '→' ? 200 : 40), gap = 26, total = widths.reduce((a, b) => a + b, 0) + gap * (seq.length - 1);
+  let x = 960 - total / 2;
+  seq.forEach(([s, f, c, at], i) => {
+    const cx = x + widths[i] / 2, k = pop(t, at, .5);
+    if (f) tag(s, cx, y, { size: 58, fill: f, color: c, k, padX: 32 });
+    else if (s === '→') { arrowP(cx - 100, y, cx + 100, y, 26, SUN_D, eOut(p(t, at, .5))); tag('빛에너지', cx, y - 66, { size: 32, fill: SUN, k: pop(t, at + .3, .5), padX: 20, padY: 6 }); }
+    else label(s, cx, y, { size: 72, scale: k });
+    x += widths[i] + gap;
+  });
+  const fk = pop(t, 86.6, .6);
+  if (fk > 0) { ctx.save(); ctx.translate(960, 885); ctx.scale(fk, fk); paper(B.rrect(-560, -34, 1120, 68, 24), WHITE, { lift: .8 }); chem('6CO2 + 6H2O → C6H12O6 + 6O2', 0, 0, { size: 40 }); ctx.restore(); }
+  const pulse = env(t, 87.6, 91.4, .3, .4);
+  if (pulse > 0) for (let i = 0; i < 6; i++) { const a = i / 6 * Math.PI * 2 + ST, r = 260 + 40 * Math.sin(ST * 5 + i); paper(B.star(960 + Math.cos(a) * 640, 400 + Math.sin(a) * 300 * .8, 26), SUN, { lift: .4, alpha: pulse, j: false }); }
+}
+
+// 92–112 : 포도당과 산소
+function s5(t) {
+  paperBg('#F5EBDC');
+  // A 포도당의 사용
+  const a = env(t, 92.5, 98.8, .5, .5);
+  if (a > 0) {
+    ctx.save(); ctx.globalAlpha *= a;
+    glucose(560, 480, 2.6, 1); tag('포도당', 560, 720, { size: 60, fill: PINK, k: pop(t, 92.8, .6) });
+    arrowP(760, 480, 1010, 480, 44, SUN_D, eOut(p(t, 94.0, .6)));
+    const g = .3 + .7 * ((((t - 94.4) * .3) % 1 + 1) % 1);
+    plant(1330, 860, 420, clamp(g), ST, LEAVES);
+    tag('자라고 살아가는 데 사용', 1330, 240, { size: 48, fill: WHITE, k: pop(t, 95.0, .6), rot: -.02 });
+    ctx.restore();
+  }
+  // B 녹말 저장
+  const b = env(t, 98.6, 105.0, .5, .5);
+  if (b > 0) {
+    ctx.save(); ctx.globalAlpha *= b;
+    const conv = eOut(p(t, 102.2, .6));
+    for (let i = 0; i < 6; i++) {
+      const x = 330 + i * 250, k = pop(t, 99.0 + i * .5, .5);
+      if (i > 0 && k > 0) paper(B.rrect(x - 250 + 60, 494, 130, 26, 13), lerpColor(PINK, STARCH, conv), { lift: .5, j: false });
+      glucose(x, 507, 1.6 * k, 1, lerpColor(PINK, STARCH, conv));
+    }
+    tag('포도당', 900, 330, { size: 52, fill: PINK, k: pop(t, 99.2, .5) * (1 - conv) });
+    tag('녹말', 900, 330, { size: 60, fill: STARCH, k: pop(t, 102.4, .6) * conv, rot: .02 });
+    tag('남은 포도당은 녹말로 바뀌어 저장돼요', 960, 760, { size: 50, fill: WHITE, k: pop(t, 102.6, .6) });
+    ctx.restore();
+  }
+  // C 산소
+  const c = env(t, 104.6, 112.4, .5, .5);
+  if (c > 0) {
+    ctx.save(); ctx.globalAlpha *= c;
+    leaf(240, 740, 760, 240, -.22, GREEN, 1);
+    tag('기공', 640, 820, { size: 44, fill: WHITE, k: pop(t, 105.0, .5) });
+    const P = [[560, 610], [800, 430], [1150, 380], [1420, 470]];
+    for (let i = 0; i < 6; i++) { const u = ((t - 104.9) * .14 + i / 6) % 1, [x, y] = along(P, u); o2(x, y + Math.sin(ST * 4 + i) * 8, 1.1, Math.min(1, u * 8) * (1 - eIn(clamp((u - .9) / .1)))); }
+    tag('O2', 820, 300, { size: 64, fill: SKY, k: pop(t, 105.4, .5), isChem: true, padX: 34 });
+    // 숨 쉬는 아이
+    ctx.save(); ctx.translate(1560, 560);
+    paper(B.ellipse(0, -90, 150, 120), '#3B2F25', { lift: 1.2 }); paper(B.circle(0, 0, 140), '#F6C9A0', { lift: 1.5 });
+    circle(-48, -10, 13, INK); circle(48, -10, 13, INK); circle(-84, 30, 22, '#F19A8E', .7); circle(84, 30, 22, '#F19A8E', .7);
+    ctx.strokeStyle = INK; ctx.lineWidth = 7; ctx.lineCap = 'round'; ctx.beginPath(); ctx.arc(0, 26, 40, .2 * Math.PI, .8 * Math.PI); ctx.stroke();
+    ctx.restore();
+    tag('우리가 숨 쉬는 산소', 1500, 800, { size: 46, fill: WHITE, k: pop(t, 107.0, .6), rot: .02 });
+    ctx.restore();
+  }
+}
+function lerpColor(a, b, k) {
+  const pa = [1, 3, 5].map(i => parseInt(a.slice(i, i + 2), 16)), pb = [1, 3, 5].map(i => parseInt(b.slice(i, i + 2), 16));
+  return '#' + pa.map((v, i) => Math.round(lerp(v, pb[i], k)).toString(16).padStart(2, '0')).join('');
+}
+
+// 112–132 : 영향 요인
+function graph(x, y, w, h, fn, prog, o = {}) {
+  const { xl = '', yl = '', color = RED, alpha = 1 } = o;
+  ctx.save(); ctx.globalAlpha *= alpha;
+  paper(B.rrect(x, y, w, h, 30), WHITE, { lift: 1.4 });
+  const gx = x + 110, gy = y + h - 90, gw = w - 170, gh = h - 170;
+  ctx.strokeStyle = 'rgba(120,100,80,.18)'; ctx.lineWidth = 2; ctx.beginPath();
+  for (let i = 1; i <= 4; i++) { ctx.moveTo(gx, gy - gh * i / 4); ctx.lineTo(gx + gw, gy - gh * i / 4); ctx.moveTo(gx + gw * i / 4, gy); ctx.lineTo(gx + gw * i / 4, gy - gh); }
+  ctx.stroke();
+  ctx.strokeStyle = INK; ctx.lineWidth = 6; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(gx, gy - gh - 10); ctx.lineTo(gx, gy); ctx.lineTo(gx + gw + 10, gy); ctx.stroke();
+  label(xl, gx + gw / 2, gy + 56, { size: 36, shadow: false }); label(yl, x + 44, gy - gh / 2, { size: 36, rot: -Math.PI / 2, shadow: false });
+  const N = 60; ctx.save(); ctx.shadowColor = 'rgba(70,45,20,.3)'; ctx.shadowBlur = 6; ctx.shadowOffsetY = 3; ctx.strokeStyle = color; ctx.lineWidth = 12; ctx.lineJoin = 'round'; ctx.beginPath();
+  let tip = [gx, gy];
+  for (let i = 0; i <= N * prog; i++) { const u = i / N; tip = [gx + gw * u, gy - gh * .9 * fn(u)]; i ? ctx.lineTo(...tip) : ctx.moveTo(...tip); }
+  ctx.stroke(); ctx.restore();
+  if (prog > 0) circle(tip[0], tip[1], 16, color);
+  ctx.restore();
+  return { gx, gy, gw, gh };
+}
+const fLight = u => u < .7 ? 1 - Math.exp(-4.5 * u) : 1 - Math.exp(-4.5 * .7);
+const fTemp = u => u <= .6 ? Math.sin(u / .6 * Math.PI / 2) : Math.max(0, Math.cos((u - .6) / .4 * Math.PI / 2));
+function s6(t) {
+  paperBg('#EFE7D6');
+  const a = env(t, 112.5, 117.8, .4, .5);
+  if (a > 0) {
+    ctx.save(); ctx.globalAlpha *= a;
+    [['빛의 세기', 360, 112.8], ['이산화탄소 농도', 960, 113.6], ['온도', 1560, 114.4]].forEach(([s, x, at], i) => {
+      const k = pop(t, at, .6);
+      ctx.save(); ctx.translate(x, 500); ctx.scale(k, k); ctx.rotate((i - 1) * .025);
+      paper(B.rrect(-215, -250, 430, 500, 40), WHITE, { lift: 1.5 });
+      ctx.restore();
+      if (k > 0.05) {
+        ctx.save(); ctx.translate(x, 430); ctx.scale(k, k);
+        if (i === 0) sun(0, 0, 66, 1, ST);
+        if (i === 1) co2(0, 0, 2.4, 1);
+        if (i === 2) { paper(B.rrect(-26, -130, 52, 220, 26), '#EDEDED', { lift: .8, j: false }); paper(B.circle(0, 90, 48), RED, { lift: .8, j: false }); paper(B.rrect(-11, -60 + (Math.sin(ST * 2) * 10), 22, 150 - (Math.sin(ST * 2) * 10), 11), RED, { lift: 0, j: false }); }
+        ctx.restore();
+      }
+      label(s, x, 700, { size: 50, scale: k });
+    });
+    ctx.restore();
+  }
+  const b = env(t, 117.6, 124.8, .5, .5);
+  if (b > 0) {
+    const pr = eIO(p(t, 118.0, 4.6));
+    const G = graph(330, 190, 1260, 700, fLight, pr, { xl: '빛의 세기', yl: '광합성량', alpha: b });
+    if (t > 121.6) { ctx.save(); ctx.globalAlpha *= b; ctx.setLineDash([12, 12]); ctx.strokeStyle = INK; ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(G.gx + G.gw * .7, G.gy); ctx.lineTo(G.gx + G.gw * .7, G.gy - G.gh * .9 * fLight(.7)); ctx.stroke(); ctx.restore(); }
+    tag('더 늘지 않아요', 1240, 330, { size: 48, fill: SUN, k: pop(t, 122.2, .6) * b, rot: -.02 });
+  }
+  const c = env(t, 124.4, 132.4, .5, .5);
+  if (c > 0) {
+    const pr = eIO(p(t, 125.0, 3.6));
+    graph(120, 210, 830, 640, fLight, pr, { xl: '이산화탄소 농도', yl: '광합성량', alpha: c });
+    const G = graph(980, 210, 830, 640, fTemp, pr, { xl: '온도', yl: '광합성량', alpha: c, color: RED });
+    tag('알맞은 온도', G.gx + G.gw * .6, 320, { size: 44, fill: SUN, k: pop(t, 128.6, .6) * c, rot: -.02 });
+    tag('너무 낮아도', G.gx + G.gw * .14, 700, { size: 34, fill: '#D9D4CC', k: pop(t, 129.2, .5) * c, padX: 20, padY: 8 });
+    tag('너무 높아도', G.gx + G.gw * .9, 700, { size: 34, fill: '#D9D4CC', k: pop(t, 129.6, .5) * c, padX: 20, padY: 8 });
+  }
+}
+
+// 132–148 : 정리
+function s7(t) {
+  paperBg(SKY);
+  cloud(1450, 170, .8); cloud(560, 130, .6);
+  sun(320, 260, 80, 1, ST);
+  hill(640, 1170, 1100, 400, GREEN_L, 5, 1.5); hill(1500, 1190, 900, 360, GREEN, 8, 1.5);
+  plant(960, 880, 470, 1, ST, LEAVES);
+  const ins = [['빛', SUN, 133.4, 430], ['물', WATER, 134.2, 550], ['이산화탄소', '#D9D4CC', 135.0, 670]];
+  ins.forEach(([s, f, at, y]) => {
+    tag(s, 300, y, { size: 46, fill: f, color: f === WATER ? '#fff' : INK, k: pop(t, at, .5) });
+    arrowP(470, y, 700, y + (500 - y) * .2, 30, SUN_D, eOut(p(t, at + .2, .5)));
+  });
+  [['포도당', PINK, 136.0, 470], ['산소', SKY, 136.6, 610]].forEach(([s, f, at, y]) => {
+    arrowP(1230, y - (y - 560) * .2, 1440, y, 30, GREEN_D, eOut(p(t, at, .5)));
+    tag(s, 1620, y, { size: 46, fill: f, k: pop(t, at + .2, .5) });
+  });
+  tag('식물은 빛, 물, 이산화탄소로 포도당과 산소를 만들어요', 1130, 160, { size: 44, fill: WHITE, k: pop(t, 132.8, .6), rot: -.01, padX: 36 });
+  const bo = eOut(p(t, 138.8, .5));
+  if (bo > 0) {
+    for (let i = 0; i < 6; i++) { const u = ((t - 139.5) * .18 + i / 6) % 1; o2(lerp(880, 1100, (i % 3) / 2) + Math.sin(ST * 3 + i) * 20, lerp(440, 270, u), 1, bo * Math.min(1, u * 6) * (1 - eIn(clamp((u - .8) / .2)))); }
+    tag('광합성 덕분에 식물도 자라고, 우리도 숨 쉴 수 있어요!', 960, 960, { size: 52, fill: SUN, k: pop(t, 138.8, .7), rot: .01, padX: 44 });
+  }
+  tag('재능교육', 1720, 1010, { size: 30, fill: RED, color: '#fff', k: pop(t, 141, .5), padX: 22, padY: 8 });
+  const f = p(t, 147, 1); if (f > 0) { ctx.fillStyle = `rgba(0,0,0,${eIO(f)})`; ctx.fillRect(0, 0, W, H); }
+}
+
+// ---------- 공통 UI ----------
+const SECTIONS = [[7.5, 22, '궁금해요'], [22, 48, '광합성의 재료'], [48, 68, '광합성이 일어나는 곳'], [68, 92, '광합성 식'], [92, 112, '광합성의 결과'], [112, 132, '광합성에 영향을 주는 요인']];
+function header(t) {
+  const s = SECTIONS.find(s => t >= s[0] && t < s[1]); if (!s) return;
+  const k = pop(t, s[0] + .1, .5), w = measure(s[2], 46) + 140;
+  ctx.save(); ctx.translate(60, 80); ctx.scale(k, k); ctx.rotate(-.012);
+  paper(B.rrect(0, -46, w, 92, 22), WHITE, { lift: 1.2 }); paper(B.rrect(20, -18, 36, 36, 6), RED, { lift: 0, j: false });
+  label(s[2], 80, 3, { size: 46, align: 'left', shadow: false });
+  ctx.restore();
+}
+function subtitle(t) {
+  const s = SUBS.find(s => t >= s[0] && t < s[1]); if (!s) return;
+  const a = env(t, s[0], s[1], .25, .25), w = measure(s[2], 46) + 110;
+  ctx.save(); ctx.globalAlpha *= a; paper(B.rrect(W / 2 - w / 2, 950, w, 92, 26), WHITE, { lift: 1.2, j: false });
+  label(s[2], W / 2, 998, { size: 46, shadow: false }); ctx.restore();
+}
+const TRANS = [[7, '궁금해요', KRAFT], [22, '재료', GREEN_L], [48, '엽록체', PINK], [68, '광합성 식', SKY_D], [92, '결과', SUN], [112, '영향', GREEN], [132, '정리', KRAFT]];
+function transition(t) {
+  TRANS.forEach(([T, name, col], i) => {
+    if (t < T - .5 || t > T + .5) return;
+    const Ws = W + 500; const L = t < T ? lerp(W, -500, eIO(p(t, T - .5, .5))) : lerp(-500, -Ws - 120, eIO(p(t, T, .5)));
+    paper(() => { ctx.beginPath(); ctx.moveTo(L, -30); for (let y = -30; y <= H + 30; y += 50) ctx.lineTo(L + Math.sin(y * .07 + i) * 16, y); ctx.lineTo(L + Ws, H + 30); ctx.lineTo(L + Ws, -30); ctx.closePath(); }, col, { lift: 3, j: false });
+    label(name, L + Ws / 2, H / 2, { size: 190, color: INK, alpha: .9 });
+  });
+}
+
+function draw(realT) {
+  let t = r2v(realT); t = Math.floor(t * 15 + 1e-4) / 15;     // 15fps 스톱모션
+  ST = t; STEP = Math.floor(t * 6); PID = 0;
+  ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalAlpha = 1; ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0; ctx.setLineDash([]);
+  if (t < 7) sTitle(t); else if (t < 22) s1(t); else if (t < 48) s2(t); else if (t < 68) s3(t); else if (t < 92) s4(t); else if (t < 112) s5(t); else if (t < 132) s6(t); else s7(t);
+  header(t); subtitle(t); transition(t);
+  if (t < 7 && t > 0) { /* 타이틀 자막은 위 subtitle 에서 처리 */ }
+}
+
+// ---------- preview player ----------
+const seekEl = document.getElementById('seek'), timeEl = document.getElementById('time'), playEl = document.getElementById('play');
+seekEl.max = DURATION;
+let playing = false, t0 = 0, tCur = 0;
+const audio = new Audio('audio/mix.wav'); audio.preload = 'auto';
+function show(t) { tCur = t; draw(t); seekEl.value = t; timeEl.textContent = t.toFixed(2) + 's'; }
+function loop(now) {
+  if (!playing) return;
+  const t = (now - t0) / 1000;
+  if (t >= DURATION) { playing = false; playEl.textContent = '▶ 재생'; audio.pause(); show(DURATION); return; }
+  show(t); requestAnimationFrame(loop);
+}
+playEl.onclick = () => {
+  playing = !playing; playEl.textContent = playing ? '❚❚ 정지' : '▶ 재생';
+  if (playing) { if (tCur >= DURATION) tCur = 0; t0 = performance.now() - tCur * 1000; try { audio.currentTime = tCur; audio.play().catch(() => {}); } catch (e) {} requestAnimationFrame(loop); }
+  else audio.pause();
+};
+seekEl.oninput = () => { show(+seekEl.value); if (playing) { t0 = performance.now() - tCur * 1000; try { audio.currentTime = tCur; } catch (e) {} } };
+
+window.draw = draw;
+window.DURATION = DURATION;
+window.ready = Promise.all([
+  document.fonts.load(`100px 'Jua'`, '가'), document.fonts.load(`400 100px 'Noto Sans KR'`, '→'),
+]).then(r => {
+  if (r.some(fs => !fs.length)) throw new Error('폰트를 불러오지 못했습니다 (fonts/ 폴더 확인)');
+}).then(() => document.fonts.ready).then(() => { if (location.search.includes('render')) document.body.classList.add('render'); show(0); return true; });
+</script>
+</body>
+</html>
