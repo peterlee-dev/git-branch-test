@@ -28,8 +28,18 @@
 | 내레이션 문장, 자막 | `tools/make_audio.py`의 `NARRATION` (읽을 문장과 자막을 한 줄에 함께 적음) |
 | 목소리, 속도, 문장 사이 쉼 | 같은 파일의 `VOICE_SID`, `BASE_SPEED`, `PAUSE` |
 | 효과음 | 같은 파일의 `sfx_events()` |
-| 색, 그림, 장면 | `index.html` 위쪽의 색 상수와 `sTitle` ~ `s7` 함수 |
+| 화면 글자, 자막 문구, 색 | `content.js` (또는 영상 편집기 `../video-editor.html`) |
+| 그림, 장면 | `index.html`의 `sTitle` ~ `s7` 함수 |
 | 스톱모션 프레임 수 | `index.html`의 `draw()` 안 `t * 15` |
+
+## 영상 편집기로 고치기
+
+`../video-editor.html`에서 이 영상을 고를 수 있어요 (규칙: `../editor/PROTOCOL.md`). 칸 설명은 `schema.js`, 기본값은 `content.js`예요.
+
+- 고칠 수 있는 것: 내레이션 자막 문구, 타이틀·이름표·그래프 글자, 여러 장면에 함께 쓰는 낱말(빛, 물, 포도당 등), 장면 제목, 장면 전환 종이 글자, 바탕·종이·식물·분자 색
+- 고칠 수 없는 것: 장면 순서와 길이, 움직임, 내레이션·효과음, 자막이 나오는 시각
+- 자막 문구를 바꿔도 내레이션 음성은 그대로예요. 목소리까지 바꾸려면 `tools/make_audio.py`의 `NARRATION`을 고쳐 소리를 다시 만드세요
+- 편집기에서 저장한 작업 파일은 `node render.mjs --project 작업파일.json`으로 렌더링해요
 
 `timeline.js`(자막과 시간 늘리기 정보)는 `tools/make_audio.py`가 만드는 파일이니 직접 고치지 마세요.
 
