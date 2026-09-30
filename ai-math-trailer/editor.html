@@ -236,7 +236,7 @@ function show(t) {
 function seek(t) { show(t); if (playing) { t0 = performance.now() - tCur * 1000; try { audio.currentTime = tCur; } catch (e) {} } }
 
 // ---------- 소리 (미리보기) ----------
-const AUDIO_SRCS = ['audio/mix.m4a', 'audio/mix.wav'];
+const AUDIO_SRCS = ['audio/mix.wav', 'audio/mix.mp3'];   // 저장소: make_audio.py 가 만든 wav, 게시본: mp3
 const audio = new Audio(); let audioIdx = 0; audio.preload = 'auto';
 audio.onerror = () => { if (++audioIdx < AUDIO_SRCS.length) audio.src = AUDIO_SRCS[audioIdx]; };
 audio.src = AUDIO_SRCS[0];
