@@ -31,6 +31,7 @@ async function openVideo(id) {
   const token = ++loadToken;
   setPlaying(false); setControls(false); busy('영상을 불러오는 중…');
   V = null; win = null; S = null; videoId = id; sel = null;
+  $('video').value = id;
   try { localStorage.setItem('jei-editor-last', id); } catch (e) {}
   try { history.replaceState(null, '', '#' + id); } catch (e) {}
   $('tabs').innerHTML = ''; $('panes').innerHTML = ''; $('tlNote').textContent = '';
