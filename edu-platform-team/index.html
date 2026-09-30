@@ -20,6 +20,8 @@
 </head>
 <body>
 <script src="song.js"></script>
+<script src="content.js"></script>
+<script src="schema.js"></script>
 <canvas id="c" width="1920" height="1080"></canvas>
 <div class="bar">
   <button id="play">▶ 재생</button>
@@ -38,7 +40,13 @@ const SONG = window.SONG || { beat: BEAT, start: 0 };
 const TK = SONG.beat / BEAT;                         // 격자 1초 → 실제 몇 초
 const DURATION = GRID_DURATION * TK;
 const cv = document.getElementById('c'), ctx = cv.getContext('2d');
-const P = { red: '#E60012', yellow: '#FFC93C', blue: '#3D7CFF', mint: '#22CFA0', pink: '#FF7AB6', cream: '#FFF6EC', ink: '#17151F', white: '#FFFFFF', purple: '#8B5CFF' };
+// 문구·색은 content.js (영상 편집기가 VIDEO.apply() 로 바꿈). 박자·장면 시각은 곡에 묶여 있어서 이 파일에 그대로 둠
+const DEFAULT_CONTENT = JSON.parse(JSON.stringify(window.CONTENT));   // 편집 전 기본값
+let C = window.CONTENT;                                               // 지금 쓰는 문구·색
+function rgba(hex, a) { const n = parseInt(hex.slice(1), 16); return `rgba(${n >> 16 & 255},${n >> 8 & 255},${n & 255},${a})`; }
+let P;                                                                // 팔레트 (C.colors)
+function readColors() { P = { ...C.colors }; }
+readColors();
 const DISP = "'Black Han Sans', 'Noto Sans KR', sans-serif", KR = "'Noto Sans KR', sans-serif", EN = "'Inter', sans-serif", MONO = "'JetBrains Mono', monospace";
 
 // ---------- easing ----------
@@ -169,25 +177,25 @@ function s1(t) {
   confettiField(t, 3, [P.yellow, P.white, P.pink, P.blue], 22, eOut(p(t, .2, .6)));
   // 큰 원들이 박자마다 튐
   [[260, 220, 120, P.yellow], [1700, 860, 160, P.blue], [1640, 200, 70, P.white], [300, 900, 90, P.pink]].forEach(([x, y, r, c], i) => circle(x, y, r * pop(t, i * .25, .4), c, .95));
-  sticker('Hello, World!', 960, 300, t, .3, { size: 40, fill: P.white, color: P.red, family: MONO, rot: -.08 });
-  bouncy('우리는', 960, 470, t, .5, { size: 120, color: P.white, shadow: 'rgba(0,0,0,.18)' });
-  bouncy('교육플랫폼팀!', 960, 660, t, 1.25, { size: 210, color: P.yellow, stroke: P.ink, lw: 14, shadow: 'rgba(0,0,0,.25)', stagger: .07 });
+  sticker(C.intro.hello, 960, 300, t, .3, { size: 40, fill: P.white, color: P.red, family: MONO, rot: -.08 });
+  bouncy(C.intro.we, 960, 470, t, .5, { size: 120, color: P.white, shadow: 'rgba(0,0,0,.18)' });
+  bouncy(C.intro.team, 960, 660, t, 1.25, { size: 210, color: P.yellow, stroke: P.ink, lw: 14, shadow: 'rgba(0,0,0,.25)', stagger: .07 });
   squiggle(620, 830, 680, P.white, t, eOut(p(t, 2.0, .4)));
   burst(t, 2.0, 960, 640, 11, [P.yellow, P.white, P.blue, P.pink, P.mint]);
   wipe(t, 3.55, 960, 540, P.cream);
 }
 // 4–8 : 상상하면, 만든다! + 튀는 공이 지나가는 파이프라인
-const NODES = [['연구원', P.pink], ['저작도구', P.red], ['콘텐츠', P.blue], ['교육 서비스', P.mint]];
 function s2(t) {
   bg(P.cream);
   confettiField(t, 8, [P.yellow, P.pink, P.blue, P.mint], 14, .9);
   const o = outK(t, 7.8);
-  const w1 = measure('상상하면, ', 120);
-  bouncy('상상하면,', 200, 200, t, 4.1, { size: 120, color: P.ink, align: 'left', end: 7.9 });
-  bouncy('만든다!', 200 + w1, 200, t, 4.5, { size: 120, color: P.red, align: 'left', end: 7.9 });
+  const NODES = C.pipeline.nodes.slice(0, 4).map((s, i) => [s, [P.pink, P.red, P.blue, P.mint][i]]);
+  const w1 = measure(C.pipeline.title1 + ' ', 120);
+  bouncy(C.pipeline.title1, 200, 200, t, 4.1, { size: 120, color: P.ink, align: 'left', end: 7.9 });
+  bouncy(C.pipeline.title2, 200 + w1, 200, t, 4.5, { size: 120, color: P.red, align: 'left', end: 7.9 });
   const y = 640, x0 = 330, gap = 420;
   // 점선 길
-  ctx.save(); ctx.globalAlpha = o; ctx.setLineDash([2, 26]); ctx.lineCap = 'round'; ctx.lineWidth = 12; ctx.strokeStyle = 'rgba(23,21,31,.25)';
+  ctx.save(); ctx.globalAlpha = o; ctx.setLineDash([2, 26]); ctx.lineCap = 'round'; ctx.lineWidth = 12; ctx.strokeStyle = rgba(P.ink, .25);
   ctx.beginPath(); ctx.moveTo(x0, y); ctx.lineTo(x0 + gap * 3, y); ctx.stroke(); ctx.restore();
   NODES.forEach(([s, c], i) => {
     const x = x0 + i * gap, k = pop(t, 4.5 + i * .25, .4) * o;
@@ -208,23 +216,23 @@ function s2(t) {
     const sq = f < .12 ? (1 - f / .12) * .35 : 0;
     ctx.save(); ctx.globalAlpha = o; ctx.translate(x, yy); ctx.scale(1 + sq, 1 - sq); circle(0, 0, 38, P.yellow); circle(-12, -12, 10, 'rgba(255,255,255,.7)'); ctx.restore();
   }
-  sticker('우리가 만드는 것!', x0 + gap, y - 190, t, 6.2, { size: 34, fill: P.yellow, rot: .08, end: 7.9 });
-  sticker('콘텐츠 양산 파이프라인', 960, 900, t, 6.6, { size: 44, fill: P.ink, color: P.white, rot: -.02, end: 7.9 });
+  sticker(C.pipeline.tag, x0 + gap, y - 190, t, 6.2, { size: 34, fill: P.yellow, rot: .08, end: 7.9 });
+  sticker(C.pipeline.caption, 960, 900, t, 6.6, { size: 44, fill: P.ink, color: P.white, rot: -.02, end: 7.9 });
   wipe(t, 7.55, 960, 640, P.yellow);
 }
 // 8–12 : 저작도구 — 블록이 통통 떨어져 문항 완성, 발행 도장 쾅!
 function s3(t) {
   bg(P.yellow);
   confettiField(t, 12, [P.white, P.red, P.blue], 12, .8);
-  bouncy('연구원을 위한 저작도구', 960, 150, t, 8.1, { size: 96, color: P.ink, end: 11.9, stagger: .035 });
+  bouncy(C.authoring.title, 960, 150, t, 8.1, { size: 96, color: P.ink, end: 11.9, stagger: .035 });
   const o = outK(t, 11.9), k = pop(t, 8.3, .6) * o;
   const wx = 960, wy = 600, ww = 1180, wh = 640;
   ctx.save(); ctx.translate(wx, wy); ctx.rotate(-.025 + Math.sin(t * 2) * .006); ctx.scale(k, k);
   rrect(-ww / 2 + 16, -wh / 2 + 20, ww, wh, 34, 'rgba(0,0,0,.2)');
   rrect(-ww / 2, -wh / 2, ww, wh, 34, P.white, 1, P.ink, 8);
   rrect(-ww / 2, -wh / 2, ww, 70, 34, P.ink); [P.red, P.yellow, P.mint].forEach((c, i) => circle(-ww / 2 + 44 + i * 34, -wh / 2 + 35, 11, c));
-  text('수학 1-2 · 문항 만들기', 0, -wh / 2 + 36, { size: 26, color: P.white, family: KR, weight: 700 });
-  const blocks = [[9.0, '문제', '18 + 25 = ?', P.blue], [9.5, '보기', '① 33   ② 43   ③ 53', P.pink], [10.0, '정답', '② 43', P.mint], [10.5, '해설', '8 + 5 = 13, 받아올림 1!', P.purple]];
+  text(C.authoring.window, 0, -wh / 2 + 36, { size: 26, color: P.white, family: KR, weight: 700 });
+  const B = C.authoring.blocks, blocks = [[9.0, B[0].label, B[0].body, P.blue], [9.5, B[1].label, B[1].body, P.pink], [10.0, B[2].label, B[2].body, P.mint], [10.5, B[3].label, B[3].body, P.purple]];
   blocks.forEach(([s0, lbl, body, c], i) => {
     const s = Q(s0); mark('block', s, i);                       // s = 바닥에 닿는 박자 순간
     const fall = p(t, s - .25, .25); if (fall <= 0) return;
@@ -234,7 +242,7 @@ function s3(t) {
     ctx.save(); ctx.translate(0, y + 48); ctx.scale(1 + sq, 1 - sq); ctx.translate(0, -(y + 48));
     rrect(x, y, ww - 100, 96, 24, c, 1, P.ink, 5);
     rrect(x + 20, y + 22, 110, 52, 26, P.white); text(lbl, x + 75, y + 49, { size: 28, color: c });
-    text(body, x + 170, y + 50, { size: lbl === '문제' ? 50 : 34, color: P.white, align: 'left', family: lbl === '해설' ? DISP : DISP });
+    text(body, x + 170, y + 50, { size: i === 0 ? 50 : 34, color: P.white, align: 'left', family: DISP });
     ctx.restore();
   });
   // 발행 도장
@@ -242,7 +250,7 @@ function s3(t) {
   if (sk > 0) {
     const sc = lerp(2.4, 1, eOut(sk)), a = eOut(sk);
     ctx.save(); ctx.translate(ww / 2 - 170, wh / 2 - 90); ctx.rotate(-.18); ctx.scale(sc, sc); ctx.globalAlpha = a;
-    rrect(-130, -58, 260, 116, 22, null, 1, P.red, 10); text('발행!', 0, 4, { size: 70, color: P.red }); ctx.restore();
+    rrect(-130, -58, 260, 116, 22, null, 1, P.red, 10); text(C.authoring.stamp, 0, 4, { size: 70, color: P.red }); ctx.restore();
   }
   ctx.restore();
   // 커서가 블록을 톡톡
@@ -271,13 +279,13 @@ function s4(t) {
     ctx.save(); ctx.globalAlpha = o; ctx.translate(x + cw / 2, y + ch / 2); ctx.scale(k, k); ctx.rotate(Math.sin(i * 1.7) * .04);
     rrect(-cw / 2, -ch / 2, cw, ch, cw * .12, colors[i % 4], 1, P.ink, Math.max(2, cw * .025));
     rrect(-cw * .38, -ch * .26, cw * .45, ch * .12, ch * .06, P.ink);
-    rrect(-cw * .38, -ch * .02, cw * .7, ch * .09, ch * .05, 'rgba(23,21,31,.35)'); rrect(-cw * .38, ch * .16, cw * .5, ch * .09, ch * .05, 'rgba(23,21,31,.35)');
+    rrect(-cw * .38, -ch * .02, cw * .7, ch * .09, ch * .05, rgba(P.ink, .35)); rrect(-cw * .38, ch * .16, cw * .5, ch * .09, ch * .05, rgba(P.ink, .35));
     ctx.restore();
   }
   text(`×${n}`, 1700, 200, { size: 110 * (1 + (1 - eOut(since)) * .35), color: P.yellow, stroke: P.ink, lw: 10, alpha: o * eOut(p(t, 12.5, .2)), rot: .08 });
-  bouncy('하나를 만들면', 200, 170, t, 12.2, { size: 96, color: P.white, align: 'left', end: 15.9, stagger: .04 });
-  bouncy('모두에게!', 200 + measure('하나를 만들면 ', 96), 170, t, 12.8, { size: 96, color: P.yellow, align: 'left', end: 15.9, stroke: P.ink, lw: 8 });
-  sticker('빠르게 · 정확하게 · 많이!', 960, 990, t, 14.0, { size: 44, fill: P.white, color: P.blue, rot: .02, end: 15.9 });
+  bouncy(C.scale.title1, 200, 170, t, 12.2, { size: 96, color: P.white, align: 'left', end: 15.9, stagger: .04 });
+  bouncy(C.scale.title2, 200 + measure(C.scale.title1 + ' ', 96), 170, t, 12.8, { size: 96, color: P.yellow, align: 'left', end: 15.9, stroke: P.ink, lw: 8 });
+  sticker(C.scale.caption, 960, 990, t, 14.0, { size: 44, fill: P.white, color: P.blue, rot: .02, end: 15.9 });
   wipe(t, 15.55, 960, 540, P.mint);
 }
 // 16–20 : 웹도! 앱도! (브라우저·폰이 번갈아 통통)
@@ -296,9 +304,9 @@ function device(kind, x, y, s, t, hop) {
 }
 function screen(t, x, y, w, h) {
   const prog = clamp((t - 16.6) / 2.6);
-  text('오늘의 스스로학습', x + 10, y + 26, { size: Math.min(34, w / 9), color: P.red, align: 'left' });
+  text(C.multi.screenTitle, x + 10, y + 26, { size: Math.min(34, w / 9), color: P.red, align: 'left' });
   rrect(x + 10, y + 60, w - 20, 22, 11, '#EEE'); rrect(x + 10, y + 60, (w - 20) * prog, 22, 11, P.red);
-  const items = [['덧셈', P.blue], ['뺄셈', P.pink], ['수의 순서', P.mint]];
+  const items = C.multi.lessons.slice(0, 3).map((s, i) => [s, [P.blue, P.pink, P.mint][i]]);
   items.forEach(([s, c], i) => {
     const yy = y + 104 + i * Math.min(70, (h - 110) / 3); if (yy + 50 > y + h) return;
     const done = prog > (i + 1) / 3.3;
@@ -315,11 +323,11 @@ function s5(t) {
   const hopW = 0, hopA = 0;
   device('web', 700, 610, pop(t, 16.3, .5) * o, t, hopW);
   device('app', 1450, 600, pop(t, 16.7, .5) * o, t, hopA);
-  bouncy('웹도!', 480, 180, t, 16.3, { size: 130, color: P.white, stroke: P.ink, lw: 10, end: 19.9 });
-  bouncy('앱도!', 1450, 180, t, 16.8, { size: 130, color: P.yellow, stroke: P.ink, lw: 10, end: 19.9 });
+  bouncy(C.multi.web, 480, 180, t, 16.3, { size: 130, color: P.white, stroke: P.ink, lw: 10, end: 19.9 });
+  bouncy(C.multi.app, 1450, 180, t, 16.8, { size: 130, color: P.yellow, stroke: P.ink, lw: 10, end: 19.9 });
   // 하트처럼 오가는 동기화 점
   for (let j = 0; j < 4; j++) { const u = ((t - 17.2) * .8 + j / 4) % 1; if (t > 17.2) circle(lerp(1040, 1300, u), 620 - Math.sin(u * Math.PI) * 90, 14, P.red, o * Math.sin(u * Math.PI)); }
-  sticker('하나의 코드로 어디서나!', 960, 990, t, 18.2, { size: 44, fill: P.ink, color: P.white, rot: -.02, end: 19.9 });
+  sticker(C.multi.caption, 960, 990, t, 18.2, { size: 44, fill: P.ink, color: P.white, rot: -.02, end: 19.9 });
   wipe(t, 19.55, 1450, 600, P.ink);
 }
 // 20–25 : AI랑 같이, 더 빠르게!
@@ -329,8 +337,8 @@ function s6(t) {
   // 네온 느낌 반짝이
   const r = rng(31);
   for (let i = 0; i < 40; i++) { const x = r() * W, y = r() * H, c = [P.pink, P.blue, P.yellow, P.mint][i % 4]; star(x, y, 8 + r() * 14, c, i, .8 * o); }
-  bouncy('AI랑 같이,', 960, 170, t, 20.2, { size: 120, color: P.white, end: 24.9 });
-  bouncy('더 빠르게!', 960, 320, t, 20.7, { size: 140, color: P.pink, end: 24.9, stroke: P.white, lw: 6 });
+  bouncy(C.ai.title1, 960, 170, t, 20.2, { size: 120, color: P.white, end: 24.9 });
+  bouncy(C.ai.title2, 960, 320, t, 20.7, { size: 140, color: P.pink, end: 24.9, stroke: P.white, lw: 6 });
   // AI 캐릭터 (둥근 로봇 얼굴)
   const bk = pop(t, 21.0, .4) * o, bob = 0;
   ctx.save(); ctx.translate(1560, 640 + bob); ctx.scale(bk, bk);
@@ -345,13 +353,13 @@ function s6(t) {
   const bb = pop(t, 21.0, .45) * o;
   ctx.save(); ctx.translate(700, 520); ctx.scale(bb, bb);
   rrect(-520, -80, 1040, 160, 60, P.white, 1, P.ink, 6);
-  const prompt = '덧셈 문항 5개랑 해설 만들어 줘!';
+  const prompt = [...C.ai.prompt];                     // 한 글자씩 타이핑
   const n = Math.floor(clamp((t - 21.3) / 1.2) * prompt.length);
-  text(prompt.slice(0, n), -470, 4, { size: 52, color: P.ink, align: 'left' });
+  text(prompt.slice(0, n).join(''), -470, 4, { size: 52, color: P.ink, align: 'left' });
   ctx.beginPath(); ctx.moveTo(470, 60); ctx.lineTo(560, 110); ctx.lineTo(430, 76); ctx.fillStyle = P.white; ctx.fill();
   ctx.restore();
   // 결과 카드가 톡톡 튀어나옴
-  const cards = ['27 + 35', '48 + 16', '53 + 29', '66 + 18', '39 + 44'], cc = [P.yellow, P.pink, P.mint, P.blue, P.purple];
+  const cards = C.ai.cards.slice(0, 5), cc = [P.yellow, P.pink, P.mint, P.blue, P.purple];
   cards.forEach((s, i) => {
     const k = pop(t, 22.75 + i * .25, .35) * o; if (k <= 0) return;
     const x = 290 + i * 240, y = 780 + (i % 2 ? 30 : -10);
@@ -361,7 +369,7 @@ function s6(t) {
     ctx.restore();
   });
   burst(t, 22.75, 900, 780, 41, [P.yellow, P.pink, P.mint, P.blue, P.white], 36, 600);
-  sticker('사람의 아이디어 + AI의 속도', 960, 1000, t, 23.6, { size: 40, fill: P.yellow, rot: .02, end: 24.9 });
+  sticker(C.ai.caption, 960, 1000, t, 23.6, { size: 40, fill: P.yellow, rot: .02, end: 24.9 });
   wipe(t, 24.6, 1560, 640, P.red);
 }
 // 25–30 : 열정 ON! → 교육의 미래를, 코드로.
@@ -372,17 +380,17 @@ function s7(t) {
   mark('toggle', 25.5); const on = eElastic(p(t, 25.5, .6)), tk = pop(t, 25.0, .35);
   ctx.save(); ctx.translate(1010, 300); ctx.scale(tk, tk);
   rrect(-190 + 10, -80 + 12, 380, 160, 80, 'rgba(0,0,0,.2)');
-  rrect(-190, -80, 380, 160, 80, on > .5 ? P.yellow : '#B00010', 1, P.white, 8);
-  circle(lerp(-110, 110, on), 0, 62, P.white); text(on > .5 ? 'ON' : 'OFF', lerp(80, -80, on), 4, { size: 48, color: on > .5 ? P.ink : P.white, family: EN, weight: 900 });
+  rrect(-190, -80, 380, 160, 80, on > .5 ? P.yellow : P.toggleOff, 1, P.white, 8);
+  circle(lerp(-110, 110, on), 0, 62, P.white); text(on > .5 ? C.ending.on : C.ending.off, lerp(80, -80, on), 4, { size: 48, color: on > .5 ? P.ink : P.white, family: EN, weight: 900 });
   ctx.restore();
-  bouncy('열정', 500, 300, t, 25.3, { size: 130, color: P.white, stroke: P.ink, lw: 10 });
+  bouncy(C.ending.passion, 500, 300, t, 25.3, { size: 130, color: P.white, stroke: P.ink, lw: 10 });
   burst(t, 25.5, 1010, 300, 51, [P.yellow, P.white, P.pink, P.blue, P.mint], 60, 900);
-  bouncy('교육의 미래를,', 960, 560, t, 26.0, { size: 150, color: P.white, shadow: 'rgba(0,0,0,.2)', stagger: .05 });
-  bouncy('코드로.', 960, 740, t, 26.6, { size: 190, color: P.yellow, stroke: P.ink, lw: 14, shadow: 'rgba(0,0,0,.25)', stagger: .08 });
-  sticker('재능교육 교육플랫폼팀', 960, 925, t, 27.4, { size: 50, fill: P.white, color: P.red, rot: -.03 });
-  text('Frontend · Web & App · AI', 700, 1015, { size: 26, color: P.white, family: EN, weight: 700, alpha: eOut(p(t, 27.8, .4)) });
+  bouncy(C.ending.line1, 960, 560, t, 26.0, { size: 150, color: P.white, shadow: 'rgba(0,0,0,.2)', stagger: .05 });
+  bouncy(C.ending.line2, 960, 740, t, 26.6, { size: 190, color: P.yellow, stroke: P.ink, lw: 14, shadow: 'rgba(0,0,0,.25)', stagger: .08 });
+  sticker(C.ending.team, 960, 925, t, 27.4, { size: 50, fill: P.white, color: P.red, rot: -.03 });
+  text(C.ending.roles, 700, 1015, { size: 26, color: P.white, family: EN, weight: 700, alpha: eOut(p(t, 27.8, .4)) });
   burst(t, 29, 960, 700, 61, [P.yellow, P.white, P.pink, P.blue, P.mint], 70, 1000);
-  sticker("Let's build together!", 1480, 1010, t, 29.5, { size: 34, fill: P.ink, color: P.yellow, family: MONO, rot: .03 });
+  sticker(C.ending.cta, 1480, 1010, t, 29.5, { size: 34, fill: P.ink, color: P.yellow, family: MONO, rot: .03 });
   const f = p(t, 33.0, 1.0); if (f > 0) { ctx.fillStyle = `rgba(0,0,0,${eIO(f)})`; ctx.fillRect(-200, -200, W + 400, H + 400); }
 }
 
@@ -420,6 +428,15 @@ seekEl.oninput = () => { show(+seekEl.value); if (playing) { t0 = performance.no
 window.draw = draw;
 window.collectEvents = () => { EV.clear(); for (let f = 0; f <= DURATION * 30; f++) draw(f / 30); return [...EV.values()].map(e => ({ ...e, grid: e.t, t: +(e.t * TK).toFixed(4) })).sort((a, b) => a.t - b.t); };
 window.DURATION = DURATION;
+// ---------- 영상 편집기 연결 (../editor/PROTOCOL.md) ----------
+// 합치는 규칙: 객체는 키마다, 배열은 새 배열 길이를 따르되 같은 자리의 기본 항목과 합침, 빈 값은 기본값
+function merge(base, over) {
+  if (Array.isArray(base)) return Array.isArray(over) ? over.map((v, i) => base[i] !== undefined ? merge(base[i], v) : v) : base;
+  if (base && typeof base === 'object') { const o = {}; for (const k in base) o[k] = over && k in over ? merge(base[k], over[k]) : base[k]; return o; }
+  return over === undefined || over === null ? base : over;
+}
+function apply(content) { C = window.CONTENT = merge(DEFAULT_CONTENT, content); readColors(); }   // 미리 그린 캐시가 없어서 색만 다시 읽으면 됨
+window.VIDEO = { schema: window.SCHEMA, defaults: DEFAULT_CONTENT, get content() { return C; }, apply, canvas: cv };
 window.ready = Promise.all([document.fonts.load(`100px 'Black Han Sans'`, '가'), document.fonts.load(`700 100px 'Noto Sans KR'`, '가'), document.fonts.load(`800 100px 'Inter'`, 'A'), document.fonts.load(`500 100px 'JetBrains Mono'`, 'a')]).then(r => {
   if (r.some(fs => !fs.length)) throw new Error('폰트를 불러오지 못했습니다 (fonts/ 폴더 확인)');
 }).then(() => document.fonts.ready).then(() => { if (location.search.includes('render')) document.body.classList.add('render'); show(0); return true; });
