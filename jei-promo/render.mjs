@@ -1,8 +1,8 @@
-// 사용법: node render.mjs [--fps 30] [--out out/jei_promo.mp4] [--preview]
+// 사용법: node render.mjs [--fps 30] [--out out/jei_promo.mp4] [--preview] [--project 작업파일.json]
 // audio/song.mp3 (또는 .wav/.m4a) 가 있으면 자동으로 합성합니다.
 import { chromium } from 'playwright-core';
 import { spawn } from 'node:child_process';
-import { existsSync, mkdirSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync } from 'node:fs';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import path from 'node:path';
 
@@ -20,6 +20,8 @@ const browser = await chromium.launch({ executablePath: process.env.CHROMIUM || 
 const page = await browser.newPage({ viewport: { width: 1920, height: 1080 }, deviceScaleFactor: 1 });
 await page.goto(pathToFileURL(path.join(dir, 'index.html')).href + '?render');
 await page.evaluate(() => window.ready);
+const projectPath = arg('--project');                  // 영상 편집기에서 저장한 문구·색
+if (projectPath) await page.evaluate(p => window.VIDEO.apply(p.content), JSON.parse(readFileSync(path.resolve(projectPath), 'utf8')));
 const duration = await page.evaluate(() => window.DURATION);
 const frames = Math.round(duration * FPS);
 
