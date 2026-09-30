@@ -23,9 +23,9 @@
 
 ## 수정·렌더링
 
-- 걷는 속도·시선: `index.html`의 `WALK`, `camState()`
-- 하늘 색: 하늘 셰이더의 `zenith`, `mid`, `horizon`
-- 해 위치: `SUN_DIR`
+- 영상 편집기(`../video-editor.html`)에서 하늘·해·구름·안개 색, 햇빛·가로등·창문 불빛, 강물 색과 반짝임, 블룸·색조·비네트·필름 입자를 바꿀 수 있어요. 기본값은 `content.js`, 편집기 칸 설명은 `schema.js` (규칙: `../editor/PROTOCOL.md`)
+- 편집기에서 저장한 작업 파일은 `node render.mjs --project 작업.json` 으로 렌더링해요
+- 걷는 속도·흔들림·시선(`WALK`, `camState()`)과 해 위치(`SUN_DIR`)는 편집기에서 못 바꿔요. 발소리가 초당 1.85걸음에 맞춰 합성돼 있어서, 바꾸려면 `tools/make_audio.py`의 `STEPS_PER_SEC`도 함께 고쳐야 해요
 
 ```bash
 npm install && pip install numpy soundfile imageio-ffmpeg
