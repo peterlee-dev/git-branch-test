@@ -1,0 +1,32 @@
+# 재능스스로AI수학 12월 리뉴얼 예고편
+
+- 45초, 1920×1080(2.39:1 시네마스코프 레터박스), 30fps. 영화 예고편 스타일
+- 3D(별·별자리·떠 있는 앱 화면)는 [three.js](https://threejs.org) r159, 글자·렌즈 플레어·필름 입자는 2D로 얹음
+- 음악: 드론·피아노·별 종소리·브람(BRAAM)·타격·째깍·라이저·스팅을 `tools/make_audio.py`에서 합성 (외부 음원 없음)
+- 모든 시각은 `timeline.js` 한 곳에서 정해요. 화면과 음악이 같은 파일을 읽어서 컷과 타격이 맞아요
+
+| 시간 | 장면 |
+|---|---|
+| 0–4.5s | 암전. "재능교육이 선보이는" |
+| 4.5–11s | 하루의 학습을 마칠 때마다 별이 하나씩 켜짐 (1일째~7일째 학습 완료) — "하루의 학습이 / 하나의 별이 되고" |
+| 11–17s | 별이 이어져 북두칠성 완성 → **별자리 보상** 배지 — "쌓인 별은 / 나만의 별자리가 된다" |
+| 17–19s | 브람! 암전 — "그리고," |
+| 19–28s | 우주에 떠 있는 새 앱 화면 4장: 새로워진 홈 · AI 힌트 · 별자리 도감 · 나의 성장 |
+| 28–32.6s | 점점 빨라지는 몽타주 컷 + 째깍 소리 + 라이저, 그리고 정적 |
+| 33–40s | 타이틀 **재능스스로AI수학** · RENEWAL |
+| 40–45s | **2026. 12 리뉴얼 오픈** · 재능교육 |
+
+앱 화면은 리뉴얼 방향(별자리 보상, UI/UX 개선)을 표현한 가상 목업이에요. 실제 디자인 시안이 나오면 `index.html`의 `UI` 그리기 함수를 바꾸거나 이미지로 교체하면 돼요.
+
+## 수정·렌더링
+
+- 컷·타격 시각: `timeline.js`
+- 문구: `index.html`의 `card(...)`, `uiCopy`, 타이틀·개봉일 부분
+- 음악: `tools/make_audio.py`
+
+```bash
+npm install && pip install numpy soundfile imageio-ffmpeg
+python3 tools/make_audio.py          # audio/mix.wav
+export FFMPEG=$(python3 -c "import imageio_ffmpeg as i; print(i.get_ffmpeg_exe())")
+node render.mjs                      # out/ai_math_trailer.mp4
+```
