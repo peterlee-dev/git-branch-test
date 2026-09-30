@@ -24,7 +24,7 @@
 </div>
 <script>
 // ------------------------------------------------------------
-// 한강 다리 산책 — 해 질 녘 다리 인도를 걷는 1인칭 배경 영상 (15초, 사람 없음)
+// 한강 다리 산책 — 해 질 녘 다리 인도를 따라 옆으로 이동하는 배경 영상 (15초, 사람 없음)
 // 패럴랙스: 가까운 난간·가로등은 빠르게, 강 건너 빌딩·남산·산 능선은 천천히 지나감
 // 거리 단위는 미터. 한강 폭 약 1km, 다리 높이 약 12m 를 기준으로 배치
 // draw(t) 는 시간 t(초)만으로 화면을 그리는 순수 함수 → 프레임 단위 렌더 가능
@@ -44,7 +44,7 @@ renderer.outputColorSpace = THREE.SRGBColorSpace;
 const scene = new THREE.Scene();
 const FOG = new THREE.Color('#B98A9A');
 scene.fog = new THREE.FogExp2(FOG, .00055);
-const camera = new THREE.PerspectiveCamera(52, W / H, .1, 12000);
+const camera = new THREE.PerspectiveCamera(56, W / H, .1, 12000);
 
 const DECK = 12;                     // 다리 상판 높이 (수면 기준)
 const SUN_DIR = new THREE.Vector3(.72, .035, -.69).normalize();   // 오른쪽 앞 서쪽, 지평선 바로 위
@@ -230,10 +230,10 @@ const LEN = BR_Z0 - BR_Z1;
   M.walk = new THREE.MeshBasicMaterial({ map: tex, color: '#B8A8B0' });
 }
 const box = (w, h, d, mat, x, y, z) => { const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat); m.position.set(x, y, z); bridge.add(m); return m; };
-box(3.6, .15, LEN, M.walk, .2, DECK, (BR_Z0 + BR_Z1) / 2);                 // 인도
+box(3.6, .15, LEN, M.walk, .3, DECK, (BR_Z0 + BR_Z1) / 2);                 // 인도
 box(.35, .3, LEN, M.curb, -1.7, DECK + .08, (BR_Z0 + BR_Z1) / 2);          // 연석
 box(16, .1, LEN, M.road, -9.8, DECK - .05, (BR_Z0 + BR_Z1) / 2);           // 차도
-box(24, 2.4, LEN, M.deck, -6, DECK - 1.3, (BR_Z0 + BR_Z1) / 2);            // 상판 옆면
+box(20.3, 2.4, LEN, M.deck, -7.95, DECK - 1.3, (BR_Z0 + BR_Z1) / 2);        // 상판 (난간 바깥으로 튀어나오지 않게)
 // 차선
 for (let z = BR_Z0; z > BR_Z1; z -= 9) { box(.15, .02, 4, new THREE.MeshBasicMaterial({ color: '#CFC6B8' }), -6, DECK + .01, z); box(.15, .02, 4, new THREE.MeshBasicMaterial({ color: '#CFC6B8' }), -11, DECK + .01, z); }
 // 난간: 기둥(인스턴스) + 난간대
@@ -286,13 +286,13 @@ for (let i = 0; i < 7; i++) {
 }
 
 // ---------- 카메라 (걷기) ----------
-const WALK = 2.4;                     // m/s — 산책보다 살짝 빠르게, 패럴랙스를 살림
+const WALK = 2.6;                     // m/s — 산책보다 살짝 빠르게, 패럴랙스를 살림
 function camState(t) {
   const z = 10 - WALK * t - .15 * t * t * 0;
   const step = t * 1.85 * Math.PI * 2;                                  // 초당 약 1.85걸음
   const bob = Math.abs(Math.sin(step / 2)) * .045, sway = Math.sin(step / 2) * .025;
-  const yaw = lerp(38, 30, smooth(clamp(t / DURATION))) * Math.PI / 180 + Math.sin(t * .35) * .02;   // 오른쪽 강을 보며 조금씩 앞으로
-  const pitch = lerp(-.03, .015, smooth(clamp(t / DURATION)));
+  const yaw = lerp(90, 86, smooth(clamp(t / DURATION))) * Math.PI / 180 + Math.sin(t * .35) * .01;   // 옆면: 강을 정면으로 보며 옆으로 이동
+  const pitch = -.035;
   return { pos: new THREE.Vector3(-.2 + sway, DECK + 1.62 + bob, z), yaw, pitch, roll: Math.sin(step / 2) * .004 };
 }
 
