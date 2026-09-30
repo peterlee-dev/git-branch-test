@@ -1,0 +1,348 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>한강 다리 산책</title>
+<style>
+  html, body { margin: 0; background: #111; }
+  body { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 12px; font-family: sans-serif; color: #ddd; }
+  canvas#c { width: min(100%, 1280px); aspect-ratio: 16 / 9; display: block; background: #000; }
+  .bar { display: flex; gap: 12px; align-items: center; width: min(100%, 1280px); }
+  .bar input { flex: 1; }
+  body.render { padding: 0; gap: 0; }
+  body.render canvas#c { width: 1920px; height: 1080px; }
+  body.render .bar { display: none; }
+</style>
+</head>
+<body>
+<script src="vendor/three.min.js"></script>
+<canvas id="c" width="1920" height="1080"></canvas>
+<div class="bar">
+  <button id="play">▶ 재생</button>
+  <input id="seek" type="range" min="0" max="15" step="0.01" value="0">
+  <span id="time">0.00s</span>
+</div>
+<script>
+// ------------------------------------------------------------
+// 한강 다리 산책 — 해 질 녘 다리 인도를 걷는 1인칭 배경 영상 (15초, 사람 없음)
+// 패럴랙스: 가까운 난간·가로등은 빠르게, 강 건너 빌딩·남산·산 능선은 천천히 지나감
+// 거리 단위는 미터. 한강 폭 약 1km, 다리 높이 약 12m 를 기준으로 배치
+// draw(t) 는 시간 t(초)만으로 화면을 그리는 순수 함수 → 프레임 단위 렌더 가능
+// ------------------------------------------------------------
+const W = 1920, H = 1080, DURATION = 15;
+const out = document.getElementById('c'), ctx = out.getContext('2d');
+const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
+const lerp = (a, b, k) => a + (b - a) * k;
+const smooth = x => x * x * (3 - 2 * x);
+function rng(seed) { return () => (seed = (seed * 16807) % 2147483647) / 2147483647; }
+
+// ---------- 렌더러 ----------
+const glCanvas = document.createElement('canvas'); glCanvas.width = W; glCanvas.height = H;
+const renderer = new THREE.WebGLRenderer({ canvas: glCanvas, antialias: true, preserveDrawingBuffer: true });
+renderer.setPixelRatio(1); renderer.setSize(W, H, false);
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+const scene = new THREE.Scene();
+const FOG = new THREE.Color('#B98A9A');
+scene.fog = new THREE.FogExp2(FOG, .00055);
+const camera = new THREE.PerspectiveCamera(52, W / H, .1, 12000);
+
+const DECK = 12;                     // 다리 상판 높이 (수면 기준)
+const SUN_DIR = new THREE.Vector3(.72, .035, -.69).normalize();   // 오른쪽 앞 서쪽, 지평선 바로 위
+
+// ---------- 하늘 ----------
+const skyMat = new THREE.ShaderMaterial({
+  side: THREE.BackSide, depthWrite: false, fog: false,
+  uniforms: { uSun: { value: SUN_DIR }, uTime: { value: 0 } },
+  vertexShader: `varying vec3 vDir; void main() { vDir = normalize(position); gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
+  fragmentShader: `varying vec3 vDir; uniform vec3 uSun; uniform float uTime;
+    void main() {
+      float h = clamp(vDir.y, -0.2, 1.0);
+      vec3 zenith = vec3(0.10, 0.15, 0.34), mid = vec3(0.36, 0.34, 0.56), horizon = vec3(0.86, 0.56, 0.58);
+      vec3 col = mix(horizon, mid, smoothstep(0.0, 0.18, h));
+      col = mix(col, zenith, smoothstep(0.18, 0.75, h));
+      float s = max(dot(vDir, uSun), 0.0);
+      col += vec3(1.0, 0.55, 0.25) * pow(s, 8.0) * 0.55 * (1.0 - smoothstep(0.0, 0.35, h));
+      col += vec3(1.0, 0.78, 0.45) * pow(s, 90.0) * 0.9;
+      col += vec3(1.0, 0.92, 0.75) * smoothstep(0.9993, 0.9998, s);
+      // 옅은 구름 띠
+      float band = sin(vDir.x * 9.0 + vDir.z * 5.0) * sin(vDir.x * 23.0 - vDir.z * 17.0 + 1.3);
+      float cl = smoothstep(0.35, 0.9, band) * smoothstep(0.02, 0.1, h) * (1.0 - smoothstep(0.1, 0.32, h));
+      col = mix(col, vec3(0.95, 0.62, 0.55) * (0.6 + 0.5 * pow(s, 3.0)), cl * 0.35);
+      gl_FragColor = vec4(col, 1.0);
+    }`,
+});
+scene.add(new THREE.Mesh(new THREE.SphereGeometry(9000, 48, 24), skyMat));
+
+// ---------- 빛 번짐 텍스처 ----------
+function glowTex() {
+  const c = document.createElement('canvas'); c.width = c.height = 128; const g = c.getContext('2d');
+  const gr = g.createRadialGradient(64, 64, 0, 64, 64, 64);
+  gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(.15, 'rgba(255,255,255,.75)'); gr.addColorStop(.4, 'rgba(255,255,255,.18)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
+  g.fillStyle = gr; g.fillRect(0, 0, 128, 128); return new THREE.CanvasTexture(c);
+}
+const GLOW = glowTex();
+function glow(pos, color, size, opacity = 1, group = scene) {
+  const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: GLOW, color, transparent: true, opacity, blending: THREE.AdditiveBlending, depthWrite: false, fog: true }));
+  s.position.copy(pos); s.scale.set(size, size, 1); group.add(s); return s;
+}
+
+// ---------- 창문 텍스처 (빌딩) ----------
+function windowTex(seed, cols, rows, warm) {
+  const c = document.createElement('canvas'); c.width = cols * 8; c.height = rows * 8; const g = c.getContext('2d'), r = rng(seed);
+  g.fillStyle = '#1b1c2c'; g.fillRect(0, 0, c.width, c.height);
+  for (let y = 0; y < rows; y++) for (let x = 0; x < cols; x++) {
+    const on = r() < .38; if (!on) continue;
+    const k = r(); g.fillStyle = warm ? (k < .7 ? '#FFD08A' : '#FFF1D0') : (k < .5 ? '#DDE8FF' : '#FFD9A0');
+    g.globalAlpha = .45 + r() * .55; g.fillRect(x * 8 + 2, y * 8 + 2, 4, 5);
+  }
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.magFilter = THREE.NearestFilter; return t;
+}
+
+// 수면 위(원본)와 아래(반사) 두 벌을 만들기 위한 그룹
+const world = new THREE.Group(), mirror = new THREE.Group();
+scene.add(world, mirror);
+mirror.scale.y = -1;
+function addBoth(obj) { world.add(obj); const m = obj.clone(); mirror.add(m); return obj; }
+
+// ---------- 강 건너 스카이라인 ----------
+const rr = rng(1004);
+const texes = [0, 1, 2, 3, 4, 5].map(i => windowTex(100 + i, 16, 48, i % 2 === 0));
+for (let i = 0; i < 230; i++) {
+  const z = -2600 + rr() * 3300, x = 980 + rr() * 520 + (rr() < .3 ? 400 : 0);
+  const apt = rr() < .55;                                    // 판상형 아파트 / 타워
+  const w = apt ? 60 + rr() * 50 : 22 + rr() * 30, d = apt ? 14 + rr() * 6 : 22 + rr() * 26;
+  const h = apt ? 45 + rr() * 45 : 50 + Math.pow(rr(), 2) * 190;
+  const tex = texes[i % texes.length].clone(); tex.needsUpdate = true; tex.wrapS = tex.wrapT = THREE.RepeatWrapping; tex.repeat.set(w / 60, h / 180);
+  const mat = new THREE.MeshBasicMaterial({ map: tex, color: new THREE.Color().setHSL(.66, .15, .55 + rr() * .2) });
+  const mesh = new THREE.Mesh(new THREE.BoxGeometry(d, h, w), mat);
+  mesh.position.set(x, h / 2 + 2, z); mesh.rotation.y = (rr() - .5) * .25;
+  addBoth(mesh);
+}
+// 빌딩 꼭대기 항공등 (반사 포함)
+for (const o of [...world.children]) {
+  if (o.isMesh && o.geometry.parameters && o.geometry.parameters.height > 150) {
+    const p = o.position.clone(); p.y += o.geometry.parameters.height / 2 + 3;
+    world.add(glow(p, '#FF3B3B', 12, .85)); glow(p, '#FF3B3B', 12, .5, mirror);
+  }
+}
+// 강변 도로 불빛 (반대편 강변)
+for (let i = 0; i < 140; i++) {
+  const z = -2600 + i * 24, p = new THREE.Vector3(955, 5, z);
+  world.add(glow(p, i % 2 ? '#FFC870' : '#FFE2B0', 9, .7)); glow(p, '#FFC870', 9, .45, mirror);
+}
+// 산 능선 + 남산서울타워
+function ridge(dist, height, seed, color, opacity) {
+  const r = rng(seed), pts = [], N = 90, z0 = -4200, z1 = 2400;
+  for (let i = 0; i <= N; i++) {
+    const z = lerp(z0, z1, i / N);
+    const y = height * (.35 + .65 * Math.abs(Math.sin(i * .21 + seed) * .6 + Math.sin(i * .07 + seed * 2) * .4)) + r() * height * .08;
+    pts.push([z, y]);
+  }
+  const shape = new THREE.Shape(); shape.moveTo(z0, -5); pts.forEach(([z, y]) => shape.lineTo(z, y)); shape.lineTo(z1, -5); shape.lineTo(z0, -5);
+  const mesh = new THREE.Mesh(new THREE.ShapeGeometry(shape), new THREE.MeshBasicMaterial({ color, transparent: true, opacity, side: THREE.DoubleSide }));
+  mesh.rotation.y = Math.PI / 2; mesh.position.x = dist; addBoth(mesh); return mesh;
+}
+ridge(3600, 360, 3, new THREE.Color('#6D5F86'), .95);
+ridge(2500, 230, 7, new THREE.Color('#4A4368'), 1);
+// 남산 + 타워 (오른쪽 앞, 강 건너)
+{
+  const hill = new THREE.Mesh(new THREE.SphereGeometry(260, 32, 16, 0, Math.PI * 2, 0, Math.PI / 2), new THREE.MeshBasicMaterial({ color: '#3B3656' }));
+  hill.scale.set(1, .62, 1.3); hill.position.set(1900, 0, -1250); addBoth(hill);
+  const tMat = new THREE.MeshBasicMaterial({ color: '#E8E4F0' });
+  const shaft = new THREE.Mesh(new THREE.CylinderGeometry(4, 7, 150, 16), tMat); shaft.position.set(1900, 161 + 75, -1250); addBoth(shaft);
+  const deck = new THREE.Mesh(new THREE.CylinderGeometry(15, 12, 22, 20), new THREE.MeshBasicMaterial({ color: '#F3E9FF' })); deck.position.set(1900, 161 + 150, -1250); addBoth(deck);
+  const ant = new THREE.Mesh(new THREE.CylinderGeometry(1.2, 2.5, 90, 8), tMat); ant.position.set(1900, 161 + 206, -1250); addBoth(ant);
+  world.add(glow(new THREE.Vector3(1900, 161 + 150, -1250), '#C9A8FF', 120, .55)); glow(new THREE.Vector3(1900, 161 + 150, -1250), '#C9A8FF', 120, .35, mirror);
+  world.add(glow(new THREE.Vector3(1900, 161 + 252, -1250), '#FF5050', 18, .9));
+}
+// 멀리 보이는 다른 다리 (평행하게 강을 가로지름)
+function farBridge(z, lightColor) {
+  const deckM = new THREE.Mesh(new THREE.BoxGeometry(940, 6, 26), new THREE.MeshBasicMaterial({ color: '#2B2A44' }));
+  deckM.position.set(470, DECK, z); addBoth(deckM);
+  for (let i = 0; i < 9; i++) { const pier = new THREE.Mesh(new THREE.BoxGeometry(10, DECK, 16), new THREE.MeshBasicMaterial({ color: '#25243A' })); pier.position.set(40 + i * 110, DECK / 2, z); addBoth(pier); }
+  for (let i = 0; i < 48; i++) { const p = new THREE.Vector3(10 + i * 19.5, DECK + 9, z - 10); world.add(glow(p, lightColor, 14, .85)); glow(p, lightColor, 14, .55, mirror); }
+  for (let i = 0; i < 70; i++) { const p = new THREE.Vector3(10 + i * 13.4, DECK - 1.5, z + 13); world.add(glow(p, '#7FD6FF', 5, .5)); }
+}
+farBridge(-760, '#FFD08A');
+farBridge(-1900, '#FFE6B8');
+
+// 강 건너 강변 나무 띠 (중간 거리 층)
+{
+  const r = rng(77), n = 420;
+  const tree = new THREE.InstancedMesh(new THREE.SphereGeometry(1, 8, 6), new THREE.MeshBasicMaterial({ color: '#2E2A40' }), n);
+  const trM = new THREE.InstancedMesh(new THREE.SphereGeometry(1, 8, 6), new THREE.MeshBasicMaterial({ color: '#2E2A40' }), n);
+  const m4 = new THREE.Matrix4(), q = new THREE.Quaternion();
+  for (let i = 0; i < n; i++) {
+    const z = -2600 + i * 8 + r() * 6, x = 925 + r() * 22, s = 5 + r() * 5;
+    m4.compose(new THREE.Vector3(x, s * .9, z), q, new THREE.Vector3(s, s * 1.1, s)); tree.setMatrixAt(i, m4); trM.setMatrixAt(i, m4);
+  }
+  world.add(tree); mirror.add(trM);
+}
+// 유람선 (강 위 중간 거리에서 천천히 이동)
+const ferry = new THREE.Group(), ferryM = new THREE.Group(); world.add(ferry); mirror.add(ferryM);
+[ferry, ferryM].forEach((g, gi) => {
+  const hull = new THREE.Mesh(new THREE.BoxGeometry(9, 2.2, 38), new THREE.MeshBasicMaterial({ color: '#E9E3EE' })); hull.position.y = 1.1; g.add(hull);
+  const cab = new THREE.Mesh(new THREE.BoxGeometry(7, 2.6, 24), new THREE.MeshBasicMaterial({ color: '#3A3550' })); cab.position.y = 3.5; g.add(cab);
+  for (let i = 0; i < 10; i++) { const w = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 1.2), new THREE.MeshBasicMaterial({ color: '#FFD9A0', side: THREE.DoubleSide })); w.position.set(-3.55, 3.6, -10 + i * 2.3); w.rotation.y = Math.PI / 2; g.add(w); }
+  for (let i = 0; i < 14; i++) g.add(glow(new THREE.Vector3(-4.6, 5.2, -18 + i * 2.8), i % 3 ? '#FFE3B0' : '#9FD8FF', 2.2, gi ? .45 : .9, g));
+  g.add(glow(new THREE.Vector3(0, 4, 0), '#FFC98A', 30, gi ? .12 : .22, g));
+});
+
+// ---------- 수면 ----------
+const waterMat = new THREE.ShaderMaterial({
+  transparent: true, depthWrite: true, fog: true,
+  uniforms: THREE.UniformsUtils.merge([THREE.UniformsLib.fog, { uTime: { value: 0 }, uSun: { value: SUN_DIR }, uCam: { value: new THREE.Vector3() } }]),
+  vertexShader: `varying vec3 vW; #include <fog_pars_vertex>
+    void main() { vec4 w = modelMatrix * vec4(position, 1.0); vW = w.xyz; vec4 mvPosition = viewMatrix * w; gl_Position = projectionMatrix * mvPosition; #include <fog_vertex> }`.replace(/#include/g, '\n#include').replace(/(<[a-z_]+>)/g, '$1\n'),
+  fragmentShader: `varying vec3 vW; uniform float uTime; uniform vec3 uSun; uniform vec3 uCam; #include <fog_pars_fragment>
+    float n(vec2 p) { return sin(p.x) * sin(p.y); }
+    void main() {
+      vec2 p = vW.xz;
+      float r = n(p * vec2(.09, .35) + vec2(uTime * .6, uTime * .2)) * .5 + n(p * vec2(.23, .9) - vec2(uTime * .9, 0.)) * .3 + n(p * vec2(.6, 2.1) + uTime * 1.3) * .2;
+      vec3 V = normalize(vW - uCam);
+      vec3 N = normalize(vec3(r * .06, 1.0, r * .12));
+      vec3 R = reflect(V, N);
+      float s = max(dot(normalize(vec3(R.x, abs(R.y), R.z)), uSun), 0.0);
+      float fres = pow(1.0 - max(dot(-V, vec3(0., 1., 0.)), 0.0), 3.0);
+      vec3 deep = vec3(0.10, 0.11, 0.22), sky = vec3(0.62, 0.45, 0.56);
+      vec3 col = mix(deep, sky, fres * .8);
+      col += vec3(1.0, 0.62, 0.32) * pow(s, 60.0) * 1.2 + vec3(1.0, 0.7, 0.4) * pow(s, 8.0) * .18;
+      col += (r * .5 + .5) * .03;
+      float a = mix(.55, .9, fres);
+      gl_FragColor = vec4(col, a);
+      #include <fog_fragment>
+    }`.replace(/#include/g, '\n#include').replace(/(<[a-z_]+>)/g, '$1\n'),
+});
+const water = new THREE.Mesh(new THREE.PlaneGeometry(12000, 12000, 1, 1), waterMat);
+water.rotation.x = -Math.PI / 2; water.renderOrder = 2; scene.add(water);
+
+// ---------- 걷고 있는 다리 ----------
+const bridge = new THREE.Group(); scene.add(bridge);
+const BR_Z0 = 80, BR_Z1 = -700;
+const M = { deck: new THREE.MeshBasicMaterial({ color: '#4B4A5C' }), walk: new THREE.MeshBasicMaterial({ color: '#8A7E86' }), rail: new THREE.MeshBasicMaterial({ color: '#2A2A36' }), railTop: new THREE.MeshBasicMaterial({ color: '#B9AFBE' }), curb: new THREE.MeshBasicMaterial({ color: '#6C6573' }), road: new THREE.MeshBasicMaterial({ color: '#2E2D38' }), lampPole: new THREE.MeshBasicMaterial({ color: '#3A3946' }) };
+const LEN = BR_Z0 - BR_Z1;
+// 인도 바닥: 보도블록 줄눈 텍스처
+{
+  const c = document.createElement('canvas'); c.width = 256; c.height = 256; const g = c.getContext('2d');
+  g.fillStyle = '#8C8088'; g.fillRect(0, 0, 256, 256); const r = rng(9);
+  for (let y = 0; y < 8; y++) for (let x = 0; x < 4; x++) { g.fillStyle = `hsl(${320 + r() * 20},${8 + r() * 8}%,${48 + r() * 8}%)`; g.fillRect(x * 64 + (y % 2) * 32 + 2, y * 32 + 2, 60, 28); }
+  const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace; tex.wrapS = tex.wrapT = THREE.RepeatWrapping; tex.repeat.set(1.5, LEN / 2.5); tex.anisotropy = 8;
+  M.walk = new THREE.MeshBasicMaterial({ map: tex, color: '#B8A8B0' });
+}
+const box = (w, h, d, mat, x, y, z) => { const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat); m.position.set(x, y, z); bridge.add(m); return m; };
+box(3.6, .15, LEN, M.walk, .2, DECK, (BR_Z0 + BR_Z1) / 2);                 // 인도
+box(.35, .3, LEN, M.curb, -1.7, DECK + .08, (BR_Z0 + BR_Z1) / 2);          // 연석
+box(16, .1, LEN, M.road, -9.8, DECK - .05, (BR_Z0 + BR_Z1) / 2);           // 차도
+box(24, 2.4, LEN, M.deck, -6, DECK - 1.3, (BR_Z0 + BR_Z1) / 2);            // 상판 옆면
+// 차선
+for (let z = BR_Z0; z > BR_Z1; z -= 9) { box(.15, .02, 4, new THREE.MeshBasicMaterial({ color: '#CFC6B8' }), -6, DECK + .01, z); box(.15, .02, 4, new THREE.MeshBasicMaterial({ color: '#CFC6B8' }), -11, DECK + .01, z); }
+// 난간: 기둥(인스턴스) + 난간대
+const RX = 2.1;
+{
+  const n = Math.floor(LEN / 1.6);
+  const post = new THREE.InstancedMesh(new THREE.BoxGeometry(.07, 1.15, .07), M.rail, n), bar = new THREE.InstancedMesh(new THREE.BoxGeometry(.04, .9, .04), M.rail, n * 4);
+  const mtx = new THREE.Matrix4();
+  for (let i = 0; i < n; i++) {
+    const z = BR_Z0 - i * 1.6; mtx.makeTranslation(RX, DECK + .6, z); post.setMatrixAt(i, mtx);
+    for (let k = 1; k <= 4; k++) { mtx.makeTranslation(RX, DECK + .55, z - k * .32); bar.setMatrixAt(i * 4 + k - 1, mtx); }
+  }
+  bridge.add(post, bar);
+  box(.12, .08, LEN, M.railTop, RX, DECK + 1.2, (BR_Z0 + BR_Z1) / 2);
+  box(.05, .05, LEN, M.rail, RX, DECK + .12, (BR_Z0 + BR_Z1) / 2);
+}
+// 가로등 (인도 난간 쪽, 15m 간격)
+const lampGlows = [];
+for (let z = BR_Z0 - 6; z > BR_Z1; z -= 15) {
+  box(.16, 8.5, .16, M.lampPole, RX + .15, DECK + 4.25, z);
+  box(1.6, .1, .1, M.lampPole, RX - .6, DECK + 8.5, z);
+  box(.6, .14, .3, new THREE.MeshBasicMaterial({ color: '#FFE9C4' }), RX - 1.35, DECK + 8.4, z);
+  const p = new THREE.Vector3(RX - 1.35, DECK + 8.2, z);
+  lampGlows.push(glow(p, '#FFD9A0', 3.2, .95, bridge), glow(p, '#FFB870', 11, .35, bridge));
+  const refl = glow(new THREE.Vector3(RX + 1.5, -1.5, z), '#FFC27A', 7, .35); refl.scale.set(3.5, 22, 1);   // 수면에 비친 가로등 빛 기둥
+  const pool = new THREE.Mesh(new THREE.CircleGeometry(3.2, 24), new THREE.MeshBasicMaterial({ map: GLOW, color: '#FFD9A8', transparent: true, opacity: .28, blending: THREE.AdditiveBlending, depthWrite: false }));
+  pool.rotation.x = -Math.PI / 2; pool.position.set(RX - 1.3, DECK + .09, z); bridge.add(pool);    // 바닥에 떨어진 불빛
+}
+// 교각 (수면 위로 보이는 다리 기둥)
+for (let z = BR_Z0 - 20; z > BR_Z1; z -= 60) { box(3, DECK - 1.5, 7, M.deck, 1, (DECK - 1.5) / 2, z); }
+
+// ---------- 차 불빛 (왼쪽 차도, 오가는 차) ----------
+const cars = [];
+for (let i = 0; i < 14; i++) {
+  const lane = i % 2 === 0 ? -4 : -8.5, dir = lane > -6 ? -1 : 1;           // 가까운 차선은 앞으로, 먼 차선은 반대로
+  const g = new THREE.Group();
+  const color = dir < 0 ? '#FF3B3B' : '#FFF4D8';
+  g.add(glow(new THREE.Vector3(-.7, .7, 0), color, 1.4, .95, g)); g.add(glow(new THREE.Vector3(.7, .7, 0), color, 1.4, .95, g));
+  g.add(glow(new THREE.Vector3(0, .6, 0), color, 6, .25, g));
+  const body = new THREE.Mesh(new THREE.BoxGeometry(1.8, 1.3, 4.3), new THREE.MeshBasicMaterial({ color: '#15151E' })); body.position.y = .9; g.add(body);
+  g.position.set(lane, DECK, 0); bridge.add(g);
+  cars.push({ g, lane, dir, off: (i * 57.3) % 700, speed: 11 + (i * 3.7) % 7 });
+}
+
+// ---------- 새 (멀리 날아가는 작은 새 떼) ----------
+const birds = [];
+for (let i = 0; i < 7; i++) {
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(2.2, .5), new THREE.MeshBasicMaterial({ color: '#2A2338', side: THREE.DoubleSide, transparent: true, opacity: .85 }));
+  scene.add(m); birds.push({ m, dx: i * 7 + (i % 3) * 3, dy: (i % 4) * 3 - 4, ph: i * .7 });
+}
+
+// ---------- 카메라 (걷기) ----------
+const WALK = 2.4;                     // m/s — 산책보다 살짝 빠르게, 패럴랙스를 살림
+function camState(t) {
+  const z = 10 - WALK * t - .15 * t * t * 0;
+  const step = t * 1.85 * Math.PI * 2;                                  // 초당 약 1.85걸음
+  const bob = Math.abs(Math.sin(step / 2)) * .045, sway = Math.sin(step / 2) * .025;
+  const yaw = lerp(38, 30, smooth(clamp(t / DURATION))) * Math.PI / 180 + Math.sin(t * .35) * .02;   // 오른쪽 강을 보며 조금씩 앞으로
+  const pitch = lerp(-.03, .015, smooth(clamp(t / DURATION)));
+  return { pos: new THREE.Vector3(-.2 + sway, DECK + 1.62 + bob, z), yaw, pitch, roll: Math.sin(step / 2) * .004 };
+}
+
+function draw(t) {
+  const c = camState(t);
+  camera.position.copy(c.pos);
+  camera.rotation.order = 'YXZ'; camera.rotation.set(c.pitch, -c.yaw, c.roll);
+  waterMat.uniforms.uTime.value = t; waterMat.uniforms.uCam.value.copy(camera.position);
+  cars.forEach(k => {
+    const z = BR_Z0 - ((k.off + (k.dir < 0 ? 1 : -1) * k.speed * t) % LEN + LEN) % LEN;
+    k.g.position.z = z; k.g.rotation.y = k.dir < 0 ? 0 : Math.PI;
+  });
+  ferry.position.set(210, 0, -150 + t * 3.2); ferryM.position.copy(ferry.position);
+  birds.forEach((b, i) => {
+    const x = 380 + b.dx - t * 9, y = 120 + b.dy + Math.sin(t * 2 + b.ph) * 1.5, z = -320 + b.dx * .6 - t * 4;
+    b.m.position.set(x, y, z); b.m.lookAt(camera.position); b.m.scale.y = .5 + .5 * Math.abs(Math.sin(t * 7 + b.ph));
+  });
+  renderer.render(scene, camera);
+  ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalAlpha = 1;
+  ctx.drawImage(glCanvas, 0, 0, W, H);
+  // 필름 느낌: 비네트 + 옅은 입자 + 앞뒤 페이드
+  const g = ctx.createRadialGradient(W / 2, H * .45, H * .4, W / 2, H / 2, H * 1.05);
+  g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(10,5,20,.45)'); ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  const r = rng(1 + Math.floor(t * 30));
+  ctx.fillStyle = 'rgba(255,240,230,.035)'; for (let i = 0; i < 900; i++) ctx.fillRect(r() * W, r() * H, 1.5, 1.5);
+  const f = Math.max(1 - clamp(t / .8), clamp((t - (DURATION - .8)) / .8));
+  if (f > 0) { ctx.fillStyle = `rgba(0,0,0,${smooth(f)})`; ctx.fillRect(0, 0, W, H); }
+}
+
+// ---------- preview player ----------
+const seekEl = document.getElementById('seek'), timeEl = document.getElementById('time'), playEl = document.getElementById('play');
+let playing = false, t0 = 0, tCur = 0;
+const audio = new Audio('audio/mix.wav'); audio.preload = 'auto';
+function show(t) { tCur = t; draw(t); seekEl.value = t; timeEl.textContent = t.toFixed(2) + 's'; }
+function loop(now) {
+  if (!playing) return;
+  const t = (now - t0) / 1000;
+  if (t >= DURATION) { playing = false; playEl.textContent = '▶ 재생'; audio.pause(); show(DURATION); return; }
+  show(t); requestAnimationFrame(loop);
+}
+playEl.onclick = () => {
+  playing = !playing; playEl.textContent = playing ? '❚❚ 정지' : '▶ 재생';
+  if (playing) { if (tCur >= DURATION) tCur = 0; t0 = performance.now() - tCur * 1000; try { audio.currentTime = tCur; audio.play().catch(() => {}); } catch (e) {} requestAnimationFrame(loop); }
+  else audio.pause();
+};
+seekEl.oninput = () => { show(+seekEl.value); if (playing) { t0 = performance.now() - tCur * 1000; try { audio.currentTime = tCur; } catch (e) {} } };
+
+window.draw = draw;
+window.DURATION = DURATION;
+window.ready = Promise.resolve().then(() => { if (location.search.includes('render')) document.body.classList.add('render'); show(0); return true; });
+</script>
+</body>
+</html>
