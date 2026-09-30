@@ -4,9 +4,10 @@
 <meta charset="utf-8">
 <title>교육플랫폼팀 홍보 영상</title>
 <style>
+  @font-face { font-family: 'Black Han Sans'; src: url('fonts/BlackHanSans-Regular.ttf') format('truetype'); font-display: block; }
   @font-face { font-family: 'Noto Sans KR'; src: url('fonts/NotoSansKR.ttf') format('truetype'); font-weight: 100 900; font-display: block; }
-  @font-face { font-family: 'JetBrains Mono'; src: url('fonts/JetBrainsMono.ttf') format('truetype'); font-weight: 100 900; font-display: block; }
   @font-face { font-family: 'Inter'; src: url('fonts/Inter.ttf') format('truetype'); font-weight: 100 900; font-display: block; }
+  @font-face { font-family: 'JetBrains Mono'; src: url('fonts/JetBrainsMono.ttf') format('truetype'); font-weight: 100 900; font-display: block; }
   html, body { margin: 0; background: #111; }
   body { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 12px; font-family: 'Noto Sans KR', sans-serif; color: #ddd; }
   canvas { width: min(100%, 1280px); aspect-ratio: 16 / 9; display: block; background: #000; }
@@ -25,357 +26,354 @@
   <span id="time">0.00s</span>
 </div>
 <script>
-// 재능교육 교육플랫폼팀 30초 홍보 모션그래픽 — draw(t) 는 시간 t(초)만으로 화면을 그리는 순수 함수
-const W = 1920, H = 1080, DURATION = 30;
-const cv = document.getElementById('c');
-const ctx = cv.getContext('2d');
+// ------------------------------------------------------------
+// 재능교육 교육플랫폼팀 30초 홍보 — 통통 튀는 버전
+// 120BPM (한 박 0.5초). 장면 전환: 4 · 8 · 12 · 16 · 20 · 25초, 박자마다 튀고 흔들림
+// draw(t) 는 시간 t(초)만으로 화면을 그리는 순수 함수 → 프레임 단위 렌더 가능
+// ------------------------------------------------------------
+const W = 1920, H = 1080, DURATION = 30, BEAT = .5;
+const cv = document.getElementById('c'), ctx = cv.getContext('2d');
+const P = { red: '#E60012', yellow: '#FFC93C', blue: '#3D7CFF', mint: '#22CFA0', pink: '#FF7AB6', cream: '#FFF6EC', ink: '#17151F', white: '#FFFFFF', purple: '#8B5CFF' };
+const DISP = "'Black Han Sans', 'Noto Sans KR', sans-serif", KR = "'Noto Sans KR', sans-serif", EN = "'Inter', sans-serif", MONO = "'JetBrains Mono', monospace";
 
-const C = {
-  black: '#0B0B0B', char: '#141414', red: '#E60012', redDeep: '#B3000E',
-  white: '#FFFFFF', paper: '#F4F2EF', gray: '#8C8C8C', ink: '#1A1A1A',
-};
-const KR = "'Noto Sans KR', sans-serif";
-const EN = "'Inter', 'Noto Sans KR', sans-serif";
-
-// ---------- easing / timing helpers ----------
+// ---------- easing ----------
 const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
 const lerp = (a, b, k) => a + (b - a) * k;
-const p = (t, start, dur) => clamp((t - start) / dur);
+const p = (t, s, d) => clamp((t - s) / d);
 const eOut = x => 1 - Math.pow(1 - x, 3);
 const eIn = x => x * x * x;
 const eIO = x => x < .5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
-const eExpo = x => x >= 1 ? 1 : 1 - Math.pow(2, -10 * x);
-const eExpoIO = x => x <= 0 ? 0 : x >= 1 ? 1 : x < .5 ? Math.pow(2, 20 * x - 10) / 2 : (2 - Math.pow(2, -20 * x + 10)) / 2;
-const eBack = x => { const c1 = 1.70158, c3 = c1 + 1; return 1 + c3 * Math.pow(x - 1, 3) + c1 * Math.pow(x - 1, 2); };
-// in → hold → out envelope (0..1)
-const env = (t, s, e, fi = .5, fo = .5) => Math.min(eOut(p(t, s, fi)), 1 - eIn(p(t, e - fo, fo)));
-
-// ---------- drawing primitives ----------
-function bg(color) { ctx.fillStyle = color; ctx.fillRect(0, 0, W, H); }
-function circle(x, y, r, color, alpha = 1) {
-  if (r <= 0 || alpha <= 0) return;
-  ctx.save(); ctx.globalAlpha *= alpha; ctx.fillStyle = color;
-  ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill(); ctx.restore();
-}
-function ring(x, y, r, w, color, alpha = 1) {
-  if (r <= 0 || alpha <= 0) return;
-  ctx.save(); ctx.globalAlpha *= alpha; ctx.strokeStyle = color; ctx.lineWidth = w;
-  ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.stroke(); ctx.restore();
-}
-function rect(x, y, w, h, color, alpha = 1) {
-  if (alpha <= 0 || w <= 0 || h <= 0) return;
-  ctx.save(); ctx.globalAlpha *= alpha; ctx.fillStyle = color; ctx.fillRect(x, y, w, h); ctx.restore();
-}
-function line(x0, y0, x1, y1, k, color, w = 2, alpha = 1) {
-  if (k <= 0 || alpha <= 0) return;
-  ctx.save(); ctx.globalAlpha *= alpha; ctx.strokeStyle = color; ctx.lineWidth = w; ctx.lineCap = 'butt';
-  ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(lerp(x0, x1, k), lerp(y0, y1, k)); ctx.stroke(); ctx.restore();
-}
-function font(size, weight, family) { return `${weight} ${size}px ${family}`; }
-function text(str, x, y, { size = 80, color = C.black, weight = 900, family = KR, align = 'left', alpha = 1, base = 'middle', spacing = 0 } = {}) {
-  if (alpha <= 0) return;
-  ctx.save(); ctx.globalAlpha *= alpha;
-  ctx.font = font(size, weight, family); ctx.fillStyle = color; ctx.textAlign = align; ctx.textBaseline = base;
-  ctx.letterSpacing = spacing + 'px';
-  ctx.fillText(str, x, y); ctx.restore();
-}
-function measure(str, size, weight = 900, family = KR, spacing = 0) {
-  ctx.save(); ctx.font = font(size, weight, family); ctx.letterSpacing = spacing + 'px';
-  const w = ctx.measureText(str).width; ctx.restore(); return w;
-}
-// 마스크 리빌: 글자가 보이지 않는 선 아래에서 밀려 올라오고, end 시점에 위로 빠져나감
-function reveal(str, x, y, t, start, end, o = {}) {
-  const { size = 100, weight = 900, family = KR, align = 'left', dur = .8, outDur = .5, spacing = 0 } = o;
-  const kIn = eExpo(p(t, start, dur));
-  const kOut = end == null ? 0 : eIn(p(t, end - outDur, outDur));
-  if (kIn <= 0 || kOut >= 1) return;
-  const w = measure(str, size, weight, family, spacing);
-  const x0 = align === 'left' ? x : align === 'center' ? x - w / 2 : x - w;
-  ctx.save(); ctx.beginPath(); ctx.rect(x0 - 30, y - size * .78, w + 60, size * 1.56); ctx.clip();
-  text(str, x, y + (1 - kIn) * size * 1.4 - kOut * size * 1.4, { ...o, size, weight, family, align, spacing });
-  ctx.restore();
-}
-// 얇은 그리드 배경 (천천히 흐름)
-function grid(t, color, alpha) {
-  ctx.save(); ctx.globalAlpha = alpha; ctx.strokeStyle = color; ctx.lineWidth = 1;
-  const g = 160, off = (t * 8) % g;
-  ctx.beginPath();
-  for (let x = -g + off; x < W + g; x += g) { ctx.moveTo(x, 0); ctx.lineTo(x, H); }
-  for (let y = 60; y < H; y += g) { ctx.moveTo(0, y); ctx.lineTo(W, y); }
-  ctx.stroke(); ctx.restore();
-}
-// 패널 와이프: dir 'up' | 'left' | 'right', 앞에 얇은 액센트 띠가 먼저 지나감
-function panel(t, start, dur, color, dir = 'up', accent = null, exit = false) {
-  const k = exit ? eExpoIO(p(t, start, dur)) : eExpoIO(p(t, start, dur));
-  if (!exit && k <= 0) return;
-  if (exit && k >= 1) return;
-  const draw = (kk, col) => {
-    if (dir === 'up') exit ? rect(0, 0, W, H * (1 - kk), col) : rect(0, H * (1 - kk), W, H * kk, col);
-    else if (dir === 'left') exit ? rect(W * kk, 0, W * (1 - kk), H, col) : rect(0, 0, W * kk, H, col);
-    else exit ? rect(0, 0, W * (1 - kk), H, col) : rect(W * (1 - kk), 0, W * kk, H, col);
-  };
-  if (accent) draw(clamp(exit ? k : k * 1.12), accent);
-  draw(exit ? clamp(k * 1.12) : k, color);
-}
-function redMark(x, y, s, rot = 0, alpha = 1) {
-  if (s <= 0) return;
-  ctx.save(); ctx.globalAlpha *= alpha; ctx.translate(x, y); ctx.rotate(rot);
-  ctx.fillStyle = C.red; ctx.fillRect(-s / 2, -s / 2, s, s); ctx.restore();
-}
-
-// ============================================================
-// 교육플랫폼팀 30초 홍보 (120BPM, 장면 전환은 마디 단위: 4 · 8 · 12 · 16 · 20 · 25초)
-// ============================================================
-const MONO = "'JetBrains Mono', 'Noto Sans KR', monospace";
-const L = 160;
+const eBack = x => { const c1 = 2.4, c3 = c1 + 1; return x <= 0 ? 0 : 1 + c3 * Math.pow(x - 1, 3) + c1 * Math.pow(x - 1, 2); };
+const eElastic = x => x <= 0 ? 0 : x >= 1 ? 1 : Math.pow(2, -10 * x) * Math.sin((x * 10 - .75) * (2 * Math.PI) / 3) + 1;
+const eBounce = x => { const n = 7.5625, d = 2.75; if (x < 1 / d) return n * x * x; if (x < 2 / d) return n * (x -= 1.5 / d) * x + .75; if (x < 2.5 / d) return n * (x -= 2.25 / d) * x + .9375; return n * (x -= 2.625 / d) * x + .984375; };
+const pop = (t, s, d = .45) => eBack(p(t, s, d));
+const outK = (t, e, d = .3) => 1 - eIn(p(t, e - d, d));
 function rng(seed) { return () => (seed = (seed * 16807) % 2147483647) / 2147483647; }
-function rrect(x, y, w, h, r, fill, alpha = 1, stroke = null, lw = 2) {
-  if (alpha <= 0 || w <= 0 || h <= 0) return;
-  ctx.save(); ctx.globalAlpha *= alpha; ctx.beginPath(); ctx.roundRect(x, y, w, h, Math.min(r, w / 2, h / 2));
+// 박자 펄스 (박마다 0→1→0)
+const beatPulse = t => Math.pow(1 - ((t % BEAT) / BEAT), 4);
+
+// ---------- 그리기 도구 ----------
+function bg(c) { ctx.fillStyle = c; ctx.fillRect(-200, -200, W + 400, H + 400); }
+function circle(x, y, r, c, a = 1) { if (r <= 0 || a <= 0) return; ctx.save(); ctx.globalAlpha *= a; ctx.fillStyle = c; ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill(); ctx.restore(); }
+function rrect(x, y, w, h, r, fill, a = 1, stroke = null, lw = 4) {
+  if (a <= 0 || w <= 0 || h <= 0) return;
+  ctx.save(); ctx.globalAlpha *= a; ctx.beginPath(); ctx.roundRect(x, y, w, h, Math.min(r, w / 2, h / 2));
   if (fill) { ctx.fillStyle = fill; ctx.fill(); } if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = lw; ctx.stroke(); } ctx.restore();
 }
-// 코드 한 줄: [[문자열, 색], ...] 을 타자 치듯 n 글자까지만
-function codeLine(parts, x, y, n, size = 30, alpha = 1) {
-  ctx.save(); ctx.globalAlpha *= alpha; ctx.font = `500 ${size}px ${MONO}`; ctx.textBaseline = 'middle';
-  let cx = x, left = n;
-  for (const [s, col] of parts) { if (left <= 0) break; const piece = s.slice(0, left); ctx.fillStyle = col; ctx.fillText(piece, cx, y); cx += ctx.measureText(piece).width; left -= s.length; }
-  ctx.restore(); return cx;
+function text(str, x, y, { size = 60, color = P.ink, family = DISP, weight = 400, align = 'center', alpha = 1, rot = 0, sx = 1, sy = 1, stroke = null, lw = 0, shadow = null } = {}) {
+  if (alpha <= 0 || sx <= 0 || sy <= 0) return;
+  ctx.save(); ctx.globalAlpha *= alpha; ctx.translate(x, y); ctx.rotate(rot); ctx.scale(sx, sy);
+  ctx.font = `${weight} ${size}px ${family}`; ctx.textAlign = align; ctx.textBaseline = 'middle';
+  if (shadow) { ctx.fillStyle = shadow; ctx.fillText(str, 8, 10); }
+  if (stroke) { ctx.lineJoin = 'round'; ctx.strokeStyle = stroke; ctx.lineWidth = lw; ctx.strokeText(str, 0, 0); }
+  ctx.fillStyle = color; ctx.fillText(str, 0, 0); ctx.restore();
 }
-const K = { kw: '#FF5A64', str: '#E8E8E8', fn: '#FFFFFF', cm: '#6F6F78', pn: '#9A9AA5', nm: '#FF9AA0' };
-function glitch(t, s, d, amt = 1) {
-  const k = p(t, s, d); if (k <= 0 || k >= 1) return;
-  const r = rng(1 + Math.floor(t * 60));
-  for (let i = 0; i < 8; i++) { const y = r() * H, h = 4 + r() * 40, dx = (r() - .5) * 120 * amt * (1 - k); ctx.drawImage(cv, 0, y, W, h, dx, y, W, h); }
-  ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = `rgba(230,0,18,${.12 * (1 - k)})`; ctx.fillRect(0, 0, W, H); ctx.restore();
+function measure(str, size, family = DISP, weight = 400) { ctx.save(); ctx.font = `${weight} ${size}px ${family}`; const w = ctx.measureText(str).width; ctx.restore(); return w; }
+// 한 글자씩 튀어 오르며 찌그러졌다 펴지는 글자
+function bouncy(str, cx, cy, t, start, { size = 160, color = P.ink, stagger = .05, shadow = 'rgba(0,0,0,.18)', stroke = null, lw = 0, align = 'center', end = null, jiggle = true } = {}) {
+  const chars = [...str], ws = chars.map(c => measure(c, size)), total = ws.reduce((a, b) => a + b, 0);
+  let x = align === 'center' ? cx - total / 2 : cx;
+  const o = end == null ? 1 : outK(t, end, .25);
+  chars.forEach((ch, i) => {
+    const k = p(t, start + i * stagger, .55);
+    if (k <= 0) { x += ws[i]; return; }
+    const y = cy - (1 - eBounce(k)) * 260;
+    const land = p(t, start + i * stagger + .3, .25), sq = land > 0 && land < 1 ? Math.sin(land * Math.PI) * .22 : 0;
+    const wob = jiggle ? Math.sin(t * 6 + i) * .03 : 0;
+    const sc = o;
+    text(ch, x + ws[i] / 2, y + size * .5 * sq * .4, { size, color, sx: (1 + sq) * sc, sy: (1 - sq) * sc, rot: wob, shadow, stroke, lw, alpha: eOut(clamp(k * 3)) });
+    x += ws[i];
+  });
+  return total;
 }
-function cursor(x, y, t, k = 1) {
-  if (k <= 0) return; ctx.save(); ctx.globalAlpha = k; ctx.translate(x, y); ctx.fillStyle = C.white; ctx.strokeStyle = C.black; ctx.lineWidth = 2;
-  ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(0, 30); ctx.lineTo(8, 23); ctx.lineTo(14, 36); ctx.lineTo(19, 34); ctx.lineTo(13, 21); ctx.lineTo(23, 21); ctx.closePath(); ctx.fill(); ctx.stroke(); ctx.restore();
+// 스티커 (돌아간 둥근 사각형 + 흰 테두리 + 그림자)
+function sticker(str, x, y, t, s, { size = 44, fill = P.yellow, color = P.ink, rot = -.06, padX = 30, end = null, family = DISP } = {}) {
+  const k = pop(t, s, .45) * (end == null ? 1 : outK(t, end, .25)); if (k <= 0) return;
+  const w = measure(str, size, family) + padX * 2, h = size * 1.6;
+  ctx.save(); ctx.translate(x, y); ctx.rotate(rot + Math.sin(t * 5 + x) * .02); ctx.scale(k, k);
+  rrect(-w / 2 + 8, -h / 2 + 10, w, h, h / 2, 'rgba(0,0,0,.18)');
+  rrect(-w / 2, -h / 2, w, h, h / 2, fill, 1, P.white, 6);
+  text(str, 0, 3, { size, color, family });
+  ctx.restore();
 }
-function hud(t) {
-  const a = env(t, .6, 29.3, .5, .5);
-  text('JEI · EDUCATION PLATFORM TEAM', L, 70, { size: 18, color: C.white, weight: 600, family: EN, spacing: 5, alpha: a * .7 });
-  text(`00:${String(Math.floor(t)).padStart(2, '0')}`, W - L, 70, { size: 18, color: C.red, weight: 500, family: MONO, align: 'right', alpha: a });
-  rect(L, H - 62, 400, 2, C.white, a * .15); rect(L, H - 62, 400 * (t / DURATION), 2, C.red, a);
+// 장식 도형: 별, 꼬불선, 원, 삼각형
+function star(x, y, r, c, rot = 0, a = 1) {
+  if (r <= 0) return; ctx.save(); ctx.globalAlpha *= a; ctx.translate(x, y); ctx.rotate(rot); ctx.fillStyle = c; ctx.beginPath();
+  for (let i = 0; i < 10; i++) { const rr = i % 2 ? r * .45 : r, an = i / 10 * Math.PI * 2 - Math.PI / 2; ctx.lineTo(Math.cos(an) * rr, Math.sin(an) * rr); }
+  ctx.closePath(); ctx.fill(); ctx.restore();
+}
+function squiggle(x, y, len, c, t, a = 1, w = 14) {
+  ctx.save(); ctx.globalAlpha *= a; ctx.strokeStyle = c; ctx.lineWidth = w; ctx.lineCap = 'round'; ctx.beginPath();
+  for (let i = 0; i <= 40; i++) { const u = i / 40; const px = x + u * len, py = y + Math.sin(u * Math.PI * 4 + t * 6) * 18; i ? ctx.lineTo(px, py) : ctx.moveTo(px, py); }
+  ctx.stroke(); ctx.restore();
+}
+function tri(x, y, r, c, rot, a = 1) { ctx.save(); ctx.globalAlpha *= a; ctx.translate(x, y); ctx.rotate(rot); ctx.fillStyle = c; ctx.beginPath(); ctx.moveTo(0, -r); ctx.lineTo(r * .87, r * .5); ctx.lineTo(-r * .87, r * .5); ctx.closePath(); ctx.fill(); ctx.restore(); }
+// 떠다니는 장식들
+function confettiField(t, seed, colors, n = 18, a = 1) {
+  const r = rng(seed);
+  for (let i = 0; i < n; i++) {
+    const x = r() * W, y = r() * H, s = 14 + r() * 26, sp = .6 + r(), kind = Math.floor(r() * 4), c = colors[Math.floor(r() * colors.length)], ph = r() * 6;
+    const yy = y + Math.sin(t * sp * 2 + ph) * 26, xx = x + Math.cos(t * sp + ph) * 20, rot = t * sp * 2 + ph;
+    const k = (1 + beatPulse(t) * .25);
+    if (kind === 0) star(xx, yy, s * k, c, rot, a); else if (kind === 1) circle(xx, yy, s * .6 * k, c, a); else if (kind === 2) tri(xx, yy, s * k, c, rot, a);
+    else { ctx.save(); ctx.globalAlpha = a; ctx.translate(xx, yy); ctx.rotate(rot); ctx.fillStyle = c; ctx.fillRect(-s * .7, -s * .2, s * 1.4, s * .4); ctx.restore(); }
+  }
+}
+// 색종이 폭발
+function burst(t, s, x, y, seed, colors, n = 40, power = 700) {
+  const k = p(t, s, 1.6); if (k <= 0 || k >= 1) return;
+  const r = rng(seed);
+  for (let i = 0; i < n; i++) {
+    const an = r() * Math.PI * 2, sp = power * (.4 + r() * .8), c = colors[i % colors.length], sz = 10 + r() * 16, spin = (r() - .5) * 20;
+    const tt = k * 1.6, px = x + Math.cos(an) * sp * tt * (1 - k * .35), py = y + Math.sin(an) * sp * tt * (1 - k * .35) + 520 * tt * tt;
+    ctx.save(); ctx.globalAlpha = 1 - eIn(k); ctx.translate(px, py); ctx.rotate(spin * tt); ctx.fillStyle = c;
+    if (i % 3 === 0) { ctx.beginPath(); ctx.arc(0, 0, sz * .5, 0, Math.PI * 2); ctx.fill(); } else ctx.fillRect(-sz / 2, -sz / 4, sz, sz / 2);
+    ctx.restore();
+  }
+}
+// 원이 퍼지며 다음 장면 색으로 전환
+function wipe(t, s, x, y, c, d = .45) { const k = eIO(p(t, s, d)); if (k <= 0) return false; circle(x, y, k * Math.hypot(W, H), c); return k >= 1; }
+function mouse(x, y, s = 1) {
+  ctx.save(); ctx.translate(x, y); ctx.scale(s, s); ctx.fillStyle = P.white; ctx.strokeStyle = P.ink; ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(0, 44); ctx.lineTo(12, 33); ctx.lineTo(20, 52); ctx.lineTo(28, 49); ctx.lineTo(20, 30); ctx.lineTo(35, 30); ctx.closePath(); ctx.fill(); ctx.stroke(); ctx.restore();
 }
 
-// 0–4 : 인트로 — 터미널에서 팀 이름이 타이핑
+// ============================================================
+// 장면
+// ============================================================
+// 0–4 : 우리는 교육플랫폼팀!
 function s1(t) {
-  bg(C.black); grid(t, C.white, .04);
-  const n = Math.floor(clamp((t - .3) / 1.1) * 27);
-  const end = codeLine([['$ ', C.red], ['npm run ', K.pn], ['edu-platform-team', C.white]], L, 330, n, 40, 1 - eIn(p(t, 3.6, .3)));
-  if (Math.floor(t * 2.5) % 2 === 0 && t < 3.6) rect(end + 6, 310, 20, 40, C.red);
-  reveal('교육의 내일을', L, 520, t, 1.6, 3.8, { size: 150, color: C.white, spacing: -4 });
-  const w = measure('만드는 ', 150, 900, KR, -4);
-  reveal('만드는', L, 690, t, 1.9, 3.8, { size: 150, color: C.white, spacing: -4 });
-  reveal('사람들', L + w, 690, t, 2.15, 3.8, { size: 150, color: C.red, spacing: -4 });
-  panel(t, 3.55, .45, C.red, 'up', C.white);
+  bg(P.red);
+  confettiField(t, 3, [P.yellow, P.white, P.pink, P.blue], 22, eOut(p(t, .2, .6)));
+  // 큰 원들이 박자마다 튐
+  [[260, 220, 120, P.yellow], [1700, 860, 160, P.blue], [1640, 200, 70, P.white], [300, 900, 90, P.pink]].forEach(([x, y, r, c], i) => circle(x, y, r * pop(t, .1 + i * .12, .5) * (1 + beatPulse(t + i * .12) * .12), c, .95));
+  sticker('Hello, World!', 960, 300, t, .3, { size: 40, fill: P.white, color: P.red, family: MONO, rot: -.08 });
+  bouncy('우리는', 960, 470, t, .6, { size: 120, color: P.white, shadow: 'rgba(0,0,0,.18)' });
+  bouncy('교육플랫폼팀!', 960, 660, t, 1.1, { size: 210, color: P.yellow, stroke: P.ink, lw: 14, shadow: 'rgba(0,0,0,.25)', stagger: .07 });
+  squiggle(620, 830, 680, P.white, t, eOut(p(t, 2.0, .4)));
+  burst(t, 1.8, 960, 640, 11, [P.yellow, P.white, P.blue, P.pink, P.mint]);
+  wipe(t, 3.55, 960, 540, P.cream);
 }
-// 4–8 : 콘텐츠 양산 파이프라인
-const NODES = [['연구원', 'RESEARCHER'], ['저작도구', 'AUTHORING'], ['콘텐츠', 'CONTENT'], ['교육 서비스', 'SERVICE']];
+// 4–8 : 상상하면, 만든다! + 튀는 공이 지나가는 파이프라인
+const NODES = [['연구원', P.pink], ['저작도구', P.red], ['콘텐츠', P.blue], ['교육 서비스', P.mint]];
 function s2(t) {
-  bg(C.char); grid(t, C.white, .05);
-  reveal('CONTENT PIPELINE', L, 190, t, 4.2, 7.7, { size: 24, color: C.red, weight: 600, family: EN, spacing: 8 });
-  reveal('콘텐츠를 양산하는 파이프라인', L, 290, t, 4.35, 7.7, { size: 72, color: C.white });
-  const y = 610, x0 = 300, gap = 440, out = 1 - eIn(p(t, 7.6, .35));
-  // 연결선 + 흐르는 데이터 점
-  for (let i = 0; i < 3; i++) {
-    const a = x0 + i * gap + 120, b = x0 + (i + 1) * gap - 120, k = eExpoIO(p(t, 4.8 + i * .45, .5));
-    line(a, y, b, y, k, '#3A3A44', 4, out);
-    if (k >= 1) for (let j = 0; j < 4; j++) { const u = ((t - 5.3) * 1.2 + j / 4 + i * .13) % 1; circle(lerp(a, b, u), y, 7, C.red, out * Math.sin(u * Math.PI)); }
-  }
-  NODES.forEach(([kr, en], i) => {
-    const x = x0 + i * gap, k = eBack(p(t, 4.6 + i * .45, .5)) * out;
-    if (k <= 0) return;
-    ctx.save(); ctx.translate(x, y); ctx.scale(k, k);
-    rrect(-120, -80, 240, 160, 24, i === 1 ? C.red : '#1F1F26', 1, i === 1 ? null : '#3A3A44', 2);
+  bg(P.cream);
+  confettiField(t, 8, [P.yellow, P.pink, P.blue, P.mint], 14, .9);
+  const o = outK(t, 7.8);
+  const w1 = measure('상상하면, ', 120);
+  bouncy('상상하면,', 200, 200, t, 4.1, { size: 120, color: P.ink, align: 'left', end: 7.9 });
+  bouncy('만든다!', 200 + w1, 200, t, 4.5, { size: 120, color: P.red, align: 'left', end: 7.9 });
+  const y = 640, x0 = 330, gap = 420;
+  // 점선 길
+  ctx.save(); ctx.globalAlpha = o; ctx.setLineDash([2, 26]); ctx.lineCap = 'round'; ctx.lineWidth = 12; ctx.strokeStyle = 'rgba(23,21,31,.25)';
+  ctx.beginPath(); ctx.moveTo(x0, y); ctx.lineTo(x0 + gap * 3, y); ctx.stroke(); ctx.restore();
+  NODES.forEach(([s, c], i) => {
+    const x = x0 + i * gap, k = pop(t, 4.5 + i * .25, .5) * o;
+    const hit = p(t, 5.0 + i * .5, .3), bump = hit > 0 && hit < 1 ? Math.sin(hit * Math.PI) * .18 : 0;
+    ctx.save(); ctx.translate(x, y); ctx.scale(k * (1 + bump), k * (1 - bump * .6)); ctx.rotate((i % 2 ? .05 : -.05));
+    rrect(-150 + 10, -95 + 12, 300, 190, 46, 'rgba(0,0,0,.15)'); rrect(-150, -95, 300, 190, 46, c, 1, P.white, 8);
+    text(s, 0, 4, { size: s.length > 4 ? 52 : 62, color: P.white });
     ctx.restore();
-    text(en, x, y - 30, { size: 16, color: i === 1 ? '#FFD6D9' : C.gray, weight: 600, family: EN, align: 'center', spacing: 4, alpha: k });
-    text(kr, x, y + 14, { size: 40, color: C.white, weight: 800, align: 'center', alpha: k });
   });
-  reveal('우리가 만드는 것', x0 + gap, y + 150, t, 6.0, 7.7, { size: 30, color: C.red, weight: 700, align: 'center' });
-  panel(t, 7.55, .45, C.paper, 'left', C.red);
+  // 튀는 공: 노드마다 한 박에 한 번 착지
+  const bt = (t - 5.0) / BEAT;
+  if (bt > -1 && bt < 3.6) {
+    const i = Math.floor(clamp(bt, 0, 3)), f = clamp(bt - i);
+    const xa = x0 + Math.max(0, i - (bt < 0 ? 1 : 0)) * gap, xb = x0 + Math.min(3, i + 1) * gap;
+    const x = bt < 0 ? lerp(x0 - 200, x0, eOut(bt + 1)) : i >= 3 ? x0 + 3 * gap : lerp(x0 + i * gap, x0 + (i + 1) * gap, f);
+    const yy = y - 150 - Math.sin(f * Math.PI) * 170;
+    const sq = f < .12 ? (1 - f / .12) * .35 : 0;
+    ctx.save(); ctx.globalAlpha = o; ctx.translate(x, yy); ctx.scale(1 + sq, 1 - sq); circle(0, 0, 38, P.yellow); circle(-12, -12, 10, 'rgba(255,255,255,.7)'); ctx.restore();
+  }
+  sticker('우리가 만드는 것!', x0 + gap, y - 190, t, 6.2, { size: 34, fill: P.yellow, rot: .08, end: 7.9 });
+  sticker('콘텐츠 양산 파이프라인', 960, 900, t, 6.6, { size: 44, fill: P.ink, color: P.white, rot: -.02, end: 7.9 });
+  wipe(t, 7.55, 960, 640, P.yellow);
 }
-// 8–12 : 저작도구 UI 목업
+// 8–12 : 저작도구 — 블록이 통통 떨어져 문항 완성, 발행 도장 쾅!
 function s3(t) {
-  bg(C.paper); grid(t, C.black, .04);
-  reveal('AUTHORING TOOL', L, 170, t, 8.2, 11.7, { size: 24, color: C.red, weight: 600, family: EN, spacing: 8 });
-  reveal('연구원이 쓰는 저작도구', L, 260, t, 8.3, 11.7, { size: 72, color: C.black });
-  const out = 1 - eIn(p(t, 11.55, .35));
-  const wx = 700, wy = 340, ww = 1060, wh = 580, k = eExpoIO(p(t, 8.4, .7));
-  ctx.save(); ctx.globalAlpha = out; ctx.shadowColor = 'rgba(0,0,0,.18)'; ctx.shadowBlur = 40; ctx.shadowOffsetY = 18;
-  rrect(wx, wy + (1 - k) * 80, ww, wh, 18, C.white, k); ctx.restore();
-  ctx.save(); ctx.globalAlpha = out * k; ctx.translate(0, (1 - k) * 80);
-  rrect(wx, wy, ww, 50, 18, '#EFEDEA'); [C.red, '#F2B84B', '#6CC070'].forEach((c, i) => circle(wx + 30 + i * 24, wy + 25, 7, c));
-  text('저작도구 · 수학 1-2 · 문항 편집', wx + 120, wy + 26, { size: 18, color: C.gray, weight: 500 });
-  rrect(wx, wy + 50, 200, wh - 50, 0, '#F7F5F2');
-  ['텍스트', '수식', '이미지', '보기', '정답', '해설'].forEach((s, i) => {
-    const kk = eOut(p(t, 8.8 + i * .1, .3));
-    rrect(wx + 20, wy + 80 + i * 70, 160, 52, 10, i === 1 && t > 9.4 && t < 10.2 ? '#FFE3E5' : C.white, kk, '#E4E0DA', 2);
-    text(s, wx + 50, wy + 106 + i * 70, { size: 22, color: C.ink, weight: 600, alpha: kk });
+  bg(P.yellow);
+  confettiField(t, 12, [P.white, P.red, P.blue], 12, .8);
+  bouncy('연구원을 위한 저작도구', 960, 150, t, 8.1, { size: 96, color: P.ink, end: 11.9, stagger: .035 });
+  const o = outK(t, 11.9), k = pop(t, 8.3, .6) * o;
+  const wx = 960, wy = 600, ww = 1180, wh = 640;
+  ctx.save(); ctx.translate(wx, wy); ctx.rotate(-.025 + Math.sin(t * 2) * .006); ctx.scale(k, k);
+  rrect(-ww / 2 + 16, -wh / 2 + 20, ww, wh, 34, 'rgba(0,0,0,.2)');
+  rrect(-ww / 2, -wh / 2, ww, wh, 34, P.white, 1, P.ink, 8);
+  rrect(-ww / 2, -wh / 2, ww, 70, 34, P.ink); [P.red, P.yellow, P.mint].forEach((c, i) => circle(-ww / 2 + 44 + i * 34, -wh / 2 + 35, 11, c));
+  text('수학 1-2 · 문항 만들기', 0, -wh / 2 + 36, { size: 26, color: P.white, family: KR, weight: 700 });
+  const blocks = [[8.8, '문제', '18 + 25 = ?', P.blue], [9.3, '보기', '① 33   ② 43   ③ 53', P.pink], [9.8, '정답', '② 43', P.mint], [10.3, '해설', '8 + 5 = 13, 받아올림 1!', P.purple]];
+  blocks.forEach(([s, lbl, body, c], i) => {
+    const kk = p(t, s, .6); if (kk <= 0) return;
+    const y = -wh / 2 + 130 + i * 118 - (1 - eBounce(kk)) * 700, x = -ww / 2 + 50;
+    const land = p(t, s + .32, .2), sq = land > 0 && land < 1 ? Math.sin(land * Math.PI) * .08 : 0;
+    ctx.save(); ctx.translate(0, y + 48); ctx.scale(1 + sq, 1 - sq); ctx.translate(0, -(y + 48));
+    rrect(x, y, ww - 100, 96, 24, c, 1, P.ink, 5);
+    rrect(x + 20, y + 22, 110, 52, 26, P.white); text(lbl, x + 75, y + 49, { size: 28, color: c });
+    text(body, x + 170, y + 50, { size: lbl === '문제' ? 50 : 34, color: P.white, align: 'left', family: lbl === '해설' ? DISP : DISP });
+    ctx.restore();
   });
-  // 캔버스: 블록이 하나씩 끌려와 문항이 완성됨
-  const cx = wx + 240, cw = ww - 280;
-  const blocks = [
-    [9.2, '문제', 'I8 + 25 = ?', 70],
-    [9.8, '보기', '① 33   ② 43   ③ 53', 60],
-    [10.4, '정답', '② 43', 60],
-    [10.9, '해설', '일의 자리부터 더해요: 8 + 5 = 13', 60],
-  ];
-  let by = wy + 80;
-  blocks.forEach(([s, lbl, body, h]) => {
-    const kk = eExpoIO(p(t, s, .45));
-    if (kk > 0) {
-      const x = lerp(wx + 30, cx, kk), y = lerp(wy + 80 + blocks.findIndex(b => b[0] === s) * 70, by, kk);
-      rrect(x, y, cw, h, 12, '#FFFFFF', 1, kk < 1 ? C.red : '#E4E0DA', kk < 1 ? 3 : 2);
-      text(lbl, x + 24, y + h / 2, { size: 16, color: C.red, weight: 700, family: KR });
-      text(body.replace('I8', '18'), x + 110, y + h / 2, { size: lbl === '문제' ? 34 : 26, color: C.black, weight: lbl === '문제' ? 800 : 500, family: lbl === '해설' ? KR : EN });
-    }
-    by += h + 16;
-  });
-  // 마우스 커서가 블록을 끌어옴
-  const drag = blocks.find(([s]) => t >= s - .25 && t < s + .5);
-  let mx = cx + cw - 60, my = wy + 420;
-  if (drag) { const kk = eExpoIO(p(t, drag[0], .45)); const idx = blocks.indexOf(drag); mx = lerp(wx + 120, cx + 200, kk); my = lerp(wy + 100 + idx * 70, wy + 100 + idx * 90, kk); }
-  cursor(mx, my, t, eOut(p(t, 9.0, .3)));
-  // 저장 버튼
-  const sv = pop(t, 11.2, .4);
-  rrect(wx + ww - 180, wy + wh - 70, 150, 50, 12, C.red, sv); text('발행', wx + ww - 105, wy + wh - 45, { size: 22, color: C.white, weight: 700, align: 'center', alpha: sv });
+  // 발행 도장
+  const sk = p(t, 10.9, .3);
+  if (sk > 0) {
+    const sc = lerp(2.4, 1, eOut(sk)), a = eOut(sk);
+    ctx.save(); ctx.translate(ww / 2 - 170, wh / 2 - 90); ctx.rotate(-.18); ctx.scale(sc, sc); ctx.globalAlpha = a;
+    rrect(-130, -58, 260, 116, 22, null, 1, P.red, 10); text('발행!', 0, 4, { size: 70, color: P.red }); ctx.restore();
+  }
   ctx.restore();
-  panel(t, 11.55, .45, C.black, 'up', C.red);
+  // 커서가 블록을 톡톡
+  const cur = blocks.find(([s]) => t >= s - .3 && t < s + .3);
+  const mx = cur ? lerp(1500, 1200, eOut(p(t, cur[0] - .3, .3))) : 1540, my = cur ? 380 + blocks.indexOf(cur) * 118 : 900;
+  if (t > 8.6 && o > 0) mouse(mx, my, 1.4);
+  burst(t, 11.0, 1500, 820, 21, [P.red, P.ink, P.white, P.blue]);
+  wipe(t, 11.55, 1500, 820, P.blue);
 }
-function pop(t, s, d = .5) { return eBack(p(t, s, d)); }
-// 12–16 : 콘텐츠 양산 — 카드 하나가 빠르게 늘어남
+// 12–16 : 하나를 만들면 → 모두에게! (카드가 2배씩 늘어남)
 function s4(t) {
-  bg(C.black); grid(t, C.white, .04);
-  const cols = 16, rows = 8, cw = 96, ch = 64, g = 14;
-  const gx = (W - (cols * cw + (cols - 1) * g)) / 2, gy = 300;
-  const out = 1 - eIn(p(t, 15.6, .4));
-  const zoom = lerp(3.2, 1, eExpoIO(p(t, 12.2, 1.6)));
-  ctx.save(); ctx.translate(W / 2, gy + rows * (ch + g) / 2); ctx.scale(zoom, zoom); ctx.translate(-W / 2, -(gy + rows * (ch + g) / 2));
-  for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
-    const i = r * cols + c, dist = Math.hypot(c - cols / 2, r - rows / 2);
-    const k = eBack(p(t, 12.3 + dist * .09, .35)) * out;
+  bg(P.blue);
+  confettiField(t, 16, [P.yellow, P.white, P.pink], 14, .8);
+  const o = outK(t, 15.9);
+  const steps = [1, 2, 4, 8, 16, 32, 64, 128], si = clamp(Math.floor((t - 12.4) / BEAT), 0, steps.length - 1), n = steps[si];
+  const cols = Math.ceil(Math.sqrt(n * 16 / 9)), rows = Math.ceil(n / cols);
+  const cw = Math.min(260, 1500 / cols), ch = cw * .66, g = cw * .14;
+  const gw = cols * cw + (cols - 1) * g, gh = rows * ch + (rows - 1) * g, gx = (W - gw) / 2, gy = 620 - gh / 2;
+  const since = p(t, 12.4 + si * BEAT, .3);
+  const colors = [P.white, P.yellow, P.pink, P.mint];
+  for (let i = 0; i < n; i++) {
+    const c = i % cols, r = Math.floor(i / cols), x = gx + c * (cw + g), y = gy + r * (ch + g);
+    const isNew = i >= n / 2 && si > 0, k = isNew ? eBack(since) : 1;
     if (k <= 0) continue;
-    const x = gx + c * (cw + g), y = gy + r * (ch + g);
-    ctx.save(); ctx.translate(x + cw / 2, y + ch / 2); ctx.scale(k, k);
-    const hot = (i * 7 + Math.floor(t * 8)) % 23 === 0;
-    rrect(-cw / 2, -ch / 2, cw, ch, 8, hot ? C.red : '#1C1C22', 1, hot ? null : '#34343E', 1.5);
-    rect(-cw / 2 + 10, -ch / 2 + 12, cw * .5, 6, hot ? '#FFD6D9' : '#5A5A66');
-    rect(-cw / 2 + 10, -ch / 2 + 26, cw * .7, 5, hot ? '#FFB3B8' : '#3E3E48'); rect(-cw / 2 + 10, -ch / 2 + 38, cw * .35, 5, hot ? '#FFB3B8' : '#3E3E48');
+    ctx.save(); ctx.globalAlpha = o; ctx.translate(x + cw / 2, y + ch / 2); ctx.scale(k, k); ctx.rotate(Math.sin(i * 1.7 + t * 3) * .04);
+    rrect(-cw / 2, -ch / 2, cw, ch, cw * .12, colors[i % 4], 1, P.ink, Math.max(2, cw * .025));
+    rrect(-cw * .38, -ch * .26, cw * .45, ch * .12, ch * .06, P.ink);
+    rrect(-cw * .38, -ch * .02, cw * .7, ch * .09, ch * .05, 'rgba(23,21,31,.35)'); rrect(-cw * .38, ch * .16, cw * .5, ch * .09, ch * .05, 'rgba(23,21,31,.35)');
     ctx.restore();
   }
-  ctx.restore();
-  reveal('하나를 만들면,', L, 170, t, 12.4, 15.8, { size: 60, color: C.white });
-  reveal('수많은 아이들의 학습으로.', L + measure('하나를 만들면, ', 60, 900), 170, t, 13.2, 15.8, { size: 60, color: C.red });
-  reveal('빠르고 정확하게, 콘텐츠를 대량으로 만드는 도구', L, 960, t, 14.0, 15.8, { size: 32, color: '#BDBDC6', weight: 500 });
-  glitch(t, 15.7, .3, .8);
+  text(`×${n}`, 1700, 200, { size: 110 * (1 + beatPulse(t - .02) * .2), color: P.yellow, stroke: P.ink, lw: 10, alpha: o * eOut(p(t, 12.4, .3)), rot: .08 });
+  bouncy('하나를 만들면', 200, 170, t, 12.2, { size: 96, color: P.white, align: 'left', end: 15.9, stagger: .04 });
+  bouncy('모두에게!', 200 + measure('하나를 만들면 ', 96), 170, t, 12.8, { size: 96, color: P.yellow, align: 'left', end: 15.9, stroke: P.ink, lw: 8 });
+  sticker('빠르게 · 정확하게 · 많이!', 960, 990, t, 14.0, { size: 44, fill: P.white, color: P.blue, rot: .02, end: 15.9 });
+  wipe(t, 15.55, 960, 540, P.mint);
 }
-// 16–20 : 웹과 앱
+// 16–20 : 웹도! 앱도! (브라우저·폰이 번갈아 통통)
+function device(kind, x, y, s, t, hop) {
+  ctx.save(); ctx.translate(x, y - hop); ctx.scale(s, s);
+  if (kind === 'web') {
+    rrect(-330 + 14, -210 + 18, 660, 420, 30, 'rgba(0,0,0,.2)'); rrect(-330, -210, 660, 420, 30, P.white, 1, P.ink, 8);
+    rrect(-330, -210, 660, 60, 30, P.ink); [P.red, P.yellow, P.mint].forEach((c, i) => circle(-290 + i * 30, -180, 10, c));
+    screen(t, -290, -120, 580, 300);
+  } else {
+    rrect(-150 + 14, -290 + 18, 300, 580, 56, 'rgba(0,0,0,.2)'); rrect(-150, -290, 300, 580, 56, P.ink);
+    rrect(-132, -272, 264, 544, 44, P.white); rrect(-50, -262, 100, 24, 12, P.ink);
+    screen(t, -110, -210, 220, 440);
+  }
+  ctx.restore();
+}
+function screen(t, x, y, w, h) {
+  const prog = clamp((t - 16.6) / 2.6);
+  text('오늘의 스스로학습', x + 10, y + 26, { size: Math.min(34, w / 9), color: P.red, align: 'left' });
+  rrect(x + 10, y + 60, w - 20, 22, 11, '#EEE'); rrect(x + 10, y + 60, (w - 20) * prog, 22, 11, P.red);
+  const items = [['덧셈', P.blue], ['뺄셈', P.pink], ['수의 순서', P.mint]];
+  items.forEach(([s, c], i) => {
+    const yy = y + 104 + i * Math.min(70, (h - 110) / 3); if (yy + 50 > y + h) return;
+    const done = prog > (i + 1) / 3.3;
+    rrect(x + 10, yy, w - 20, 54, 16, done ? c : '#F4F1EC', 1, P.ink, 3);
+    text(s, x + 30, yy + 28, { size: 28, color: done ? P.white : P.ink, align: 'left' });
+    if (done) star(x + w - 40, yy + 27, 16, P.yellow, t * 2);
+  });
+}
 function s5(t) {
-  bg(C.char); grid(t, C.white, .05);
-  if (t < 16.4) panel(t, 16, .4, C.red, 'up', null, true);
-  reveal('WEB  +  APP', L, 190, t, 16.2, 19.7, { size: 24, color: C.red, weight: 600, family: EN, spacing: 8 });
-  reveal('웹과 앱, 모두', L, 280, t, 16.3, 19.7, { size: 80, color: C.white });
-  const out = 1 - eIn(p(t, 19.6, .35));
-  // 브라우저
-  const bk = eExpoIO(p(t, 16.5, .7)), bx = 300, by = 390 + (1 - bk) * 120, bw = 900, bh = 540;
-  ctx.save(); ctx.globalAlpha = out * bk;
-  rrect(bx, by, bw, bh, 16, '#F4F2EF'); rrect(bx, by, bw, 46, 16, '#E4E1DC'); [C.red, '#F2B84B', '#6CC070'].forEach((c, i) => circle(bx + 26 + i * 22, by + 23, 7, c));
-  rrect(bx + 120, by + 11, 420, 24, 12, C.white); text('learn.jei.com', bx + 140, by + 24, { size: 15, color: C.gray, weight: 500, family: EN });
-  studyCard(t, bx + 40, by + 80, bw - 80, bh - 120, 1);
-  ctx.restore();
-  // 폰
-  const pk = eExpoIO(p(t, 17.0, .7)), px = 1330, py = 330 + (1 - pk) * 160, pw = 300, ph = 620;
-  ctx.save(); ctx.globalAlpha = out * pk;
-  rrect(px, py, pw, ph, 44, '#111114', 1, '#3A3A44', 3); rrect(px + 14, py + 14, pw - 28, ph - 28, 34, '#F4F2EF'); rrect(px + pw / 2 - 40, py + 24, 80, 20, 10, '#111114');
-  studyCard(t, px + 30, py + 70, pw - 60, ph - 110, .52);
-  ctx.restore();
-  // 동기화 표시
-  const sk = eOut(p(t, 17.8, .5)) * out;
-  for (let j = 0; j < 3; j++) { const u = ((t - 17.8) * .9 + j / 3) % 1; circle(lerp(1210, 1320, u), 660, 6, C.red, sk * Math.sin(u * Math.PI)); }
-  reveal('하나의 코드, 어디서나 같은 학습 경험', L, 990, t, 18.2, 19.7, { size: 30, color: '#BDBDC6', weight: 500 });
+  bg(P.mint);
+  confettiField(t, 20, [P.white, P.yellow, P.blue, P.pink], 16, .85);
+  const o = outK(t, 19.9);
+  const hopW = Math.abs(Math.sin((t - 16) * Math.PI / BEAT)) * 50 * (Math.floor((t - 16) / BEAT) % 2 === 0 ? 1 : .2);
+  const hopA = Math.abs(Math.sin((t - 16) * Math.PI / BEAT)) * 50 * (Math.floor((t - 16) / BEAT) % 2 === 1 ? 1 : .2);
+  device('web', 700, 610, pop(t, 16.3, .5) * o, t, hopW);
+  device('app', 1450, 600, pop(t, 16.7, .5) * o, t, hopA);
+  bouncy('웹도!', 480, 180, t, 16.3, { size: 130, color: P.white, stroke: P.ink, lw: 10, end: 19.9 });
+  bouncy('앱도!', 1450, 180, t, 16.8, { size: 130, color: P.yellow, stroke: P.ink, lw: 10, end: 19.9 });
+  // 하트처럼 오가는 동기화 점
+  for (let j = 0; j < 4; j++) { const u = ((t - 17.2) * .8 + j / 4) % 1; if (t > 17.2) circle(lerp(1040, 1300, u), 620 - Math.sin(u * Math.PI) * 90, 14, P.red, o * Math.sin(u * Math.PI)); }
+  sticker('하나의 코드로 어디서나!', 960, 990, t, 18.2, { size: 44, fill: P.ink, color: P.white, rot: -.02, end: 19.9 });
+  wipe(t, 19.55, 1450, 600, P.ink);
 }
-function studyCard(t, x, y, w, h, s) {
-  rrect(x, y, w, h, 16 * s, C.white, 1, '#E4E0DA', 2);
-  text('오늘의 스스로학습', x + 30 * s, y + 44 * s, { size: 26 * s, color: C.red, weight: 800 });
-  const prog = clamp((t - 16.8) / 2.4);
-  rrect(x + 30 * s, y + 80 * s, w - 60 * s, 14 * s, 7 * s, '#EEEAE6'); rrect(x + 30 * s, y + 80 * s, (w - 60 * s) * prog, 14 * s, 7 * s, C.red);
-  for (let i = 0; i < 3; i++) {
-    const yy = y + (130 + i * 110) * s; if (yy + 90 * s > y + h) break;
-    const done = prog > (i + 1) / 3.2;
-    rrect(x + 30 * s, yy, w - 60 * s, 90 * s, 12 * s, done ? '#FFF1F2' : '#F7F5F2', 1, done ? '#FFB3B8' : null, 2);
-    text(['덧셈', '뺄셈', '수의 순서'][i], x + 60 * s, yy + 45 * s, { size: 28 * s, color: C.black, weight: 700 });
-    if (done) text('✓', x + w - 70 * s, yy + 45 * s, { size: 34 * s, color: C.red, weight: 900 });
-  }
-}
-// 20–25 : AI
+// 20–25 : AI랑 같이, 더 빠르게!
 function s6(t) {
-  bg(C.black); grid(t, C.white, .04);
-  reveal('AI-NATIVE', L, 190, t, 20.2, 24.7, { size: 24, color: C.red, weight: 600, family: EN, spacing: 8 });
-  reveal('AI를 능숙하게, 더 빠르게', L, 280, t, 20.3, 24.7, { size: 80, color: C.white });
-  const out = 1 - eIn(p(t, 24.5, .4));
-  // 신경망 느낌의 점 연결
-  const r = rng(42), pts = [];
-  for (let i = 0; i < 40; i++) pts.push([1100 + r() * 700, 380 + r() * 560, r()]);
-  ctx.save(); ctx.globalAlpha = out * eOut(p(t, 20.4, .8));
-  for (let i = 0; i < pts.length; i++) for (let j = i + 1; j < pts.length; j++) {
-    const [x1, y1] = pts[i], [x2, y2] = pts[j], d = Math.hypot(x1 - x2, y1 - y2); if (d > 150) continue;
-    const pulse = .5 + .5 * Math.sin(t * 4 + i * .7 + j);
-    ctx.strokeStyle = `rgba(230,0,18,${.12 + .3 * pulse * (1 - d / 150)})`; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
-  }
-  pts.forEach(([x, y, ph]) => circle(x, y, 4 + 3 * Math.abs(Math.sin(t * 3 + ph * 9)), ph > .8 ? C.red : '#D8D8E0'));
+  bg(P.ink);
+  const o = outK(t, 24.8);
+  // 네온 느낌 반짝이
+  const r = rng(31);
+  for (let i = 0; i < 40; i++) { const x = r() * W, y = r() * H, c = [P.pink, P.blue, P.yellow, P.mint][i % 4]; star(x, y, (8 + r() * 14) * (.6 + .6 * Math.abs(Math.sin(t * 3 + i))), c, t + i, .8 * o); }
+  bouncy('AI랑 같이,', 960, 170, t, 20.2, { size: 120, color: P.white, end: 24.9 });
+  bouncy('더 빠르게!', 960, 320, t, 20.7, { size: 140, color: P.pink, end: 24.9, stroke: P.white, lw: 6 });
+  // AI 캐릭터 (둥근 로봇 얼굴)
+  const bk = pop(t, 20.9, .5) * o, bob = Math.sin(t * 6) * 10;
+  ctx.save(); ctx.translate(1560, 640 + bob); ctx.scale(bk, bk);
+  rrect(-150 + 12, -130 + 16, 300, 260, 90, 'rgba(0,0,0,.3)'); rrect(-150, -130, 300, 260, 90, P.blue, 1, P.white, 8);
+  const blink = (t % 2.1) < .1 ? .15 : 1;
+  ctx.save(); ctx.scale(1, blink); circle(-55, -10 / blink, 26, P.white); circle(55, -10 / blink, 26, P.white); ctx.restore();
+  circle(-55, -10, 12 * blink, P.ink); circle(55, -10, 12 * blink, P.ink);
+  ctx.strokeStyle = P.white; ctx.lineWidth = 10; ctx.lineCap = 'round'; ctx.beginPath(); ctx.arc(0, 40, 36, .15 * Math.PI, .85 * Math.PI); ctx.stroke();
+  ctx.strokeStyle = P.white; ctx.lineWidth = 8; ctx.beginPath(); ctx.moveTo(0, -130); ctx.lineTo(0, -185); ctx.stroke(); circle(0, -195, 18 * (1 + beatPulse(t) * .4), P.yellow);
   ctx.restore();
-  // 프롬프트 창
-  const k = eExpoIO(p(t, 20.6, .6));
-  ctx.save(); ctx.globalAlpha = out * k;
-  rrect(L, 400, 820, 110, 20, '#16161B', 1, '#34343E', 2);
-  const prompt = '두 자리 수 덧셈 문항 5개와 해설을 만들어 줘';
-  const n = Math.floor(clamp((t - 21.0) / 1.4) * prompt.length);
-  text(prompt.slice(0, n), L + 36, 455, { size: 30, color: C.white, weight: 500 });
-  if (Math.floor(t * 2.5) % 2 === 0 && n < prompt.length) rect(L + 40 + measure(prompt.slice(0, n), 30, 500), 438, 3, 36, C.red);
-  rrect(L + 820 - 90, 425, 60, 60, 16, C.red, pop(t, 22.4, .3)); text('↑', L + 820 - 60, 457, { size: 30, color: C.white, weight: 900, align: 'center', alpha: pop(t, 22.4, .3) });
-  // 결과 카드가 차례로 생성
-  for (let i = 0; i < 5; i++) {
-    const kk = eExpoIO(p(t, 22.7 + i * .22, .35)); if (kk <= 0) continue;
-    const y = 540 + i * 78;
-    rrect(L, y, 820 * kk, 62, 14, '#1C1C22', 1, '#34343E', 1.5);
-    text(`Q${i + 1}`, L + 24, y + 31, { size: 20, color: C.red, weight: 700, family: MONO, alpha: kk });
-    text(['27 + 35 = ?', '48 + 16 = ?', '53 + 29 = ?', '66 + 18 = ?', '39 + 44 = ?'][i], L + 90, y + 31, { size: 26, color: C.white, weight: 600, family: EN, alpha: kk });
-    text('해설 포함', L + 820 - 30, y + 31, { size: 18, color: C.gray, weight: 500, align: 'right', alpha: kk });
-  }
+  // 말풍선에 프롬프트 타이핑
+  const bb = pop(t, 21.0, .45) * o;
+  ctx.save(); ctx.translate(700, 520); ctx.scale(bb, bb);
+  rrect(-520, -80, 1040, 160, 60, P.white, 1, P.ink, 6);
+  const prompt = '덧셈 문항 5개랑 해설 만들어 줘!';
+  const n = Math.floor(clamp((t - 21.3) / 1.2) * prompt.length);
+  text(prompt.slice(0, n), -470, 4, { size: 52, color: P.ink, align: 'left' });
+  ctx.beginPath(); ctx.moveTo(470, 60); ctx.lineTo(560, 110); ctx.lineTo(430, 76); ctx.fillStyle = P.white; ctx.fill();
   ctx.restore();
-  reveal('사람의 판단 위에 AI의 속도를 더해요', L, 990, t, 23.4, 24.7, { size: 30, color: '#BDBDC6', weight: 500 });
-  panel(t, 24.6, .4, C.red, 'up', C.white);
+  // 결과 카드가 톡톡 튀어나옴
+  const cards = ['27 + 35', '48 + 16', '53 + 29', '66 + 18', '39 + 44'], cc = [P.yellow, P.pink, P.mint, P.blue, P.purple];
+  cards.forEach((s, i) => {
+    const k = pop(t, 22.7 + i * .2, .45) * o; if (k <= 0) return;
+    const x = 290 + i * 240, y = 780 + (i % 2 ? 30 : -10);
+    ctx.save(); ctx.translate(x, y); ctx.rotate((i - 2) * .06); ctx.scale(k, k);
+    rrect(-105 + 8, -85 + 10, 210, 170, 30, 'rgba(0,0,0,.3)'); rrect(-105, -85, 210, 170, 30, cc[i], 1, P.white, 6);
+    text(`Q${i + 1}`, 0, -40, { size: 30, color: P.white }); text(s, 0, 20, { size: 44, color: P.ink, family: EN, weight: 800 });
+    ctx.restore();
+  });
+  burst(t, 22.7, 900, 780, 41, [P.yellow, P.pink, P.mint, P.blue, P.white], 36, 600);
+  sticker('사람의 아이디어 + AI의 속도', 960, 1000, t, 23.6, { size: 40, fill: P.yellow, rot: .02, end: 24.9 });
+  wipe(t, 24.6, 1560, 640, P.red);
 }
-// 25–30 : 엔딩
+// 25–30 : 열정 ON! → 교육의 미래를, 코드로.
 function s7(t) {
-  bg(C.red); grid(t, C.white, .08);
-  panel(t, 25, .45, C.red, 'up', null, true);
-  const cx = L;
-  reveal('콘텐츠 파이프라인 · 저작도구 · 교육 서비스 · 웹 & 앱 · AI', cx, 330, t, 25.3, null, { size: 30, color: '#FFD6D9', weight: 600 });
-  reveal('교육의 미래를,', cx, 480, t, 25.5, null, { size: 150, color: C.white, spacing: -4 });
-  reveal('코드로.', cx, 650, t, 25.8, null, { size: 150, color: C.black, spacing: -4 });
-  const lk = eExpoIO(p(t, 26.4, .7)); rect(cx, 780, 700 * lk, 4, C.white);
-  reveal('재능교육 교육플랫폼팀', cx, 850, t, 26.6, null, { size: 52, color: C.white, weight: 800 });
-  reveal('Frontend · Web & App · AI', cx, 920, t, 26.9, null, { size: 26, color: '#FFD6D9', weight: 600, family: EN, spacing: 3 });
-  // 오른쪽: 코드 괄호 모티프
-  const bk = eBack(p(t, 25.6, .7));
-  text('{ }', 1560, 560, { size: 420 * bk, color: 'rgba(255,255,255,.14)', weight: 800, family: MONO, align: 'center' });
-  const f = p(t, 29.2, .8); if (f > 0) rect(0, 0, W, H, `rgba(0,0,0,${eIO(f)})`);
+  bg(P.red);
+  confettiField(t, 25, [P.yellow, P.white, P.pink, P.blue, P.mint], 24, eOut(p(t, 25.2, .5)));
+  // 토글 스위치가 딸깍 켜짐
+  const on = eElastic(p(t, 25.5, .7)), tk = pop(t, 25.1, .45);
+  ctx.save(); ctx.translate(1010, 300); ctx.scale(tk, tk);
+  rrect(-190 + 10, -80 + 12, 380, 160, 80, 'rgba(0,0,0,.2)');
+  rrect(-190, -80, 380, 160, 80, on > .5 ? P.yellow : '#B00010', 1, P.white, 8);
+  circle(lerp(-110, 110, on), 0, 62, P.white); text(on > .5 ? 'ON' : 'OFF', lerp(80, -80, on), 4, { size: 48, color: on > .5 ? P.ink : P.white, family: EN, weight: 900 });
+  ctx.restore();
+  bouncy('열정', 500, 300, t, 25.3, { size: 130, color: P.white, stroke: P.ink, lw: 10 });
+  burst(t, 25.6, 1010, 300, 51, [P.yellow, P.white, P.pink, P.blue, P.mint], 60, 900);
+  bouncy('교육의 미래를,', 960, 560, t, 26.0, { size: 150, color: P.white, shadow: 'rgba(0,0,0,.2)', stagger: .05 });
+  bouncy('코드로.', 960, 740, t, 26.6, { size: 190, color: P.yellow, stroke: P.ink, lw: 14, shadow: 'rgba(0,0,0,.25)', stagger: .08 });
+  sticker('재능교육 교육플랫폼팀', 960, 925, t, 27.4, { size: 50, fill: P.white, color: P.red, rot: -.03 });
+  text('Frontend · Web & App · AI', 960, 1015, { size: 26, color: P.white, family: EN, weight: 700, alpha: eOut(p(t, 27.8, .4)) });
+  const f = p(t, 29.3, .7); if (f > 0) { ctx.fillStyle = `rgba(0,0,0,${eIO(f)})`; ctx.fillRect(-200, -200, W + 400, H + 400); }
 }
+
 function draw(t) {
   ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalAlpha = 1;
+  // 박자마다 화면이 살짝 쿵 (장면 전환 순간엔 조금 더 크게)
+  const hits = [1.8, 4.0, 8.0, 10.9, 12.0, 16.0, 20.0, 22.7, 25.0, 25.6];
+  let shake = beatPulse(t) * 3;
+  hits.forEach(h => { const k = p(t, h, .35); if (k > 0 && k < 1) shake += (1 - k) * 18; });
+  const r = rng(1 + Math.floor(t * 30));
+  const sx = (r() - .5) * shake, sy = (r() - .5) * shake, zoom = 1 + beatPulse(t) * .006;
+  ctx.translate(W / 2 + sx, H / 2 + sy); ctx.scale(zoom, zoom); ctx.translate(-W / 2, -H / 2);
   if (t < 4) s1(t); else if (t < 8) s2(t); else if (t < 12) s3(t); else if (t < 16) s4(t); else if (t < 20) s5(t); else if (t < 25) s6(t); else s7(t);
-  hud(t);
-  glitch(t, 4.0, .25, 1); glitch(t, 20.0, .25, 1);
 }
 
 // ---------- preview player ----------
 const seekEl = document.getElementById('seek'), timeEl = document.getElementById('time'), playEl = document.getElementById('play');
 let playing = false, t0 = 0, tCur = 0;
-const audio = new Audio('audio/mix.wav');
-audio.preload = 'auto';
+const audio = new Audio('audio/mix.wav'); audio.preload = 'auto';
 function show(t) { tCur = t; draw(t); seekEl.value = t; timeEl.textContent = t.toFixed(2) + 's'; }
 function loop(now) {
   if (!playing) return;
@@ -385,18 +383,14 @@ function loop(now) {
 }
 playEl.onclick = () => {
   playing = !playing; playEl.textContent = playing ? '❚❚ 정지' : '▶ 재생';
-  if (playing) {
-    if (tCur >= DURATION) tCur = 0;
-    t0 = performance.now() - tCur * 1000;
-    try { audio.currentTime = tCur; audio.play().catch(() => {}); } catch (e) {}
-    requestAnimationFrame(loop);
-  } else audio.pause();
+  if (playing) { if (tCur >= DURATION) tCur = 0; t0 = performance.now() - tCur * 1000; try { audio.currentTime = tCur; audio.play().catch(() => {}); } catch (e) {} requestAnimationFrame(loop); }
+  else audio.pause();
 };
 seekEl.oninput = () => { show(+seekEl.value); if (playing) { t0 = performance.now() - tCur * 1000; try { audio.currentTime = tCur; } catch (e) {} } };
 
 window.draw = draw;
 window.DURATION = DURATION;
-window.ready = Promise.all([document.fonts.load(`900 100px 'Noto Sans KR'`, '가'), document.fonts.load(`800 100px 'Inter'`, 'A'), document.fonts.load(`500 100px 'JetBrains Mono'`, 'a')]).then(r => {
+window.ready = Promise.all([document.fonts.load(`100px 'Black Han Sans'`, '가'), document.fonts.load(`700 100px 'Noto Sans KR'`, '가'), document.fonts.load(`800 100px 'Inter'`, 'A'), document.fonts.load(`500 100px 'JetBrains Mono'`, 'a')]).then(r => {
   if (r.some(fs => !fs.length)) throw new Error('폰트를 불러오지 못했습니다 (fonts/ 폴더 확인)');
 }).then(() => document.fonts.ready).then(() => { if (location.search.includes('render')) document.body.classList.add('render'); show(0); return true; });
 </script>
