@@ -32,6 +32,22 @@
   .btn { border: 1px solid var(--line); background: var(--raise); border-radius: 8px; padding: 7px 12px; cursor: pointer; white-space: nowrap; }
   .btn:hover { border-color: #3d4458; }
   .btn:disabled { opacity: .45; cursor: default; }
+  .acts { display: flex; flex-wrap: wrap; gap: 6px; }
+  .btn.small { padding: 5px 9px; font-size: 12.5px; }
+  .btn.danger { color: #FF9C9C; border-color: #5a2b2e; }
+  .tpl-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .tpl-btn { text-align: left; border: 1px dashed #4d4436; background: #1b1914; color: var(--text); border-radius: 8px; padding: 10px 12px; cursor: pointer; display: grid; gap: 2px; }
+  .tpl-btn:hover { border-color: var(--pick); }
+  .tpl-btn small, .lib-item small { color: var(--muted); font-size: 11.5px; }
+  details.lib { border: 1px solid var(--line); border-radius: 8px; background: var(--ink); }
+  details.lib summary { cursor: pointer; padding: 9px 12px; font-weight: 600; }
+  .lib-list { display: grid; gap: 8px; padding: 0 10px 10px; }
+  .lib-item { display: grid; grid-template-columns: 96px minmax(0, 1fr) auto; gap: 10px; align-items: center; }
+  .lib-item canvas { width: 96px; height: 54px; border-radius: 4px; background: #000; display: block; }
+  .lib-item div { display: grid; min-width: 0; line-height: 1.35; }
+  .lib-item b { font-size: 12.5px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .new-list { display: grid; gap: 6px; margin-top: 12px; max-height: 50vh; overflow-y: auto; }
+  .new-list .btn { text-align: left; }
   .btn.primary { background: var(--pick); color: #17130C; border-color: var(--pick); font-weight: 700; }
 
   .work { display: grid; grid-template-columns: minmax(0, 1fr) 380px; gap: 16px; align-items: start; }
@@ -40,7 +56,8 @@
   .stage { position: relative; background: #000; border-radius: 6px; overflow: hidden; }
   canvas#view { display: block; width: 100%; max-width: 100%; aspect-ratio: 16 / 9; height: auto; }
   .stage .busy { position: absolute; inset: 0; display: grid; place-items: center; text-align: center; padding: 16px; background: rgba(4,5,10,.8); color: var(--muted); font-size: 15px; }
-  iframe#frame { position: fixed; left: -12000px; top: 0; width: 1920px; height: 1080px; border: 0; visibility: visible; pointer-events: none; }
+  iframe.src-frame { position: fixed; left: -12000px; top: 0; width: 1920px; height: 1080px; border: 0; pointer-events: none; }
+  .stage .peek { position: absolute; left: 12px; right: 12px; bottom: 12px; background: rgba(10,12,18,.85); border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; font-size: 12.5px; color: var(--pick); }
 
   .transport { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
   .play { width: 40px; height: 40px; border-radius: 50%; border: 0; background: var(--text); color: var(--ink); cursor: pointer; font-size: 15px; display: grid; place-items: center; }
@@ -60,10 +77,16 @@
   .ruler i { position: absolute; top: 0; bottom: 0; border-left: 1px solid var(--line); }
   .ruler i.major { border-color: #3d4458; }
   .ruler b { position: absolute; top: 2px; font: 500 10.5px var(--num); color: var(--muted); transform: translateX(3px); font-variant-numeric: tabular-nums; }
-  .scenes { height: 30px; }
-  .scene { position: absolute; top: 0; bottom: 0; border-radius: 4px; background: var(--raise); border: 1px solid var(--line); overflow: hidden; font-size: 11px; color: var(--muted); padding: 6px 6px 0; white-space: nowrap; text-overflow: ellipsis; cursor: pointer; }
-  .scene.dark { background: repeating-linear-gradient(135deg, #0d0f16 0 6px, #12151f 6px 12px); }
-  .scene.on { color: var(--text); border-color: #505a77; }
+  .clips { height: 40px; }
+  .clip { --h: 220; position: absolute; top: 0; bottom: 0; border-radius: 5px; background: hsl(var(--h) 30% 19%); border: 1px solid hsl(var(--h) 30% 32%); overflow: hidden; font-size: 11.5px; color: hsl(var(--h) 40% 84%); padding: 0 10px; display: flex; align-items: center; cursor: grab; }
+  .clip.tpl { background: repeating-linear-gradient(135deg, #1e1b16 0 7px, #25211a 7px 14px); border-color: #4d4436; color: var(--pick); }
+  .clip.sel { border-color: var(--pick); box-shadow: inset 0 0 0 1px var(--pick); color: #fff; }
+  .clip .nm { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+  .clip .h { position: absolute; top: 0; bottom: 0; width: 8px; cursor: ew-resize; }
+  .clip .h.l { left: 0; } .clip .h.r { right: 0; }
+  .clip .trm { font-style: normal; margin-right: 5px; color: var(--pick); flex: none; }
+  .clips.dragging .clip { transition: left .12s; }
+  .clip:hover .h { background: rgba(255,255,255,.08); }
   .bars { height: 30px; }
   .bar { position: absolute; height: 28px; border-radius: 5px; background: rgba(242,230,204,.13); border: 1px solid rgba(242,230,204,.35); color: var(--pick); font-size: 11.5px; padding: 5px 9px 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: grab; }
   .bar.sel { background: rgba(242,230,204,.28); border-color: var(--pick); color: #fff; }
@@ -119,15 +142,15 @@
 <body>
 <header>
   <h1><span class="mark" aria-hidden="true"></span>영상 편집기</h1>
-  <label class="picker"><span class="note">영상</span><select id="video" aria-label="편집할 영상"></select></label>
   <span class="save-state" id="saveState"></span>
   <div class="actions">
     <button class="btn" id="undo" disabled>되돌리기</button>
-    <button class="btn" id="reset">기본값으로</button>
+    <button class="btn" id="newBtn">새로 만들기</button>
     <button class="btn" id="load">불러오기</button>
     <button class="btn" id="saveJson">작업 파일 저장</button>
     <button class="btn primary" id="export">MP4 내보내기</button>
     <input type="file" id="fileIn" accept=".json,application/json" hidden>
+    <input type="file" id="imgIn" accept="image/*" hidden>
   </div>
 </header>
 
@@ -136,6 +159,7 @@
     <div class="stage">
       <canvas id="view" width="1920" height="1080"></canvas>
       <div class="busy" id="busy">영상을 불러오는 중…</div>
+      <div class="peek" id="peekNote" hidden>편집본에 없는 원본 장면을 보여 주는 중이에요. 재생하거나 타임라인을 누르면 돌아가요.</div>
     </div>
     <div class="transport">
       <button class="play" id="play" aria-label="재생">▶</button>
@@ -144,10 +168,10 @@
     </div>
     <div class="timeline" id="timeline">
       <div class="tl-row"><span class="tl-label">초</span><div class="track ruler" id="ruler"></div></div>
-      <div class="tl-row"><span class="tl-label">장면</span><div class="track scenes" id="scenes"></div></div>
-      <div class="tl-row" id="barsRow" hidden><span class="tl-label" id="barsLabel">문구</span><div class="track bars" id="bars"></div></div>
+      <div class="tl-row"><span class="tl-label">장면</span><div class="track clips" id="clips"></div></div>
+      <div class="tl-row" id="barsRow" hidden><span class="tl-label">문구</span><div class="track bars" id="bars"></div></div>
       <div class="tl-row" id="soundsRow" hidden><span class="tl-label">소리</span><div class="track sounds" id="sounds"></div></div>
-      <p class="tl-note" id="tlNote"></p>
+      <p class="tl-note">장면을 끌면 순서가, 양 끝을 끌면 길이가 바뀌어요. 누르면 선택, <kbd>Delete</kbd>로 삭제. 새 장면은 오른쪽 <b>장면 추가</b>에서 넣어요.</p>
       <div class="playhead" id="playhead" hidden></div>
     </div>
   </div>
@@ -165,7 +189,12 @@
   <div class="dlg-actions"><button class="btn" id="dlgCancel">취소</button><button class="btn primary" id="dlgSave" hidden>MP4 저장</button></div>
 </dialog>
 
-<iframe id="frame" title="영상 그리기용 (보이지 않음)" aria-hidden="true" tabindex="-1"></iframe>
+<dialog id="newDlg">
+  <h2>새 편집본</h2>
+  <p class="note">어떤 영상에서 시작할까요? 그 영상의 장면이 모두 들어간 상태로 시작해요. 지금 편집본은 되돌리기로 다시 열 수 있어요.</p>
+  <div class="new-list" id="newList"></div>
+  <div class="dlg-actions"><button class="btn" id="newCancel">닫기</button></div>
+</dialog>
 <script src="editor/vendor/mp4-muxer.js"></script>
 <script src="editor/videos.js"></script>
 <script src="editor/editor.js"></script>
