@@ -2,566 +2,691 @@
  {
   "type": "pop",
   "t": 0,
-  "info": 0
+  "info": 0,
+  "grid": 0
  },
  {
   "type": "pop",
-  "t": 0.25,
-  "info": 0
+  "t": 0.2459,
+  "info": 0,
+  "grid": 0.25
  },
  {
   "type": "pop",
-  "t": 0.5,
-  "info": 0
+  "t": 0.4919,
+  "info": 0,
+  "grid": 0.5
  },
  {
   "type": "land",
-  "t": 0.625,
-  "info": 120
+  "t": 0.4919,
+  "info": 120,
+  "grid": 0.5
+ },
+ {
+  "type": "land",
+  "t": 0.6148,
+  "info": 120,
+  "grid": 0.625
  },
  {
   "type": "pop",
-  "t": 0.75,
-  "info": 0
+  "t": 0.7378,
+  "info": 0,
+  "grid": 0.75
  },
  {
   "type": "land",
-  "t": 0.75,
-  "info": 120
+  "t": 0.7378,
+  "info": 120,
+  "grid": 0.75
  },
  {
   "type": "land",
-  "t": 0.875,
-  "info": 120
+  "t": 1.2297,
+  "info": 210,
+  "grid": 1.25
  },
  {
   "type": "land",
-  "t": 1.125,
-  "info": 210
+  "t": 1.3527,
+  "info": 210,
+  "grid": 1.375
  },
  {
   "type": "land",
-  "t": 1.25,
-  "info": 210
+  "t": 1.4756,
+  "info": 210,
+  "grid": 1.5
  },
  {
   "type": "land",
-  "t": 1.375,
-  "info": 210
+  "t": 1.5986,
+  "info": 210,
+  "grid": 1.625
  },
  {
   "type": "land",
-  "t": 1.5,
-  "info": 210
+  "t": 1.7216,
+  "info": 210,
+  "grid": 1.75
  },
  {
   "type": "land",
-  "t": 1.625,
-  "info": 210
+  "t": 1.8445,
+  "info": 210,
+  "grid": 1.875
  },
  {
   "type": "land",
-  "t": 1.75,
-  "info": 210
+  "t": 1.9675,
+  "info": 210,
+  "grid": 2
  },
  {
   "type": "burst",
-  "t": 1.75,
-  "info": 0
- },
- {
-  "type": "land",
-  "t": 1.875,
-  "info": 210
+  "t": 1.9675,
+  "info": 0,
+  "grid": 2
  },
  {
   "type": "wipe",
-  "t": 3.5,
-  "info": 0
+  "t": 3.4431,
+  "info": 0,
+  "grid": 3.5
  },
  {
   "type": "land",
-  "t": 4.125,
-  "info": 120
+  "t": 4.058,
+  "info": 120,
+  "grid": 4.125
  },
  {
   "type": "land",
-  "t": 4.25,
-  "info": 120
+  "t": 4.1809,
+  "info": 120,
+  "grid": 4.25
  },
  {
   "type": "land",
-  "t": 4.375,
-  "info": 120
+  "t": 4.3039,
+  "info": 120,
+  "grid": 4.375
  },
  {
   "type": "land",
-  "t": 4.5,
-  "info": 120
+  "t": 4.4269,
+  "info": 120,
+  "grid": 4.5
  },
  {
   "type": "pop",
-  "t": 4.5,
-  "info": 0
+  "t": 4.4269,
+  "info": 0,
+  "grid": 4.5
  },
  {
   "type": "land",
-  "t": 4.625,
-  "info": 120
+  "t": 4.5498,
+  "info": 120,
+  "grid": 4.625
  },
  {
   "type": "land",
-  "t": 4.75,
-  "info": 120
+  "t": 4.6728,
+  "info": 120,
+  "grid": 4.75
  },
  {
   "type": "pop",
-  "t": 4.75,
-  "info": 0
+  "t": 4.6728,
+  "info": 0,
+  "grid": 4.75
  },
  {
   "type": "land",
-  "t": 4.875,
-  "info": 120
+  "t": 4.7958,
+  "info": 120,
+  "grid": 4.875
  },
  {
   "type": "pop",
-  "t": 5,
-  "info": 0
+  "t": 4.9188,
+  "info": 0,
+  "grid": 5
  },
  {
   "type": "ball",
-  "t": 5,
-  "info": 0
+  "t": 4.9188,
+  "info": 0,
+  "grid": 5
  },
  {
   "type": "pop",
-  "t": 5.25,
-  "info": 0
+  "t": 5.1647,
+  "info": 0,
+  "grid": 5.25
  },
  {
   "type": "ball",
-  "t": 5.5,
-  "info": 1
+  "t": 5.4106,
+  "info": 1,
+  "grid": 5.5
  },
  {
   "type": "ball",
-  "t": 6,
-  "info": 2
+  "t": 5.9025,
+  "info": 2,
+  "grid": 6
  },
  {
   "type": "pop",
-  "t": 6.25,
-  "info": 0
+  "t": 6.1484,
+  "info": 0,
+  "grid": 6.25
  },
  {
   "type": "ball",
-  "t": 6.5,
-  "info": 3
+  "t": 6.3944,
+  "info": 3,
+  "grid": 6.5
  },
  {
   "type": "pop",
-  "t": 6.5,
-  "info": 0
+  "t": 6.3944,
+  "info": 0,
+  "grid": 6.5
  },
  {
   "type": "wipe",
-  "t": 7.5,
-  "info": 0
+  "t": 7.3781,
+  "info": 0,
+  "grid": 7.5
  },
  {
   "type": "land",
-  "t": 8.125,
-  "info": 96
+  "t": 7.993,
+  "info": 96,
+  "grid": 8.125
  },
  {
   "type": "land",
-  "t": 8.188,
-  "info": 96
+  "t": 8.0549,
+  "info": 96,
+  "grid": 8.188
  },
  {
   "type": "land",
-  "t": 8.25,
-  "info": 96
+  "t": 8.1159,
+  "info": 96,
+  "grid": 8.25
  },
  {
   "type": "pop",
-  "t": 8.25,
-  "info": 0
+  "t": 8.1159,
+  "info": 0,
+  "grid": 8.25
  },
  {
   "type": "land",
-  "t": 8.313,
-  "info": 96
+  "t": 8.1779,
+  "info": 96,
+  "grid": 8.313
  },
  {
   "type": "land",
-  "t": 8.375,
-  "info": 96
+  "t": 8.2389,
+  "info": 96,
+  "grid": 8.375
  },
  {
   "type": "land",
-  "t": 8.438,
-  "info": 96
+  "t": 8.3009,
+  "info": 96,
+  "grid": 8.438
  },
  {
   "type": "land",
-  "t": 8.5,
-  "info": 96
+  "t": 8.3619,
+  "info": 96,
+  "grid": 8.5
  },
  {
   "type": "land",
-  "t": 8.563,
-  "info": 96
+  "t": 8.4239,
+  "info": 96,
+  "grid": 8.563
  },
  {
   "type": "land",
-  "t": 8.625,
-  "info": 96
+  "t": 8.4848,
+  "info": 96,
+  "grid": 8.625
  },
  {
   "type": "land",
-  "t": 8.688,
-  "info": 96
+  "t": 8.5468,
+  "info": 96,
+  "grid": 8.688
  },
  {
   "type": "block",
-  "t": 9,
-  "info": 0
+  "t": 8.8537,
+  "info": 0,
+  "grid": 9
  },
  {
   "type": "block",
-  "t": 9.5,
-  "info": 1
+  "t": 9.3456,
+  "info": 1,
+  "grid": 9.5
  },
  {
   "type": "block",
-  "t": 10,
-  "info": 2
+  "t": 9.8375,
+  "info": 2,
+  "grid": 10
  },
  {
   "type": "block",
-  "t": 10.5,
-  "info": 3
+  "t": 10.3294,
+  "info": 3,
+  "grid": 10.5
  },
  {
   "type": "stamp",
-  "t": 11,
-  "info": 0
+  "t": 10.8213,
+  "info": 0,
+  "grid": 11
  },
  {
   "type": "burst",
-  "t": 11,
-  "info": 0
+  "t": 10.8213,
+  "info": 0,
+  "grid": 11
  },
  {
   "type": "wipe",
-  "t": 11.5,
-  "info": 0
+  "t": 11.3131,
+  "info": 0,
+  "grid": 11.5
  },
  {
   "type": "land",
-  "t": 12.25,
-  "info": 96
+  "t": 12.0509,
+  "info": 96,
+  "grid": 12.25
  },
  {
   "type": "land",
-  "t": 12.375,
-  "info": 96
+  "t": 12.1739,
+  "info": 96,
+  "grid": 12.375
  },
  {
   "type": "double",
-  "t": 12.5,
-  "info": 0
+  "t": 12.2969,
+  "info": 0,
+  "grid": 12.5
  },
  {
   "type": "land",
-  "t": 12.5,
-  "info": 96
+  "t": 12.2969,
+  "info": 96,
+  "grid": 12.5
  },
  {
   "type": "land",
-  "t": 12.625,
-  "info": 96
+  "t": 12.4198,
+  "info": 96,
+  "grid": 12.625
  },
  {
   "type": "land",
-  "t": 12.75,
-  "info": 96
+  "t": 12.5428,
+  "info": 96,
+  "grid": 12.75
  },
  {
   "type": "land",
-  "t": 12.875,
-  "info": 96
+  "t": 12.6658,
+  "info": 96,
+  "grid": 12.875
  },
  {
   "type": "double",
-  "t": 13,
-  "info": 1
+  "t": 12.7888,
+  "info": 1,
+  "grid": 13
  },
  {
   "type": "land",
-  "t": 13,
-  "info": 96
+  "t": 12.7888,
+  "info": 96,
+  "grid": 13
  },
  {
   "type": "land",
-  "t": 13.125,
-  "info": 96
+  "t": 12.9117,
+  "info": 96,
+  "grid": 13.125
  },
  {
   "type": "land",
-  "t": 13.25,
-  "info": 96
+  "t": 13.0347,
+  "info": 96,
+  "grid": 13.25
  },
  {
   "type": "double",
-  "t": 13.5,
-  "info": 2
+  "t": 13.2806,
+  "info": 2,
+  "grid": 13.5
  },
  {
   "type": "double",
-  "t": 14,
-  "info": 3
+  "t": 13.7725,
+  "info": 3,
+  "grid": 14
  },
  {
   "type": "pop",
-  "t": 14,
-  "info": 0
+  "t": 13.7725,
+  "info": 0,
+  "grid": 14
  },
  {
   "type": "double",
-  "t": 14.5,
-  "info": 4
+  "t": 14.2644,
+  "info": 4,
+  "grid": 14.5
  },
  {
   "type": "double",
-  "t": 15,
-  "info": 5
+  "t": 14.7562,
+  "info": 5,
+  "grid": 15
  },
  {
   "type": "double",
-  "t": 15.5,
-  "info": 6
+  "t": 15.2481,
+  "info": 6,
+  "grid": 15.5
  },
  {
   "type": "wipe",
-  "t": 15.5,
-  "info": 0
+  "t": 15.2481,
+  "info": 0,
+  "grid": 15.5
  },
  {
   "type": "double",
-  "t": 16,
-  "info": 7
+  "t": 15.74,
+  "info": 7,
+  "grid": 16
  },
  {
   "type": "pop",
-  "t": 16.25,
-  "info": 0
+  "t": 15.9859,
+  "info": 0,
+  "grid": 16.25
  },
  {
   "type": "land",
-  "t": 16.25,
-  "info": 130
+  "t": 15.9859,
+  "info": 130,
+  "grid": 16.25
  },
  {
   "type": "land",
-  "t": 16.375,
-  "info": 130
+  "t": 16.1089,
+  "info": 130,
+  "grid": 16.375
  },
  {
   "type": "land",
-  "t": 16.5,
-  "info": 130
+  "t": 16.2319,
+  "info": 130,
+  "grid": 16.5
  },
  {
   "type": "pop",
-  "t": 16.75,
-  "info": 0
+  "t": 16.4778,
+  "info": 0,
+  "grid": 16.75
  },
  {
   "type": "land",
-  "t": 16.75,
-  "info": 130
+  "t": 16.4778,
+  "info": 130,
+  "grid": 16.75
  },
  {
   "type": "land",
-  "t": 16.875,
-  "info": 130
+  "t": 16.6008,
+  "info": 130,
+  "grid": 16.875
  },
  {
   "type": "land",
-  "t": 17,
-  "info": 130
+  "t": 16.7237,
+  "info": 130,
+  "grid": 17
  },
  {
   "type": "pop",
-  "t": 18.25,
-  "info": 0
+  "t": 17.9534,
+  "info": 0,
+  "grid": 18.25
  },
  {
   "type": "wipe",
-  "t": 19.5,
-  "info": 0
+  "t": 19.1831,
+  "info": 0,
+  "grid": 19.5
  },
  {
   "type": "land",
-  "t": 20.25,
-  "info": 120
+  "t": 19.9209,
+  "info": 120,
+  "grid": 20.25
  },
  {
   "type": "land",
-  "t": 20.375,
-  "info": 120
+  "t": 20.0439,
+  "info": 120,
+  "grid": 20.375
  },
  {
   "type": "land",
-  "t": 20.5,
-  "info": 120
+  "t": 20.1669,
+  "info": 120,
+  "grid": 20.5
  },
  {
   "type": "land",
-  "t": 20.625,
-  "info": 120
+  "t": 20.2898,
+  "info": 120,
+  "grid": 20.625
  },
  {
   "type": "land",
-  "t": 20.75,
-  "info": 120
+  "t": 20.4128,
+  "info": 120,
+  "grid": 20.75
  },
  {
   "type": "land",
-  "t": 20.875,
-  "info": 120
+  "t": 20.5358,
+  "info": 120,
+  "grid": 20.875
  },
  {
   "type": "land",
-  "t": 21,
-  "info": 140
+  "t": 20.6588,
+  "info": 140,
+  "grid": 21
  },
  {
   "type": "pop",
-  "t": 21,
-  "info": 0
+  "t": 20.6588,
+  "info": 0,
+  "grid": 21
  },
  {
   "type": "land",
-  "t": 21.125,
-  "info": 140
+  "t": 20.7817,
+  "info": 140,
+  "grid": 21.125
  },
  {
   "type": "land",
-  "t": 21.25,
-  "info": 140
+  "t": 20.9047,
+  "info": 140,
+  "grid": 21.25
  },
  {
   "type": "pop",
-  "t": 22.75,
-  "info": 0
+  "t": 22.3803,
+  "info": 0,
+  "grid": 22.75
  },
  {
   "type": "burst",
-  "t": 22.75,
-  "info": 0
+  "t": 22.3803,
+  "info": 0,
+  "grid": 22.75
  },
  {
   "type": "pop",
-  "t": 23,
-  "info": 0
+  "t": 22.6262,
+  "info": 0,
+  "grid": 23
  },
  {
   "type": "pop",
-  "t": 23.25,
-  "info": 0
+  "t": 22.8722,
+  "info": 0,
+  "grid": 23.25
  },
  {
   "type": "pop",
-  "t": 23.5,
-  "info": 0
+  "t": 23.1181,
+  "info": 0,
+  "grid": 23.5
  },
  {
   "type": "pop",
-  "t": 23.75,
-  "info": 0
+  "t": 23.3641,
+  "info": 0,
+  "grid": 23.75
  },
  {
   "type": "wipe",
-  "t": 24.5,
-  "info": 0
+  "t": 24.1019,
+  "info": 0,
+  "grid": 24.5
  },
  {
   "type": "pop",
-  "t": 25,
-  "info": 0
+  "t": 24.5938,
+  "info": 0,
+  "grid": 25
  },
  {
   "type": "land",
-  "t": 25.25,
-  "info": 130
+  "t": 24.8397,
+  "info": 130,
+  "grid": 25.25
  },
  {
   "type": "land",
-  "t": 25.375,
-  "info": 130
+  "t": 24.9627,
+  "info": 130,
+  "grid": 25.375
  },
  {
   "type": "toggle",
-  "t": 25.5,
-  "info": 0
+  "t": 25.0856,
+  "info": 0,
+  "grid": 25.5
  },
  {
   "type": "burst",
-  "t": 25.5,
-  "info": 0
+  "t": 25.0856,
+  "info": 0,
+  "grid": 25.5
  },
  {
   "type": "land",
-  "t": 26,
-  "info": 150
+  "t": 25.5775,
+  "info": 150,
+  "grid": 26
  },
  {
   "type": "land",
-  "t": 26.125,
-  "info": 150
+  "t": 25.7005,
+  "info": 150,
+  "grid": 26.125
  },
  {
   "type": "land",
-  "t": 26.25,
-  "info": 150
+  "t": 25.8234,
+  "info": 150,
+  "grid": 26.25
  },
  {
   "type": "land",
-  "t": 26.375,
-  "info": 150
+  "t": 25.9464,
+  "info": 150,
+  "grid": 26.375
  },
  {
   "type": "land",
-  "t": 26.5,
-  "info": 150
+  "t": 26.0694,
+  "info": 150,
+  "grid": 26.5
  },
  {
   "type": "land",
-  "t": 26.625,
-  "info": 150
+  "t": 26.1923,
+  "info": 150,
+  "grid": 26.625
  },
  {
   "type": "land",
-  "t": 26.75,
-  "info": 150
+  "t": 26.3153,
+  "info": 150,
+  "grid": 26.75
  },
  {
   "type": "land",
-  "t": 26.875,
-  "info": 190
+  "t": 26.4383,
+  "info": 190,
+  "grid": 26.875
  },
  {
   "type": "land",
-  "t": 27,
-  "info": 190
+  "t": 26.5613,
+  "info": 190,
+  "grid": 27
  },
  {
   "type": "pop",
-  "t": 27.5,
-  "info": 0
+  "t": 27.0531,
+  "info": 0,
+  "grid": 27.5
+ },
+ {
+  "type": "burst",
+  "t": 28.5287,
+  "info": 0,
+  "grid": 29
+ },
+ {
+  "type": "pop",
+  "t": 29.0206,
+  "info": 0,
+  "grid": 29.5
  }
 ]

@@ -1,3 +1,5 @@
 node_modules/
 audio/*
 !audio/.gitkeep
+# 배경음(상업 음원)이 들어간 렌더 결과는 저장소에 올리지 않음
+out/*_celebration.mp4

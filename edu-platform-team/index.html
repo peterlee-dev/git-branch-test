@@ -19,10 +19,11 @@
 </style>
 </head>
 <body>
+<script src="song.js"></script>
 <canvas id="c" width="1920" height="1080"></canvas>
 <div class="bar">
   <button id="play">▶ 재생</button>
-  <input id="seek" type="range" min="0" max="30" step="0.01" value="0">
+  <input id="seek" type="range" min="0" max="40" step="0.01" value="0">
   <span id="time">0.00s</span>
 </div>
 <script>
@@ -31,7 +32,11 @@
 // 120BPM (한 박 0.5초). 장면 전환: 4 · 8 · 12 · 16 · 20 · 25초, 박자마다 튀고 흔들림
 // draw(t) 는 시간 t(초)만으로 화면을 그리는 순수 함수 → 프레임 단위 렌더 가능
 // ------------------------------------------------------------
-const W = 1920, H = 1080, DURATION = 30, BEAT = .5;
+const W = 1920, H = 1080, BEAT = .5, GRID_DURATION = 34;
+// 영상은 120BPM(한 박 0.5초) 격자로 짜고, 배경음의 실제 박 길이에 맞게 시간을 늘이거나 줄임 (song.js)
+const SONG = window.SONG || { beat: BEAT, start: 0 };
+const TK = SONG.beat / BEAT;                         // 격자 1초 → 실제 몇 초
+const DURATION = GRID_DURATION * TK;
 const cv = document.getElementById('c'), ctx = cv.getContext('2d');
 const P = { red: '#E60012', yellow: '#FFC93C', blue: '#3D7CFF', mint: '#22CFA0', pink: '#FF7AB6', cream: '#FFF6EC', ink: '#17151F', white: '#FFFFFF', purple: '#8B5CFF' };
 const DISP = "'Black Han Sans', 'Noto Sans KR', sans-serif", KR = "'Noto Sans KR', sans-serif", EN = "'Inter', sans-serif", MONO = "'JetBrains Mono', monospace";
@@ -165,10 +170,10 @@ function s1(t) {
   // 큰 원들이 박자마다 튐
   [[260, 220, 120, P.yellow], [1700, 860, 160, P.blue], [1640, 200, 70, P.white], [300, 900, 90, P.pink]].forEach(([x, y, r, c], i) => circle(x, y, r * pop(t, i * .25, .4), c, .95));
   sticker('Hello, World!', 960, 300, t, .3, { size: 40, fill: P.white, color: P.red, family: MONO, rot: -.08 });
-  bouncy('우리는', 960, 470, t, .6, { size: 120, color: P.white, shadow: 'rgba(0,0,0,.18)' });
-  bouncy('교육플랫폼팀!', 960, 660, t, 1.1, { size: 210, color: P.yellow, stroke: P.ink, lw: 14, shadow: 'rgba(0,0,0,.25)', stagger: .07 });
+  bouncy('우리는', 960, 470, t, .5, { size: 120, color: P.white, shadow: 'rgba(0,0,0,.18)' });
+  bouncy('교육플랫폼팀!', 960, 660, t, 1.25, { size: 210, color: P.yellow, stroke: P.ink, lw: 14, shadow: 'rgba(0,0,0,.25)', stagger: .07 });
   squiggle(620, 830, 680, P.white, t, eOut(p(t, 2.0, .4)));
-  burst(t, 1.8, 960, 640, 11, [P.yellow, P.white, P.blue, P.pink, P.mint]);
+  burst(t, 2.0, 960, 640, 11, [P.yellow, P.white, P.blue, P.pink, P.mint]);
   wipe(t, 3.55, 960, 540, P.cream);
 }
 // 4–8 : 상상하면, 만든다! + 튀는 공이 지나가는 파이프라인
@@ -375,14 +380,17 @@ function s7(t) {
   bouncy('교육의 미래를,', 960, 560, t, 26.0, { size: 150, color: P.white, shadow: 'rgba(0,0,0,.2)', stagger: .05 });
   bouncy('코드로.', 960, 740, t, 26.6, { size: 190, color: P.yellow, stroke: P.ink, lw: 14, shadow: 'rgba(0,0,0,.25)', stagger: .08 });
   sticker('재능교육 교육플랫폼팀', 960, 925, t, 27.4, { size: 50, fill: P.white, color: P.red, rot: -.03 });
-  text('Frontend · Web & App · AI', 960, 1015, { size: 26, color: P.white, family: EN, weight: 700, alpha: eOut(p(t, 27.8, .4)) });
-  const f = p(t, 29.3, .7); if (f > 0) { ctx.fillStyle = `rgba(0,0,0,${eIO(f)})`; ctx.fillRect(-200, -200, W + 400, H + 400); }
+  text('Frontend · Web & App · AI', 700, 1015, { size: 26, color: P.white, family: EN, weight: 700, alpha: eOut(p(t, 27.8, .4)) });
+  burst(t, 29, 960, 700, 61, [P.yellow, P.white, P.pink, P.blue, P.mint], 70, 1000);
+  sticker("Let's build together!", 1480, 1010, t, 29.5, { size: 34, fill: P.ink, color: P.yellow, family: MONO, rot: .03 });
+  const f = p(t, 33.0, 1.0); if (f > 0) { ctx.fillStyle = `rgba(0,0,0,${eIO(f)})`; ctx.fillRect(-200, -200, W + 400, H + 400); }
 }
 
-function draw(t) {
+function draw(realT) {
+  const t = realT / TK;
   ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalAlpha = 1;
   // 큰 순간(장면 전환·도장·폭발·토글)에만 한 번 쿵: 흔들림 + 짧은 줌 펀치
-  const hits = [1.75, 4, 8, 11, 12, 16, 20, 22.75, 25, 25.5];
+  const hits = [2, 4, 8, 11, 12, 16, 20, 22.75, 25, 25.5, 29];
   let shake = 0, punch = 0;
   hits.forEach(h => { const k = p(t, h, .28); if (k > 0 && k < 1) { shake += (1 - k) * 20; punch += (1 - eOut(k)) * .035; } });
   const r = rng(1 + Math.floor(t * 30));
@@ -394,7 +402,7 @@ function draw(t) {
 // ---------- preview player ----------
 const seekEl = document.getElementById('seek'), timeEl = document.getElementById('time'), playEl = document.getElementById('play');
 let playing = false, t0 = 0, tCur = 0;
-const audio = new Audio('audio/mix.wav'); audio.preload = 'auto';
+const audio = new Audio('audio/mix.wav');   // tools/make_audio.py 가 배경음 구간 + 효과음으로 만듦 audio.preload = 'auto';
 function show(t) { tCur = t; draw(t); seekEl.value = t; timeEl.textContent = t.toFixed(2) + 's'; }
 function loop(now) {
   if (!playing) return;
@@ -410,7 +418,7 @@ playEl.onclick = () => {
 seekEl.oninput = () => { show(+seekEl.value); if (playing) { t0 = performance.now() - tCur * 1000; try { audio.currentTime = tCur; } catch (e) {} } };
 
 window.draw = draw;
-window.collectEvents = () => { EV.clear(); for (let f = 0; f <= DURATION * 30; f++) draw(f / 30); return [...EV.values()].sort((a, b) => a.t - b.t); };
+window.collectEvents = () => { EV.clear(); for (let f = 0; f <= DURATION * 30; f++) draw(f / 30); return [...EV.values()].map(e => ({ ...e, grid: e.t, t: +(e.t * TK).toFixed(4) })).sort((a, b) => a.t - b.t); };
 window.DURATION = DURATION;
 window.ready = Promise.all([document.fonts.load(`100px 'Black Han Sans'`, '가'), document.fonts.load(`700 100px 'Noto Sans KR'`, '가'), document.fonts.load(`800 100px 'Inter'`, 'A'), document.fonts.load(`500 100px 'JetBrains Mono'`, 'a')]).then(r => {
   if (r.some(fs => !fs.length)) throw new Error('폰트를 불러오지 못했습니다 (fonts/ 폴더 확인)');
