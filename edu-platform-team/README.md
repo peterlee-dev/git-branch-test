@@ -16,12 +16,19 @@
 
 참고: [재능e아카데미 회사소개](https://it.jei.com/about/), [팀문화](https://it.jei.com/culture/) (검색 결과로 확인. 작업 환경에서 사이트 직접 접속은 차단됨)
 
+## 비트 싱크
+
+- 모든 등장 시각은 8분음표(0.25초) 격자에, 글자 하나하나는 16분·32분음표 격자에 맞춰요. 글자와 블록은 떨어져서 **바닥에 닿는 순간이 박자**예요
+- 박마다 화면 전체가 살짝 펄스하고, 스티커·장식·카드·로봇도 박자에 맞춰 통통 뛰어요
+- `node tools/export_events.mjs`가 영상에서 등장·착지 시각을 뽑아 `tools/events.json`에 저장하고, `tools/make_audio.py`가 그 시각에 효과음을 놓아요. 화면을 고친 뒤 이 두 단계를 다시 돌리면 소리도 자동으로 맞춰져요
+
 ## 수정·렌더링
 
 문구와 타이밍은 `index.html`의 `s1`~`s7`에, 사운드는 `tools/make_audio.py`에 있습니다.
 
 ```bash
 npm install && pip install numpy soundfile imageio-ffmpeg
+node tools/export_events.mjs         # tools/events.json (화면의 박자 이벤트)
 python3 tools/make_audio.py          # audio/mix.wav
 export FFMPEG=$(python3 -c "import imageio_ffmpeg as i; print(i.get_ffmpeg_exe())")
 node render.mjs                      # out/edu_platform_team.mp4

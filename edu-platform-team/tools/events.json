@@ -1,0 +1,607 @@
+[
+ {
+  "type": "pop",
+  "t": 0,
+  "info": 0
+ },
+ {
+  "type": "pop",
+  "t": 0.25,
+  "info": 0
+ },
+ {
+  "type": "pop",
+  "t": 0.5,
+  "info": 0
+ },
+ {
+  "type": "land",
+  "t": 0.625,
+  "info": 120
+ },
+ {
+  "type": "pop",
+  "t": 0.75,
+  "info": 0
+ },
+ {
+  "type": "land",
+  "t": 0.75,
+  "info": 120
+ },
+ {
+  "type": "land",
+  "t": 0.875,
+  "info": 120
+ },
+ {
+  "type": "land",
+  "t": 1.125,
+  "info": 210
+ },
+ {
+  "type": "land",
+  "t": 1.25,
+  "info": 210
+ },
+ {
+  "type": "land",
+  "t": 1.375,
+  "info": 210
+ },
+ {
+  "type": "land",
+  "t": 1.5,
+  "info": 210
+ },
+ {
+  "type": "land",
+  "t": 1.625,
+  "info": 210
+ },
+ {
+  "type": "land",
+  "t": 1.75,
+  "info": 210
+ },
+ {
+  "type": "burst",
+  "t": 1.75,
+  "info": 0
+ },
+ {
+  "type": "land",
+  "t": 1.875,
+  "info": 210
+ },
+ {
+  "type": "wipe",
+  "t": 3.5,
+  "info": 0
+ },
+ {
+  "type": "land",
+  "t": 4.125,
+  "info": 120
+ },
+ {
+  "type": "land",
+  "t": 4.25,
+  "info": 120
+ },
+ {
+  "type": "land",
+  "t": 4.375,
+  "info": 120
+ },
+ {
+  "type": "land",
+  "t": 4.5,
+  "info": 120
+ },
+ {
+  "type": "pop",
+  "t": 4.5,
+  "info": 0
+ },
+ {
+  "type": "land",
+  "t": 4.625,
+  "info": 120
+ },
+ {
+  "type": "land",
+  "t": 4.75,
+  "info": 120
+ },
+ {
+  "type": "pop",
+  "t": 4.75,
+  "info": 0
+ },
+ {
+  "type": "land",
+  "t": 4.875,
+  "info": 120
+ },
+ {
+  "type": "pop",
+  "t": 5,
+  "info": 0
+ },
+ {
+  "type": "ball",
+  "t": 5,
+  "info": 0
+ },
+ {
+  "type": "pop",
+  "t": 5.25,
+  "info": 0
+ },
+ {
+  "type": "ball",
+  "t": 5.5,
+  "info": 1
+ },
+ {
+  "type": "ball",
+  "t": 6,
+  "info": 2
+ },
+ {
+  "type": "pop",
+  "t": 6.25,
+  "info": 0
+ },
+ {
+  "type": "ball",
+  "t": 6.5,
+  "info": 3
+ },
+ {
+  "type": "pop",
+  "t": 6.5,
+  "info": 0
+ },
+ {
+  "type": "wipe",
+  "t": 7.5,
+  "info": 0
+ },
+ {
+  "type": "land",
+  "t": 8.125,
+  "info": 96
+ },
+ {
+  "type": "land",
+  "t": 8.188,
+  "info": 96
+ },
+ {
+  "type": "land",
+  "t": 8.25,
+  "info": 96
+ },
+ {
+  "type": "pop",
+  "t": 8.25,
+  "info": 0
+ },
+ {
+  "type": "land",
+  "t": 8.313,
+  "info": 96
+ },
+ {
+  "type": "land",
+  "t": 8.375,
+  "info": 96
+ },
+ {
+  "type": "land",
+  "t": 8.438,
+  "info": 96
+ },
+ {
+  "type": "land",
+  "t": 8.5,
+  "info": 96
+ },
+ {
+  "type": "land",
+  "t": 8.563,
+  "info": 96
+ },
+ {
+  "type": "land",
+  "t": 8.625,
+  "info": 96
+ },
+ {
+  "type": "land",
+  "t": 8.688,
+  "info": 96
+ },
+ {
+  "type": "block",
+  "t": 9,
+  "info": 0
+ },
+ {
+  "type": "block",
+  "t": 9.5,
+  "info": 1
+ },
+ {
+  "type": "block",
+  "t": 10,
+  "info": 2
+ },
+ {
+  "type": "block",
+  "t": 10.5,
+  "info": 3
+ },
+ {
+  "type": "stamp",
+  "t": 11,
+  "info": 0
+ },
+ {
+  "type": "burst",
+  "t": 11,
+  "info": 0
+ },
+ {
+  "type": "wipe",
+  "t": 11.5,
+  "info": 0
+ },
+ {
+  "type": "land",
+  "t": 12.25,
+  "info": 96
+ },
+ {
+  "type": "land",
+  "t": 12.375,
+  "info": 96
+ },
+ {
+  "type": "double",
+  "t": 12.5,
+  "info": 0
+ },
+ {
+  "type": "land",
+  "t": 12.5,
+  "info": 96
+ },
+ {
+  "type": "land",
+  "t": 12.625,
+  "info": 96
+ },
+ {
+  "type": "land",
+  "t": 12.75,
+  "info": 96
+ },
+ {
+  "type": "land",
+  "t": 12.875,
+  "info": 96
+ },
+ {
+  "type": "double",
+  "t": 13,
+  "info": 1
+ },
+ {
+  "type": "land",
+  "t": 13,
+  "info": 96
+ },
+ {
+  "type": "land",
+  "t": 13.125,
+  "info": 96
+ },
+ {
+  "type": "land",
+  "t": 13.25,
+  "info": 96
+ },
+ {
+  "type": "double",
+  "t": 13.5,
+  "info": 2
+ },
+ {
+  "type": "double",
+  "t": 14,
+  "info": 3
+ },
+ {
+  "type": "pop",
+  "t": 14,
+  "info": 0
+ },
+ {
+  "type": "double",
+  "t": 14.5,
+  "info": 4
+ },
+ {
+  "type": "double",
+  "t": 15,
+  "info": 5
+ },
+ {
+  "type": "double",
+  "t": 15.5,
+  "info": 6
+ },
+ {
+  "type": "wipe",
+  "t": 15.5,
+  "info": 0
+ },
+ {
+  "type": "double",
+  "t": 16,
+  "info": 7
+ },
+ {
+  "type": "pop",
+  "t": 16.25,
+  "info": 0
+ },
+ {
+  "type": "land",
+  "t": 16.25,
+  "info": 130
+ },
+ {
+  "type": "land",
+  "t": 16.375,
+  "info": 130
+ },
+ {
+  "type": "device",
+  "t": 16.5,
+  "info": 0
+ },
+ {
+  "type": "land",
+  "t": 16.5,
+  "info": 130
+ },
+ {
+  "type": "pop",
+  "t": 16.75,
+  "info": 0
+ },
+ {
+  "type": "land",
+  "t": 16.75,
+  "info": 130
+ },
+ {
+  "type": "land",
+  "t": 16.875,
+  "info": 130
+ },
+ {
+  "type": "device",
+  "t": 17,
+  "info": 1
+ },
+ {
+  "type": "land",
+  "t": 17,
+  "info": 130
+ },
+ {
+  "type": "device",
+  "t": 17.5,
+  "info": 0
+ },
+ {
+  "type": "device",
+  "t": 18,
+  "info": 1
+ },
+ {
+  "type": "pop",
+  "t": 18.25,
+  "info": 0
+ },
+ {
+  "type": "device",
+  "t": 18.5,
+  "info": 0
+ },
+ {
+  "type": "device",
+  "t": 19,
+  "info": 1
+ },
+ {
+  "type": "device",
+  "t": 19.5,
+  "info": 0
+ },
+ {
+  "type": "wipe",
+  "t": 19.5,
+  "info": 0
+ },
+ {
+  "type": "device",
+  "t": 20,
+  "info": 1
+ },
+ {
+  "type": "land",
+  "t": 20.25,
+  "info": 120
+ },
+ {
+  "type": "land",
+  "t": 20.375,
+  "info": 120
+ },
+ {
+  "type": "land",
+  "t": 20.5,
+  "info": 120
+ },
+ {
+  "type": "land",
+  "t": 20.625,
+  "info": 120
+ },
+ {
+  "type": "land",
+  "t": 20.75,
+  "info": 120
+ },
+ {
+  "type": "land",
+  "t": 20.875,
+  "info": 120
+ },
+ {
+  "type": "land",
+  "t": 21,
+  "info": 140
+ },
+ {
+  "type": "pop",
+  "t": 21,
+  "info": 0
+ },
+ {
+  "type": "land",
+  "t": 21.125,
+  "info": 140
+ },
+ {
+  "type": "land",
+  "t": 21.25,
+  "info": 140
+ },
+ {
+  "type": "pop",
+  "t": 22.75,
+  "info": 0
+ },
+ {
+  "type": "burst",
+  "t": 22.75,
+  "info": 0
+ },
+ {
+  "type": "pop",
+  "t": 23,
+  "info": 0
+ },
+ {
+  "type": "pop",
+  "t": 23.25,
+  "info": 0
+ },
+ {
+  "type": "pop",
+  "t": 23.5,
+  "info": 0
+ },
+ {
+  "type": "pop",
+  "t": 23.75,
+  "info": 0
+ },
+ {
+  "type": "wipe",
+  "t": 24.5,
+  "info": 0
+ },
+ {
+  "type": "pop",
+  "t": 25,
+  "info": 0
+ },
+ {
+  "type": "land",
+  "t": 25.25,
+  "info": 130
+ },
+ {
+  "type": "land",
+  "t": 25.375,
+  "info": 130
+ },
+ {
+  "type": "toggle",
+  "t": 25.5,
+  "info": 0
+ },
+ {
+  "type": "burst",
+  "t": 25.5,
+  "info": 0
+ },
+ {
+  "type": "land",
+  "t": 26,
+  "info": 150
+ },
+ {
+  "type": "land",
+  "t": 26.125,
+  "info": 150
+ },
+ {
+  "type": "land",
+  "t": 26.25,
+  "info": 150
+ },
+ {
+  "type": "land",
+  "t": 26.375,
+  "info": 150
+ },
+ {
+  "type": "land",
+  "t": 26.5,
+  "info": 150
+ },
+ {
+  "type": "land",
+  "t": 26.625,
+  "info": 150
+ },
+ {
+  "type": "land",
+  "t": 26.75,
+  "info": 150
+ },
+ {
+  "type": "land",
+  "t": 26.875,
+  "info": 190
+ },
+ {
+  "type": "land",
+  "t": 27,
+  "info": 190
+ },
+ {
+  "type": "pop",
+  "t": 27.5,
+  "info": 0
+ }
+]
