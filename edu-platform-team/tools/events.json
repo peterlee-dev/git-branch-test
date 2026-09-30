@@ -370,11 +370,6 @@
   "info": 130
  },
  {
-  "type": "device",
-  "t": 16.5,
-  "info": 0
- },
- {
   "type": "land",
   "t": 16.5,
   "info": 130
@@ -395,24 +390,9 @@
   "info": 130
  },
  {
-  "type": "device",
-  "t": 17,
-  "info": 1
- },
- {
   "type": "land",
   "t": 17,
   "info": 130
- },
- {
-  "type": "device",
-  "t": 17.5,
-  "info": 0
- },
- {
-  "type": "device",
-  "t": 18,
-  "info": 1
  },
  {
   "type": "pop",
@@ -420,29 +400,9 @@
   "info": 0
  },
  {
-  "type": "device",
-  "t": 18.5,
-  "info": 0
- },
- {
-  "type": "device",
-  "t": 19,
-  "info": 1
- },
- {
-  "type": "device",
-  "t": 19.5,
-  "info": 0
- },
- {
   "type": "wipe",
   "t": 19.5,
   "info": 0
- },
- {
-  "type": "device",
-  "t": 20,
-  "info": 1
  },
  {
   "type": "land",

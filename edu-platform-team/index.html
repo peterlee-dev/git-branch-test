@@ -94,9 +94,8 @@ function bouncy(str, cx, cy, t, start, { size = 160, color = P.ink, stagger = BE
     if (after >= 0) {
       sq = Math.exp(-after * 9) * Math.cos(after * 26) * .28;               // 착지 순간 찌그러졌다 튕김
       y -= Math.max(0, Math.sin(after * 26) * Math.exp(-after * 9)) * 30;
-      sq += beatPulse(t) * .06;                                              // 이후 박마다 통통
     }
-    const wob = jiggle ? Math.sin(t * 6 + i) * .025 : 0;
+    const wob = jiggle ? Math.sin(i * 2.3) * .03 : 0;            // 글자마다 고정된 살짝 기울기 (움직이지 않음)
     text(ch, x + ws[i] / 2, y + size * .2 * Math.max(0, sq), { size, color, sx: (1 + sq) * o, sy: (1 - sq) * o, rot: wob, shadow, stroke, lw, alpha: eOut(clamp(fall * 3)) });
     x += ws[i];
   });
@@ -106,8 +105,8 @@ function bouncy(str, cx, cy, t, start, { size = 160, color = P.ink, stagger = BE
 function sticker(str, x, y, t, s, { size = 44, fill = P.yellow, color = P.ink, rot = -.06, padX = 30, end = null, family = DISP } = {}) {
   const k = pop(t, s, .45) * (end == null ? 1 : outK(t, end, .25)); if (k <= 0) return;
   const w = measure(str, size, family) + padX * 2, h = size * 1.6;
-  const hh = t > Q(s) + .3 ? hop(t) * 10 : 0, bp = t > Q(s) + .3 ? beatPulse(t) * .05 : 0;
-  ctx.save(); ctx.translate(x, y - hh); ctx.rotate(rot + Math.sin(t * 5 + x) * .02); ctx.scale(k * (1 + bp), k * (1 - bp));
+  const hh = 0, bp = 0;
+  ctx.save(); ctx.translate(x, y - hh); ctx.rotate(rot); ctx.scale(k * (1 + bp), k * (1 - bp));
   rrect(-w / 2 + 8, -h / 2 + 10, w, h, h / 2, 'rgba(0,0,0,.18)');
   rrect(-w / 2, -h / 2, w, h, h / 2, fill, 1, P.white, 6);
   text(str, 0, 3, { size, color, family });
@@ -121,7 +120,7 @@ function star(x, y, r, c, rot = 0, a = 1) {
 }
 function squiggle(x, y, len, c, t, a = 1, w = 14) {
   ctx.save(); ctx.globalAlpha *= a; ctx.strokeStyle = c; ctx.lineWidth = w; ctx.lineCap = 'round'; ctx.beginPath();
-  for (let i = 0; i <= 40; i++) { const u = i / 40; const px = x + u * len, py = y + Math.sin(u * Math.PI * 4 + t * 6) * 18; i ? ctx.lineTo(px, py) : ctx.moveTo(px, py); }
+  for (let i = 0; i <= 40; i++) { const u = i / 40; const px = x + u * len, py = y + Math.sin(u * Math.PI * 4) * 18; i ? ctx.lineTo(px, py) : ctx.moveTo(px, py); }
   ctx.stroke(); ctx.restore();
 }
 function tri(x, y, r, c, rot, a = 1) { ctx.save(); ctx.globalAlpha *= a; ctx.translate(x, y); ctx.rotate(rot); ctx.fillStyle = c; ctx.beginPath(); ctx.moveTo(0, -r); ctx.lineTo(r * .87, r * .5); ctx.lineTo(-r * .87, r * .5); ctx.closePath(); ctx.fill(); ctx.restore(); }
@@ -130,8 +129,8 @@ function confettiField(t, seed, colors, n = 18, a = 1) {
   const r = rng(seed);
   for (let i = 0; i < n; i++) {
     const x = r() * W, y = r() * H, s = 14 + r() * 26, sp = .6 + r(), kind = Math.floor(r() * 4), c = colors[Math.floor(r() * colors.length)], ph = r() * 6;
-    const yy = y + Math.sin(t * sp + ph) * 20 - hop(t + (i % 2) * BEAT / 2) * 22, xx = x + Math.cos(t * sp + ph) * 20, rot = t * sp + ph + beatPulse(t) * .6;
-    const k = (1 + beatPulse(t) * .35);
+    const yy = y + Math.sin(t * sp * .5 + ph) * 12, xx = x + Math.cos(t * sp * .5 + ph) * 10, rot = t * sp * .4 + ph;
+    const k = 1;
     if (kind === 0) star(xx, yy, s * k, c, rot, a); else if (kind === 1) circle(xx, yy, s * .6 * k, c, a); else if (kind === 2) tri(xx, yy, s * k, c, rot, a);
     else { ctx.save(); ctx.globalAlpha = a; ctx.translate(xx, yy); ctx.rotate(rot); ctx.fillStyle = c; ctx.fillRect(-s * .7, -s * .2, s * 1.4, s * .4); ctx.restore(); }
   }
@@ -164,7 +163,7 @@ function s1(t) {
   bg(P.red);
   confettiField(t, 3, [P.yellow, P.white, P.pink, P.blue], 22, eOut(p(t, .2, .6)));
   // 큰 원들이 박자마다 튐
-  [[260, 220, 120, P.yellow], [1700, 860, 160, P.blue], [1640, 200, 70, P.white], [300, 900, 90, P.pink]].forEach(([x, y, r, c], i) => circle(x, y - hop(t + i * .25) * 16, r * pop(t, i * .25, .4) * (1 + beatPulse(t) * .14), c, .95));
+  [[260, 220, 120, P.yellow], [1700, 860, 160, P.blue], [1640, 200, 70, P.white], [300, 900, 90, P.pink]].forEach(([x, y, r, c], i) => circle(x, y, r * pop(t, i * .25, .4), c, .95));
   sticker('Hello, World!', 960, 300, t, .3, { size: 40, fill: P.white, color: P.red, family: MONO, rot: -.08 });
   bouncy('우리는', 960, 470, t, .6, { size: 120, color: P.white, shadow: 'rgba(0,0,0,.18)' });
   bouncy('교육플랫폼팀!', 960, 660, t, 1.1, { size: 210, color: P.yellow, stroke: P.ink, lw: 14, shadow: 'rgba(0,0,0,.25)', stagger: .07 });
@@ -226,7 +225,7 @@ function s3(t) {
     const fall = p(t, s - .25, .25); if (fall <= 0) return;
     const after = Math.max(0, t - s);
     const y = -wh / 2 + 130 + i * 118 - (1 - eIn(fall)) * 700 - Math.max(0, Math.sin(after * 22) * Math.exp(-after * 8)) * 40, x = -ww / 2 + 50;
-    const sq = after > 0 ? Math.exp(-after * 9) * Math.cos(after * 22) * .12 + beatPulse(t) * .03 : 0;
+    const sq = after > 0 ? Math.exp(-after * 9) * Math.cos(after * 22) * .12 : 0;
     ctx.save(); ctx.translate(0, y + 48); ctx.scale(1 + sq, 1 - sq); ctx.translate(0, -(y + 48));
     rrect(x, y, ww - 100, 96, 24, c, 1, P.ink, 5);
     rrect(x + 20, y + 22, 110, 52, 26, P.white); text(lbl, x + 75, y + 49, { size: 28, color: c });
@@ -264,13 +263,13 @@ function s4(t) {
     const c = i % cols, r = Math.floor(i / cols), x = gx + c * (cw + g), y = gy + r * (ch + g);
     const isNew = i >= n / 2 && si > 0, k = isNew ? eBack(since) : 1;
     if (k <= 0) continue;
-    ctx.save(); ctx.globalAlpha = o; ctx.translate(x + cw / 2, y + ch / 2 - hop(t + (i % 2) * BEAT / 2) * ch * .06); ctx.scale(k * (1 + beatPulse(t) * .05), k * (1 - beatPulse(t) * .05)); ctx.rotate(Math.sin(i * 1.7 + t * 3) * .04);
+    ctx.save(); ctx.globalAlpha = o; ctx.translate(x + cw / 2, y + ch / 2); ctx.scale(k, k); ctx.rotate(Math.sin(i * 1.7) * .04);
     rrect(-cw / 2, -ch / 2, cw, ch, cw * .12, colors[i % 4], 1, P.ink, Math.max(2, cw * .025));
     rrect(-cw * .38, -ch * .26, cw * .45, ch * .12, ch * .06, P.ink);
     rrect(-cw * .38, -ch * .02, cw * .7, ch * .09, ch * .05, 'rgba(23,21,31,.35)'); rrect(-cw * .38, ch * .16, cw * .5, ch * .09, ch * .05, 'rgba(23,21,31,.35)');
     ctx.restore();
   }
-  text(`×${n}`, 1700, 200, { size: 110 * (1 + beatPulse(t) * .25), color: P.yellow, stroke: P.ink, lw: 10, alpha: o * eOut(p(t, 12.5, .2)), rot: .08 });
+  text(`×${n}`, 1700, 200, { size: 110 * (1 + (1 - eOut(since)) * .35), color: P.yellow, stroke: P.ink, lw: 10, alpha: o * eOut(p(t, 12.5, .2)), rot: .08 });
   bouncy('하나를 만들면', 200, 170, t, 12.2, { size: 96, color: P.white, align: 'left', end: 15.9, stagger: .04 });
   bouncy('모두에게!', 200 + measure('하나를 만들면 ', 96), 170, t, 12.8, { size: 96, color: P.yellow, align: 'left', end: 15.9, stroke: P.ink, lw: 8 });
   sticker('빠르게 · 정확하게 · 많이!', 960, 990, t, 14.0, { size: 44, fill: P.white, color: P.blue, rot: .02, end: 15.9 });
@@ -308,8 +307,7 @@ function s5(t) {
   confettiField(t, 20, [P.white, P.yellow, P.blue, P.pink], 16, .85);
   const o = outK(t, 19.9);
   const beatIdx = Math.floor((t - 16) / BEAT);
-  const hopW = hop(t) * 60 * (beatIdx % 2 === 0 ? 1 : .15), hopA = hop(t) * 60 * (beatIdx % 2 === 1 ? 1 : .15);
-  for (let i = 0; i < 8; i++) mark('device', 16.5 + i * BEAT, i % 2);
+  const hopW = 0, hopA = 0;
   device('web', 700, 610, pop(t, 16.3, .5) * o, t, hopW);
   device('app', 1450, 600, pop(t, 16.7, .5) * o, t, hopA);
   bouncy('웹도!', 480, 180, t, 16.3, { size: 130, color: P.white, stroke: P.ink, lw: 10, end: 19.9 });
@@ -325,18 +323,18 @@ function s6(t) {
   const o = outK(t, 24.8);
   // 네온 느낌 반짝이
   const r = rng(31);
-  for (let i = 0; i < 40; i++) { const x = r() * W, y = r() * H, c = [P.pink, P.blue, P.yellow, P.mint][i % 4]; star(x, y, (8 + r() * 14) * (.6 + .6 * Math.abs(Math.sin(t * 3 + i))), c, t + i, .8 * o); }
+  for (let i = 0; i < 40; i++) { const x = r() * W, y = r() * H, c = [P.pink, P.blue, P.yellow, P.mint][i % 4]; star(x, y, 8 + r() * 14, c, i, .8 * o); }
   bouncy('AI랑 같이,', 960, 170, t, 20.2, { size: 120, color: P.white, end: 24.9 });
   bouncy('더 빠르게!', 960, 320, t, 20.7, { size: 140, color: P.pink, end: 24.9, stroke: P.white, lw: 6 });
   // AI 캐릭터 (둥근 로봇 얼굴)
-  const bk = pop(t, 21.0, .4) * o, bob = -hop(t) * 22;
+  const bk = pop(t, 21.0, .4) * o, bob = 0;
   ctx.save(); ctx.translate(1560, 640 + bob); ctx.scale(bk, bk);
   rrect(-150 + 12, -130 + 16, 300, 260, 90, 'rgba(0,0,0,.3)'); rrect(-150, -130, 300, 260, 90, P.blue, 1, P.white, 8);
   const blink = (t % 2.1) < .1 ? .15 : 1;
   ctx.save(); ctx.scale(1, blink); circle(-55, -10 / blink, 26, P.white); circle(55, -10 / blink, 26, P.white); ctx.restore();
   circle(-55, -10, 12 * blink, P.ink); circle(55, -10, 12 * blink, P.ink);
   ctx.strokeStyle = P.white; ctx.lineWidth = 10; ctx.lineCap = 'round'; ctx.beginPath(); ctx.arc(0, 40, 36, .15 * Math.PI, .85 * Math.PI); ctx.stroke();
-  ctx.strokeStyle = P.white; ctx.lineWidth = 8; ctx.beginPath(); ctx.moveTo(0, -130); ctx.lineTo(0, -185); ctx.stroke(); circle(0, -195, 18 * (1 + beatPulse(t) * .4), P.yellow);
+  ctx.strokeStyle = P.white; ctx.lineWidth = 8; ctx.beginPath(); ctx.moveTo(0, -130); ctx.lineTo(0, -185); ctx.stroke(); circle(0, -195, 18, P.yellow);
   ctx.restore();
   // 말풍선에 프롬프트 타이핑
   const bb = pop(t, 21.0, .45) * o;
@@ -383,12 +381,12 @@ function s7(t) {
 
 function draw(t) {
   ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalAlpha = 1;
-  // 박마다 화면 전체가 통 (줌 펄스), 큰 순간(장면 전환·도장·폭발·토글)엔 쿵 흔들림
-  const hits = [0, 4, 8, 11, 12, 16, 20, 22.75, 25, 25.5, 26.5];
-  let shake = beatPulse(t) * 4;
-  hits.forEach(h => { const k = p(t, h, .3); if (k > 0 && k < 1) shake += (1 - k) * 22; });
+  // 큰 순간(장면 전환·도장·폭발·토글)에만 한 번 쿵: 흔들림 + 짧은 줌 펀치
+  const hits = [1.75, 4, 8, 11, 12, 16, 20, 22.75, 25, 25.5];
+  let shake = 0, punch = 0;
+  hits.forEach(h => { const k = p(t, h, .28); if (k > 0 && k < 1) { shake += (1 - k) * 20; punch += (1 - eOut(k)) * .035; } });
   const r = rng(1 + Math.floor(t * 30));
-  const sx = (r() - .5) * shake, sy = (r() - .5) * shake, zoom = 1 + beatPulse(t) * .018 + (Math.floor(t / BEAT) % 4 === 0 ? beatPulse(t) * .012 : 0);
+  const sx = (r() - .5) * shake, sy = (r() - .5) * shake, zoom = 1 + punch;
   ctx.translate(W / 2 + sx, H / 2 + sy); ctx.scale(zoom, zoom); ctx.translate(-W / 2, -H / 2);
   if (t < 4) s1(t); else if (t < 8) s2(t); else if (t < 12) s3(t); else if (t < 16) s4(t); else if (t < 20) s5(t); else if (t < 25) s6(t); else s7(t);
 }
