@@ -1,4 +1,7 @@
-"""교육플랫폼팀 30초 홍보 영상 사운드트랙: 통통 튀는 120BPM 비트 + 마림바 멜로디 + 효과음
+"""교육플랫폼팀 홍보 영상 사운드트랙: 배경음(audio/celebration.mp3) 구간 + 큰 순간에만 작은 효과음
+
+순서: python3 tools/analyze_song.py → node tools/export_events.mjs → python3 tools/make_audio.py
+(예전 합성 비트 함수들은 효과음 재료로만 씀)
 
 효과음은 tools/events.json (node tools/export_events.mjs 로 영상에서 뽑은 등장·착지 시각)에 맞춰 놓아서 화면과 소리가 같은 박자에 맞음 (모두 numpy 로 합성, 외부 음원 없음)
 
@@ -88,53 +91,38 @@ def place(buf, t, x, g=1.0):
     if o >= len(buf): return
     n = min(len(x), len(buf) - o); buf[o:o + n] += x[:n] * g
 
+def load_song():
+    """배경음 구간을 잘라 옴 (tools/song.json 의 start~start+duration). ffmpeg 로 44.1kHz 스테레오 변환"""
+    import subprocess, imageio_ffmpeg
+    info = json.load(open(os.path.join(HERE, 'song.json')))
+    src = os.path.join(HERE, '..', info['file'])
+    raw = subprocess.run([imageio_ffmpeg.get_ffmpeg_exe(), '-v', 'error', '-ss', str(info['start']), '-t', str(info['duration']), '-i', src,
+                          '-f', 'f32le', '-ac', '2', '-ar', str(SR), '-'], capture_output=True, check=True).stdout
+    return np.frombuffer(raw, np.float32).reshape(-1, 2).astype(np.float64), info
+
 def main():
-    music = np.zeros(int(DURATION * SR)); fx = np.zeros_like(music)
-    # 밝은 장조 진행 (C - G - Am - F), 한 마디 = 2초
-    prog = [(130.8, [261.6, 329.6, 392.0]), (98.0, [196.0, 246.9, 293.7]), (110.0, [220.0, 261.6, 329.6]), (87.3, [174.6, 220.0, 261.6])]
-    SCALE = [523.25, 587.33, 659.25, 783.99, 880.0, 1046.5]          # C 장조 5음 음계
-    MEL = [0, 2, 4, 2, 5, 4, 2, 0, 1, 2, 4, 5, 4, 2, 1, 2]              # 16분음표 두 마디 멜로디 패턴
-    for bar in range(15):
-        t0 = bar * 2.0; root, chord = prog[bar % 4]
-        place(music, t0, pad(chord, 2.1), .7)
-        for b in range(4):
-            tb = t0 + b * BEAT
-            drums = 4 <= t0 < 25 or t0 >= 26
-            if drums or t0 >= 2: place(music, tb, kick(), .9 if drums else .5)
-            if drums and b in (1, 3): place(music, tb, clap(), .8)
-            for s16 in range(4): place(music, tb + s16 * BEAT / 4, shaker(), .7 if drums else .35)
-            if drums: place(music, tb, bass(root, BEAT * .45), .9); place(music, tb + BEAT / 2, bass(root * 2, BEAT * .3), .6)
-        if t0 >= 2:                                   # 통통 튀는 마림바
-            for i in range(8):
-                place(music, t0 + i * BEAT / 2, marimba(SCALE[(MEL[i * 2] + bar) % len(SCALE)]), .38)
-    place(music, 3.0, riser(1.0), .5)
-    # 효과음: 영상에서 뽑은 이벤트 시각에 그대로 놓음
+    song, info = load_song()
+    N = len(song); tt = np.arange(N) / SR
+    fx = np.zeros(N)
+    # 효과음은 곡을 해치지 않게 큰 순간에만, 작게
     events = json.load(open(os.path.join(HERE, 'events.json')))
-    land_i = 0
     for e in events:
-        t, kind, info = e['t'], e['type'], e['info']
-        if kind == 'land':                            # 글자가 바닥에 닿는 순간: 음계를 따라 오르는 통통 소리
-            f = SCALE[land_i % len(SCALE)] * (0.5 if info >= 180 else 1); land_i += 1
-            place(fx, t, marimba(f, .25), .5 if info >= 120 else .35)
-            if info >= 180: place(fx, t, kick(), .25)
-        elif kind == 'pop': place(fx, t, sfx_pop(620 + (int(t * 4) % 5) * 70), .65)
-        elif kind == 'ball': place(fx, t, boing(260 + info * 60, 780 + info * 90, .24), .8); place(fx, t, kick(), .3)
-        elif kind == 'block': place(fx, t, kick(), .6); place(fx, t, sfx_pop(420 + info * 80), .7)
-        elif kind == 'stamp': place(fx, t, kick(), 1.0); place(fx, t, clap(), 1.0); place(fx, t, sfx_tick(900), .8)
-        elif kind == 'double': place(fx, t, sfx_pop(520 * 2 ** (info / 7)), .6)
-        elif kind == 'device': place(fx, t, boing(300 if info else 380, 700 if info else 900, .2), .55)
-        elif kind == 'wipe': place(fx, t - .05, sfx_whoosh(.5), .85)
-        elif kind == 'burst': place(fx, t, sfx_sparkle(), .8)
-        elif kind == 'toggle': place(fx, t, sfx_tick(1400), 1.0); place(fx, t, clap(), .7)
-    # AI 프롬프트 타이핑 (21.3초부터 1.2초, 16분음표마다)
-    for i in range(10): place(fx, 21.25 + i * BEAT / 4 * .96, sfx_tick(2200 + (i % 3) * 300), .3)
-    mix = music / max(1e-6, np.abs(music).max()) * .75 + fx / max(1e-6, np.abs(fx).max()) * .35
-    tt = np.arange(len(mix)) / SR
-    mix *= np.minimum(1, tt / .05) * np.clip((DURATION - tt) / 1.2, 0, 1)   # 끝 1.2초 페이드아웃
-    mix = np.tanh(mix * 1.2) / np.tanh(1.2)
+        t, kind, info_ = e['t'], e['type'], e['info']
+        if kind == 'wipe': place(fx, t - .05, sfx_whoosh(.5), .7)
+        elif kind == 'stamp': place(fx, t, clap(), .9); place(fx, t, kick(), .7)
+        elif kind == 'burst': place(fx, t, sfx_sparkle(), .6)
+        elif kind == 'block': place(fx, t, sfx_pop(420 + info_ * 80), .45)
+        elif kind == 'ball': place(fx, t, boing(260 + info_ * 60, 780 + info_ * 90, .24), .45)
+        elif kind == 'toggle': place(fx, t, sfx_tick(1400), .8)
+        elif kind == 'double': place(fx, t, sfx_pop(520 * 2 ** (info_ / 7)), .3)
+    fx = fx / (np.abs(fx).max() + 1e-9) * .28
+    mix = song * .92 + fx[:, None]
+    fade = np.minimum(1, tt / .15) * np.clip((tt[-1] - tt) / 2.2, 0, 1)      # 앞 0.15초 페이드인, 끝 2.2초 페이드아웃
+    mix *= fade[:, None]
+    mix = np.tanh(mix * 1.05) / np.tanh(1.05)
     os.makedirs(os.path.dirname(OUT), exist_ok=True)
-    sf.write(OUT, np.stack([mix, mix], 1), SR, subtype='PCM_16')
-    print('완료:', os.path.normpath(OUT))
+    sf.write(OUT, mix, SR, subtype='PCM_16')
+    print(f'완료: {os.path.normpath(OUT)}  (곡 {info["start"]:.2f}s~{info["start"] + info["duration"]:.2f}s, {info["bpm"]} BPM)')
 
 if __name__ == '__main__':
     main()

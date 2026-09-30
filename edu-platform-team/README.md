@@ -16,6 +16,14 @@
 
 참고: [재능e아카데미 회사소개](https://it.jei.com/about/), [팀문화](https://it.jei.com/culture/) (검색 결과로 확인. 작업 환경에서 사이트 직접 접속은 차단됨)
 
+## 배경음: Forrest Frank – CELEBRATION (사내용)
+
+- 곡 파일은 저작권 때문에 저장소에 넣지 않아요. `audio/celebration.mp3`로 직접 넣고 아래 순서로 만드세요
+- `tools/analyze_song.py`가 곡의 박자(약 122 BPM)와 드롭(33.5초)을 찾아 `song.js`에 저장해요. 영상은 드롭 4박 전(31.54초)부터 시작하고, **교육플랫폼팀!**의 마지막 글자와 색종이 폭발이 드롭에 맞춰 터져요
+- 영상 격자(120BPM)를 곡의 박 길이에 맞게 늘이고 줄여서 모든 착지·장면 전환이 곡의 박에 떨어져요. 곡의 16마디 프레이즈 끝(약 65초)에서 끝나서 영상은 33.4초예요
+- 효과음은 곡을 해치지 않게 도장·색종이·장면 전환 같은 큰 순간에만 작게 넣어요
+- 저장소의 `out/edu_platform_team.mp4`는 음원 없이 합성 비트로 만든 버전이에요
+
 ## 비트 싱크
 
 - 모든 등장 시각은 8분음표(0.25초) 격자에, 글자 하나하나는 16분·32분음표 격자에 맞춰요. 글자와 블록은 떨어져서 **바닥에 닿는 순간이 박자**예요
@@ -28,6 +36,7 @@
 
 ```bash
 npm install && pip install numpy soundfile imageio-ffmpeg
+pip install librosa && python3 tools/analyze_song.py   # song.js, tools/song.json (배경음 박자·드롭)
 node tools/export_events.mjs         # tools/events.json (화면의 박자 이벤트)
 python3 tools/make_audio.py          # audio/mix.wav
 export FFMPEG=$(python3 -c "import imageio_ffmpeg as i; print(i.get_ffmpeg_exe())")
