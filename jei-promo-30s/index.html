@@ -17,6 +17,8 @@
 </style>
 </head>
 <body>
+<script src="content.js"></script>
+<script src="schema.js"></script>
 <canvas id="c" width="1920" height="1080"></canvas>
 <div class="bar">
   <button id="play">▶ 재생</button>
@@ -29,10 +31,13 @@ const W = 1920, H = 1080, DURATION = 30;
 const cv = document.getElementById('c');
 const ctx = cv.getContext('2d');
 
-const C = {
-  black: '#0B0B0B', char: '#141414', red: '#E60012', redDeep: '#B3000E',
-  white: '#FFFFFF', paper: '#F4F2EF', gray: '#8C8C8C', ink: '#1A1A1A',
-};
+// 문구·색은 content.js (영상 편집기가 VIDEO.apply() 로 바꿈). 글자가 나오는 시각은 비트에 맞춰 이 파일에 고정
+const DEFAULT_CONTENT = JSON.parse(JSON.stringify(window.CONTENT));   // 편집 전 기본값
+let C = window.CONTENT;                                               // 지금 쓰는 문구·색
+function rgba(hex, a) { const n = parseInt(hex.slice(1), 16); return `rgba(${n >> 16 & 255},${n >> 8 & 255},${n & 255},${a})`; }
+let K;                                                                // 지금 쓰는 색 (C.colors)
+function readColors() { K = C.colors; }
+readColors();
 const KR = "'Noto Sans KR', sans-serif";
 const EN = "'Inter', 'Noto Sans KR', sans-serif";
 
@@ -71,7 +76,7 @@ function line(x0, y0, x1, y1, k, color, w = 2, alpha = 1) {
   ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(lerp(x0, x1, k), lerp(y0, y1, k)); ctx.stroke(); ctx.restore();
 }
 function font(size, weight, family) { return `${weight} ${size}px ${family}`; }
-function text(str, x, y, { size = 80, color = C.black, weight = 900, family = KR, align = 'left', alpha = 1, base = 'middle', spacing = 0 } = {}) {
+function text(str, x, y, { size = 80, color = K.black, weight = 900, family = KR, align = 'left', alpha = 1, base = 'middle', spacing = 0 } = {}) {
   if (alpha <= 0) return;
   ctx.save(); ctx.globalAlpha *= alpha;
   ctx.font = font(size, weight, family); ctx.fillStyle = color; ctx.textAlign = align; ctx.textBaseline = base;
@@ -119,126 +124,127 @@ function panel(t, start, dur, color, dir = 'up', accent = null, exit = false) {
 function redMark(x, y, s, rot = 0, alpha = 1) {
   if (s <= 0) return;
   ctx.save(); ctx.globalAlpha *= alpha; ctx.translate(x, y); ctx.rotate(rot);
-  ctx.fillStyle = C.red; ctx.fillRect(-s / 2, -s / 2, s, s); ctx.restore();
+  ctx.fillStyle = K.red; ctx.fillRect(-s / 2, -s / 2, s, s); ctx.restore();
 }
 
 
 // ============================================================
 // 재능교육 30초 홍보 (120BPM, 장면 전환은 마디 단위: 4 · 8 · 14 · 20 · 25초)
-// 사실 출처: README.md 참고
+// 사실 출처: README.md 참고 · 문구·색: content.js
 // ============================================================
 const L = 160;
 function hud(t, dark) {
   const a = env(t, .4, 29.2, .5, .5);
-  const fg = dark ? C.white : C.black;
-  text('JEI 재능교육', L, 70, { size: 22, color: fg, weight: 700, alpha: a * .9 });
-  text('SINCE 1977', W - L, 70, { size: 18, color: fg, weight: 600, family: EN, align: 'right', spacing: 6, alpha: a * .7 });
+  const fg = dark ? K.white : K.black;
+  text(C.hud.brand, L, 70, { size: 22, color: fg, weight: 700, alpha: a * .9 });
+  text(C.hud.since, W - L, 70, { size: 18, color: fg, weight: 600, family: EN, align: 'right', spacing: 6, alpha: a * .7 });
   rect(L, H - 62, 400, 2, fg, a * .2);
-  rect(L, H - 62, 400 * (t / DURATION), 2, dark && t >= 4 && t < 8 ? C.white : C.red, a);
+  rect(L, H - 62, 400 * (t / DURATION), 2, dark && t >= 4 && t < 8 ? K.white : K.red, a);
 }
 // 0–4 : 훅 — AI 시대에도 결국, 스스로.
 function s1(t) {
-  bg(C.black); grid(t, C.white, .05);
-  reveal('AI 시대에도', L, 420, t, .3, 3.6, { size: 150, color: C.white, spacing: -4 });
-  reveal('결국,', L, 590, t, 1.1, 3.6, { size: 150, color: C.white, spacing: -4 });
-  const w = measure('결국, ', 150, 900, KR, -4);
-  reveal('스스로.', L + w, 590, t, 1.9, 3.6, { size: 150, color: C.red, spacing: -4 });
+  bg(K.black); grid(t, K.white, .05);
+  reveal(C.hook.line1, L, 420, t, .3, 3.6, { size: 150, color: K.white, spacing: -4 });
+  reveal(C.hook.line2, L, 590, t, 1.1, 3.6, { size: 150, color: K.white, spacing: -4 });
+  const w = measure(C.hook.line2 + ' ', 150, 900, KR, -4);
+  reveal(C.hook.accent, L + w, 590, t, 1.9, 3.6, { size: 150, color: K.red, spacing: -4 });
   const lk = eExpoIO(p(t, 2.3, .9)) * (1 - eIn(p(t, 3.4, .3)));
-  rect(L, 700, 900 * lk, 6, C.red);
-  panel(t, 3.5, .5, C.red, 'up', C.white);
+  rect(L, 700, 900 * lk, 6, K.red);
+  panel(t, 3.5, .5, K.red, 'up', K.white);
 }
 // 4–8 : 교육 50년
 function s2(t) {
-  bg(C.red); grid(t, C.white, .08);
-  const yr = Math.round(lerp(1977, 2027, eExpoIO(p(t, 4.3, 2.2))));
+  bg(K.red); grid(t, K.white, .08);
+  const yr = Math.round(lerp(C.history.yearFrom, C.history.yearTo, eExpoIO(p(t, 4.3, 2.2))));
   ctx.save(); ctx.beginPath(); ctx.rect(0, 150, W, 720); ctx.clip();
   const ni = eExpo(p(t, 4.1, .7)), no = eIn(p(t, 7.5, .4));
-  text(String(yr), L - 20, 760 + (1 - ni) * 600 - no * 600, { size: 400, color: C.white, weight: 800, family: EN, base: 'alphabetic', spacing: -20 });
+  text(String(yr), L - 20, 760 + (1 - ni) * 600 - no * 600, { size: 400, color: K.white, weight: 800, family: EN, base: 'alphabetic', spacing: -20 });
   ctx.restore();
-  reveal('SINCE 1977', L, 240, t, 4.2, 7.7, { size: 28, color: C.black, weight: 600, family: EN, spacing: 10 });
-  reveal('교육 한 길,', 1300, 470, t, 5.6, 7.7, { size: 96, color: C.white });
-  reveal('50년.', 1300, 590, t, 5.8, 7.7, { size: 96, color: C.black });
-  reveal('1981 재능산수로 시작한 스스로학습', 1300, 690, t, 6.2, 7.7, { size: 34, color: C.white, weight: 500 });
-  panel(t, 7.5, .5, C.paper, 'left', C.black);
+  reveal(C.history.label, L, 240, t, 4.2, 7.7, { size: 28, color: K.black, weight: 600, family: EN, spacing: 10 });
+  reveal(C.history.title1, 1300, 470, t, 5.6, 7.7, { size: 96, color: K.white });
+  reveal(C.history.title2, 1300, 590, t, 5.8, 7.7, { size: 96, color: K.black });
+  reveal(C.history.sub, 1300, 690, t, 6.2, 7.7, { size: 34, color: K.white, weight: 500 });
+  panel(t, 7.5, .5, K.paper, 'left', K.black);
 }
 // 8–14 : 스스로학습시스템
 function s3(t) {
-  bg(C.paper); grid(t, C.black, .045);
-  reveal('SELF-LEARNING SYSTEM', L, 170, t, 8.2, 13.6, { size: 24, color: C.red, weight: 600, family: EN, spacing: 8 });
-  const words = [['스스로', '생각하고', 8.5], ['스스로', '풀고', 9.5], ['스스로', '자란다', 10.5]];
-  words.forEach(([a, b, s], i) => {
-    const y = 360 + i * 170, active = t >= s && (i === 2 || t < words[i + 1][2]);
-    reveal(a, L, y, t, s, 13.6, { size: 140, color: C.black, spacing: -4, dur: .6 });
+  bg(K.paper); grid(t, K.black, .045);
+  reveal(C.system.label, L, 170, t, 8.2, 13.6, { size: 24, color: K.red, weight: 600, family: EN, spacing: 8 });
+  const times = [8.5, 9.5, 10.5];   // 뿅 소리에 맞춘 줄마다의 등장 시각
+  times.forEach((s, i) => {
+    const { a = '', b = '' } = C.system.rows[i] || {};
+    const y = 360 + i * 170, active = t >= s && (i === 2 || t < times[i + 1]);
+    reveal(a, L, y, t, s, 13.6, { size: 140, color: K.black, spacing: -4, dur: .6 });
     const wa = measure(a + ' ', 140, 900, KR, -4);
-    reveal(b, L + wa, y, t, s + .12, 13.6, { size: 140, color: active || t > 11.4 ? C.red : C.gray, spacing: -4, dur: .6 });
+    reveal(b, L + wa, y, t, s + .12, 13.6, { size: 140, color: active || t > 11.4 ? K.red : K.gray, spacing: -4, dur: .6 });
   });
   // 오른쪽: 단계 막대 (한 단계씩 오르는 개인별·능력별 학습)
   const bx = 1340, by = 820, bw = 90, gap = 26;
   for (let i = 0; i < 4; i++) {
     const k = eExpoIO(p(t, 9.0 + i * .5, .6)) * (1 - eIn(p(t, 13.4, .4)));
     const h = (120 + i * 110) * k;
-    rect(bx + i * (bw + gap), by - h, bw, h, i === 3 ? C.red : C.black);
+    rect(bx + i * (bw + gap), by - h, bw, h, i === 3 ? K.red : K.black);
   }
   const dot = clamp((t - 9.2) / 2.2) * 3, di = Math.min(3, Math.floor(dot)), df = dot - di;
   const dx = bx + (di + (di < 3 ? df : 0)) * (bw + gap) + bw / 2, dh = 120 + (di + (di < 3 ? df : 0)) * 110;
-  circle(dx, by - dh - 34 - Math.sin(df * Math.PI) * 50 * (di < 3 ? 1 : 0), 22 * eOut(p(t, 9.2, .4)) * (1 - eIn(p(t, 13.4, .4))), C.red);
-  reveal('개인별·능력별 스스로학습시스템', L, 900, t, 11.8, 13.6, { size: 44, color: C.ink, weight: 700 });
-  panel(t, 13.5, .5, C.black, 'up', C.red);
+  circle(dx, by - dh - 34 - Math.sin(df * Math.PI) * 50 * (di < 3 ? 1 : 0), 22 * eOut(p(t, 9.2, .4)) * (1 - eIn(p(t, 13.4, .4))), K.red);
+  reveal(C.system.sub, L, 900, t, 11.8, 13.6, { size: 44, color: K.ink, weight: 700 });
+  panel(t, 13.5, .5, K.black, 'up', K.red);
 }
 // 14–20 : 수상 (18년 연속 · 13년 연속)
-function stat(t, x, s, n, unit, title, brand, org) {
+function stat(t, x, s, { n = 0, unit = '', title = '', brand = '', org = '' } = {}) {
   const k = eExpoIO(p(t, s, 1.2));
   const v = Math.round(n * k);
   const ni = eExpo(p(t, s - .1, .7)), no = eIn(p(t, 19.5, .4));
   ctx.save(); ctx.beginPath(); ctx.rect(x - 20, 230, 760, 400); ctx.clip();
-  text(String(v), x, 540 + (1 - ni) * 400 - no * 400, { size: 300, color: C.white, weight: 800, family: EN, base: 'alphabetic', spacing: -12 });
+  text(String(v), x, 540 + (1 - ni) * 400 - no * 400, { size: 300, color: K.white, weight: 800, family: EN, base: 'alphabetic', spacing: -12 });
   const nw = measure(String(v), 300, 800, EN, -12);
-  text(unit, x + nw + 18, 520 + (1 - ni) * 400 - no * 400, { size: 70, color: C.red, weight: 900, base: 'alphabetic' });
+  text(unit, x + nw + 18, 520 + (1 - ni) * 400 - no * 400, { size: 70, color: K.red, weight: 900, base: 'alphabetic' });
   ctx.restore();
-  line(x, 600, x + 680, 600, eExpoIO(p(t, s + .3, .8)) * (1 - eIn(p(t, 19.5, .4))), C.red, 3);
-  reveal(title, x, 660, t, s + .5, 19.7, { size: 42, color: C.white, weight: 700 });
-  reveal(brand, x, 725, t, s + .65, 19.7, { size: 34, color: C.red, weight: 700 });
-  reveal(org, x, 780, t, s + .8, 19.7, { size: 24, color: C.gray, weight: 500 });
+  line(x, 600, x + 680, 600, eExpoIO(p(t, s + .3, .8)) * (1 - eIn(p(t, 19.5, .4))), K.red, 3);
+  reveal(title, x, 660, t, s + .5, 19.7, { size: 42, color: K.white, weight: 700 });
+  reveal(brand, x, 725, t, s + .65, 19.7, { size: 34, color: K.red, weight: 700 });
+  reveal(org, x, 780, t, s + .8, 19.7, { size: 24, color: K.gray, weight: 500 });
 }
 function s4(t) {
-  bg(C.black); grid(t, C.white, .05);
-  reveal('AWARDS 2026', L, 170, t, 14.2, 19.7, { size: 24, color: C.red, weight: 600, family: EN, spacing: 8 });
-  stat(t, L, 14.5, 18, '년 연속', '대한민국 퍼스트브랜드 대상', '스스로학습시스템', '한국소비자포럼 · 학습지 부문');
-  stat(t, 1000, 15.6, 13, '년 연속', '소비자 선정 최고의 브랜드 대상', '생각하는피자', '중앙일보 · 포브스코리아 · 학습지 부문');
-  panel(t, 19.5, .5, C.red, 'left');
+  bg(K.black); grid(t, K.white, .05);
+  reveal(C.awards.label, L, 170, t, 14.2, 19.7, { size: 24, color: K.red, weight: 600, family: EN, spacing: 8 });
+  stat(t, L, 14.5, C.awards.items[0]);
+  stat(t, 1000, 15.6, C.awards.items[1]);
+  panel(t, 19.5, .5, K.red, 'left');
 }
 // 20–25 : 세계로
 function s5(t) {
-  bg(C.char); grid(t, C.white, .05);
-  panel(t, 20, .45, C.red, 'left', null, true);
-  reveal('GLOBAL JEI', L, 170, t, 20.3, 24.7, { size: 24, color: C.red, weight: 600, family: EN, spacing: 8 });
-  reveal('1992년 미국을 시작으로', L, 300, t, 20.4, 24.7, { size: 52, color: C.white, weight: 700 });
-  reveal('세계로 뻗어가는 JEI', L, 420, t, 20.7, 24.7, { size: 110, color: C.white, spacing: -3 });
-  const cs = ['미국', '캐나다', '중국', '일본', '호주', '뉴질랜드'];
-  cs.forEach((c, i) => {
+  bg(K.char); grid(t, K.white, .05);
+  panel(t, 20, .45, K.red, 'left', null, true);
+  reveal(C.global.label, L, 170, t, 20.3, 24.7, { size: 24, color: K.red, weight: 600, family: EN, spacing: 8 });
+  reveal(C.global.lead, L, 300, t, 20.4, 24.7, { size: 52, color: K.white, weight: 700 });
+  reveal(C.global.title, L, 420, t, 20.7, 24.7, { size: 110, color: K.white, spacing: -3 });
+  [0, 1, 2, 3, 4, 5].forEach(i => {   // 6개 나라 = 뿅 소리 6번
+    const c = C.global.countries[i] || '';
     const s = 21.4 + i * .35, x = L + i * 270;
     const k = eExpoIO(p(t, s, .5)) * (1 - eIn(p(t, 24.5, .4)));
-    rect(x, 610, 240 * k, 3, C.red);
-    reveal(c, x, 680, t, s + .1, 24.7, { size: 50, color: C.white, weight: 700 });
-    circle(x + 6, 610, 9 * eBack(p(t, s, .4)) * (1 - eIn(p(t, 24.5, .4))), C.red);
+    rect(x, 610, 240 * k, 3, K.red);
+    reveal(c, x, 680, t, s + .1, 24.7, { size: 50, color: K.white, weight: 700 });
+    circle(x + 6, 610, 9 * eBack(p(t, s, .4)) * (1 - eIn(p(t, 24.5, .4))), K.red);
   });
-  reveal('세계 곳곳의 아이들이 스스로학습으로 배우고 있어요', L, 820, t, 23.2, 24.7, { size: 36, color: '#CFCFCF', weight: 500 });
-  panel(t, 24.6, .45, C.paper, 'up', C.red);
+  reveal(C.global.sub, L, 820, t, 23.2, 24.7, { size: 36, color: K.soft, weight: 500 });
+  panel(t, 24.6, .45, K.paper, 'up', K.red);
 }
 // 25–30 : 엔딩
 function s6(t) {
-  bg(C.paper); grid(t, C.black, .04);
+  bg(K.paper); grid(t, K.black, .04);
   const cx = W / 2, cy = H / 2 - 40;
   const mk = eBack(p(t, 25.2, .6));
   redMark(cx, cy - 210, 60 * mk, (1 - mk) * Math.PI / 2);
-  reveal('재능교육', cx, cy, t, 25.4, null, { size: 220, color: C.black, align: 'center', spacing: -4, dur: .9 });
+  reveal(C.ending.brand, cx, cy, t, 25.4, null, { size: 220, color: K.black, align: 'center', spacing: -4, dur: .9 });
   const lk = eExpoIO(p(t, 26.1, .8));
-  rect(cx - 280 * lk, cy + 135, 560 * lk, 3, C.red);
-  const w1 = measure('AI 시대에도 결국, ', 58, 700);
-  const w2 = measure('스스로.', 58, 900);
-  reveal('AI 시대에도 결국,', cx - (w1 + w2) / 2, cy + 215, t, 26.4, null, { size: 58, color: C.black, weight: 700 });
-  reveal('스스로.', cx - (w1 + w2) / 2 + w1, cy + 215, t, 26.7, null, { size: 58, color: C.red, weight: 900 });
-  reveal('jei.com', cx, H - 120, t, 27.3, null, { size: 26, color: '#8A8A8A', weight: 600, family: EN, align: 'center', spacing: 6 });
+  rect(cx - 280 * lk, cy + 135, 560 * lk, 3, K.red);
+  const w1 = measure(C.ending.slogan1 + ' ', 58, 700);
+  const w2 = measure(C.ending.slogan2, 58, 900);
+  reveal(C.ending.slogan1, cx - (w1 + w2) / 2, cy + 215, t, 26.4, null, { size: 58, color: K.black, weight: 700 });
+  reveal(C.ending.slogan2, cx - (w1 + w2) / 2 + w1, cy + 215, t, 26.7, null, { size: 58, color: K.red, weight: 900 });
+  reveal(C.ending.url, cx, H - 120, t, 27.3, null, { size: 26, color: K.url, weight: 600, family: EN, align: 'center', spacing: 6 });
   const f = p(t, 29.2, .8);
   if (f > 0) rect(0, 0, W, H, `rgba(0,0,0,${eIO(f)})`);
 }
@@ -277,8 +283,20 @@ playEl.onclick = () => {
 };
 seekEl.oninput = () => { show(+seekEl.value); if (playing) { t0 = performance.now() - tCur * 1000; try { audio.currentTime = tCur; } catch (e) {} } };
 
+// 편집기에서 고친 내용 적용 (content.js 와 같은 구조). 빠진 칸은 기본값으로 채움
+function merge(base, over) {
+  if (Array.isArray(base)) return Array.isArray(over) ? over.map((v, i) => base[i] !== undefined ? merge(base[i], v) : v) : base;
+  if (base && typeof base === 'object') { const o = {}; for (const k in base) o[k] = over && k in over ? merge(base[k], over[k]) : base[k]; return o; }
+  return over === undefined || over === null ? base : over;
+}
+function apply(content) {
+  C = window.CONTENT = merge(DEFAULT_CONTENT, content);
+  readColors();   // 미리 그린 캐시는 없음 (매 프레임 새로 그림)
+}
+
 window.draw = draw;
 window.DURATION = DURATION;
+window.VIDEO = { schema: window.SCHEMA, defaults: DEFAULT_CONTENT, get content() { return C; }, apply(content) { apply(content); }, canvas: cv };   // 영상 편집기 연결 (../editor/PROTOCOL.md)
 window.ready = Promise.all([document.fonts.load(`900 100px 'Noto Sans KR'`, '가'), document.fonts.load(`800 100px 'Inter'`, 'A')]).then(r => {
   if (r.some(fs => !fs.length)) throw new Error('폰트를 불러오지 못했습니다 (fonts/ 폴더 확인)');
 }).then(() => document.fonts.ready).then(() => { if (location.search.includes('render')) document.body.classList.add('render'); show(0); return true; });
