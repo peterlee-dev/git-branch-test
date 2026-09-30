@@ -1,0 +1,12 @@
+// 편집기에서 고를 수 있는 영상 (폴더 이름 = id). 각 폴더는 editor/PROTOCOL.md 를 따름
+window.VIDEOS = [
+ { id: 'ai-math-trailer', title: '재능스스로AI수학 리뉴얼 예고편' },
+ { id: 'edu-platform-team', title: '교육플랫폼팀 홍보' },
+ { id: 'hangang-walk', title: '한강 다리 산책' },
+ { id: 'constellations', title: '밤하늘 별자리 여행' },
+ { id: 'jei-promo-30s', title: '재능교육 홍보 30초' },
+ { id: 'photosynthesis', title: '광합성 · 종이공예' },
+ { id: 'pythagoras', title: '피타고라스 정리' },
+ { id: 'math-100', title: '100까지의 수' },
+ { id: 'jei-promo', title: '재능교육 50년 홍보' },
+];

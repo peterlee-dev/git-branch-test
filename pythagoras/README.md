@@ -24,7 +24,17 @@
 | 내레이션 문장, 자막 | `tools/make_audio.py`의 `NARRATION` (읽을 문장과 자막을 한 줄에 함께 적음) |
 | 목소리, 속도, 문장 사이 쉼 | 같은 파일의 `VOICE_SID`, `BASE_SPEED`, `PAUSE` |
 | 효과음 | 같은 파일의 `sfx_events()` |
-| 그림, 색, 애니메이션 | `index.html`의 `C` 팔레트와 `sTitle` ~ `sEnd` 함수 |
+| 화면 글자, 색 | `content.js` (또는 영상 편집기 `../video-editor.html`) |
+| 그림, 애니메이션 | `index.html`의 `sTitle` ~ `sEnd` 함수 |
+
+## 영상 편집기
+
+`content.js`(문구·색 기본값)와 `schema.js`(편집기 칸 설명)가 있어서 저장소 맨 위 `video-editor.html`에서 고칠 수 있어요 (규칙: `../editor/PROTOCOL.md`).
+
+- 고칠 수 있는 것: 타이틀·제목 막대·설명 글자, 내레이션 자막 문구, 브랜드 색과 세 정사각형 색
+- 고칠 수 없는 것: 수식, 3-4-5 삼각형과 6-8-10 예제, 장면 순서·길이 (내레이션·효과음과 맞아야 해서)
+- 자막을 바꿔도 내레이션 음성은 그대로예요. 음성까지 바꾸려면 `tools/make_audio.py`를 고쳐 다시 만드세요.
+- 편집기에서 저장한 작업 파일은 `node render.mjs --project 작업.json`으로 렌더링해요.
 
 `timeline.js`(자막과 시간 늘리기 정보)는 `tools/make_audio.py`가 만드는 파일이니 직접 고치지 마세요.
 

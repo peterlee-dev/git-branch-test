@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>재능교육 영상 편집기</title>
+<style>
+  /* Layout: 위 영상 고르기, 왼쪽 미리보기+타임라인, 오른쪽 속성 패널(좁으면 아래로). 영상이 돋보이는 어두운 편집 도구 한 가지 모습 */
+  :root {
+    --ink: #0B0C11; --panel: #13151D; --raise: #1B1E29; --line: #2A2E3D;
+    --text: #EAE7E1; --muted: #8D93A5; --pick: #F2E6CC; --cut: #E60012; --sky: #7CA8FF; --warn: #FFB38A;
+    --ui: 'Noto Sans KR', 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
+    --num: 'Inter', 'Noto Sans KR', system-ui, sans-serif;
+    color-scheme: dark;
+  }
+  @font-face { font-family: 'Noto Sans KR'; src: url('ai-math-trailer/fonts/NotoSansKR.ttf') format('truetype'); font-weight: 100 900; font-display: swap; }
+  @font-face { font-family: 'Inter'; src: url('ai-math-trailer/fonts/Inter.ttf') format('truetype'); font-weight: 100 900; font-display: swap; }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  html, body { margin: 0; }
+  body { background: var(--ink); color: var(--text); font: 14px/1.5 var(--ui); padding-inline: 16px; padding-block: 12px 32px; }
+  button, input, select, textarea { font: inherit; color: inherit; }
+  :focus-visible { outline: 2px solid var(--pick); outline-offset: 2px; }
+
+  header { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; padding-block: 4px 12px; }
+  header h1 { margin: 0; font-size: 16px; font-weight: 800; display: flex; align-items: center; gap: 9px; white-space: nowrap; }
+  header h1 .mark { width: 10px; height: 10px; background: var(--cut); flex: none; }
+  .picker { display: flex; align-items: center; gap: 8px; min-width: 0; }
+  .picker select { background: var(--raise); border: 1px solid var(--line); border-radius: 8px; padding: 7px 10px; max-width: 100%; font-weight: 700; }
+  .save-state { color: var(--muted); font-size: 12.5px; }
+  .actions { margin-left: auto; display: flex; flex-wrap: wrap; gap: 8px; }
+  .btn { border: 1px solid var(--line); background: var(--raise); border-radius: 8px; padding: 7px 12px; cursor: pointer; white-space: nowrap; }
+  .btn:hover { border-color: #3d4458; }
+  .btn:disabled { opacity: .45; cursor: default; }
+  .btn.primary { background: var(--pick); color: #17130C; border-color: var(--pick); font-weight: 700; }
+
+  .work { display: grid; grid-template-columns: minmax(0, 1fr) 380px; gap: 16px; align-items: start; }
+  @media (max-width: 1080px) { .work { grid-template-columns: minmax(0, 1fr); } }
+  .left { display: grid; gap: 10px; min-width: 0; }
+  .stage { position: relative; background: #000; border-radius: 6px; overflow: hidden; }
+  canvas#view { display: block; width: 100%; max-width: 100%; aspect-ratio: 16 / 9; height: auto; }
+  .stage .busy { position: absolute; inset: 0; display: grid; place-items: center; text-align: center; padding: 16px; background: rgba(4,5,10,.8); color: var(--muted); font-size: 15px; }
+  iframe#frame { position: fixed; left: -12000px; top: 0; width: 1920px; height: 1080px; border: 0; visibility: visible; pointer-events: none; }
+
+  .transport { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .play { width: 40px; height: 40px; border-radius: 50%; border: 0; background: var(--text); color: var(--ink); cursor: pointer; font-size: 15px; display: grid; place-items: center; }
+  .play:disabled { opacity: .4; }
+  .tc { font-family: var(--num); font-variant-numeric: tabular-nums; font-size: 20px; font-weight: 600; letter-spacing: .02em; }
+  .tc small { color: var(--muted); font-size: 13px; font-weight: 500; margin-left: 6px; }
+  .transport .hint { color: var(--muted); font-size: 12px; margin-left: auto; }
+  @media (max-width: 700px) { .transport .hint { display: none; } }
+  kbd { font-family: var(--num); font-size: 11px; border: 1px solid var(--line); border-radius: 4px; padding: 0 5px; }
+
+  .timeline { position: relative; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px 10px; user-select: none; touch-action: none; }
+  .tl-row { display: grid; grid-template-columns: 44px minmax(0, 1fr); gap: 8px; align-items: center; }
+  .tl-row + .tl-row { margin-top: 6px; }
+  .tl-label { color: var(--muted); font-size: 11.5px; }
+  .track { position: relative; min-width: 0; }
+  .ruler { height: 22px; cursor: ew-resize; }
+  .ruler i { position: absolute; top: 0; bottom: 0; border-left: 1px solid var(--line); }
+  .ruler i.major { border-color: #3d4458; }
+  .ruler b { position: absolute; top: 2px; font: 500 10.5px var(--num); color: var(--muted); transform: translateX(3px); font-variant-numeric: tabular-nums; }
+  .scenes { height: 30px; }
+  .scene { position: absolute; top: 0; bottom: 0; border-radius: 4px; background: var(--raise); border: 1px solid var(--line); overflow: hidden; font-size: 11px; color: var(--muted); padding: 6px 6px 0; white-space: nowrap; text-overflow: ellipsis; cursor: pointer; }
+  .scene.dark { background: repeating-linear-gradient(135deg, #0d0f16 0 6px, #12151f 6px 12px); }
+  .scene.on { color: var(--text); border-color: #505a77; }
+  .bars { height: 30px; }
+  .bar { position: absolute; height: 28px; border-radius: 5px; background: rgba(242,230,204,.13); border: 1px solid rgba(242,230,204,.35); color: var(--pick); font-size: 11.5px; padding: 5px 9px 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: grab; }
+  .bar.sel { background: rgba(242,230,204,.28); border-color: var(--pick); color: #fff; }
+  .bar .h { position: absolute; top: 0; bottom: 0; width: 7px; cursor: ew-resize; }
+  .bar .h.l { left: 0; } .bar .h.r { right: 0; }
+  .sounds { height: 18px; }
+  .sounds i { position: absolute; top: 3px; width: 2px; height: 12px; background: var(--sky); opacity: .7; border-radius: 1px; }
+  .sounds i.big { width: 4px; height: 16px; top: 1px; background: #fff; opacity: .9; }
+  .playhead { position: absolute; width: 2px; background: var(--cut); pointer-events: none; }
+  .playhead::before { content: ''; position: absolute; top: -2px; left: -5px; border: 6px solid transparent; border-top-color: var(--cut); }
+  .tl-note { color: var(--muted); font-size: 12px; margin: 8px 0 0 52px; }
+
+  aside { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; min-width: 0; }
+  .tabs { display: flex; border-bottom: 1px solid var(--line); overflow-x: auto; }
+  .tabs button { flex: 1; background: none; border: 0; border-bottom: 2px solid transparent; padding: 11px 8px 9px; color: var(--muted); cursor: pointer; font-weight: 600; white-space: nowrap; }
+  .tabs button[aria-selected="true"] { color: var(--text); border-bottom-color: var(--pick); }
+  .pane { padding: 6px 14px 16px; max-height: calc(100vh - 150px); overflow-y: auto; }
+  @media (max-width: 1080px) { .pane { max-height: none; } }
+  .group { padding-block: 12px; border-bottom: 1px solid var(--line); display: grid; gap: 8px; }
+  .group:last-child { border-bottom: 0; }
+  .group-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .group-head h2 { margin: 0; font-size: 13px; font-weight: 700; color: var(--pick); }
+  .jump { background: none; border: 1px solid var(--line); border-radius: 999px; color: var(--muted); font: 500 11.5px var(--num); padding: 2px 9px; cursor: pointer; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .jump:hover { color: var(--text); border-color: #3d4458; }
+  .field { display: grid; gap: 3px; min-width: 0; }
+  .field > span { color: var(--muted); font-size: 12px; }
+  .field input[type=text], .field input[type=number], .field select, .field textarea { width: 100%; background: var(--ink); border: 1px solid var(--line); border-radius: 6px; padding: 7px 9px; min-width: 0; }
+  .field textarea { resize: vertical; min-height: 60px; }
+  .field input[type=number] { font-family: var(--num); font-variant-numeric: tabular-nums; }
+  .field input:focus, .field textarea:focus { border-color: #505a77; }
+  .warn { color: var(--warn); font-size: 11.5px; }
+  .row { display: grid; grid-template-columns: repeat(auto-fit, minmax(72px, 1fr)); gap: 6px; }
+  .cols2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+  .item { border: 1px solid var(--line); border-radius: 8px; padding: 10px; display: grid; gap: 7px; background: var(--ink); }
+  .item.sel { border-color: var(--pick); }
+  .item .field input, .item .field select, .item .field textarea { background: var(--panel); }
+  .color { display: grid; grid-template-columns: 38px minmax(0, 1fr) auto; align-items: center; gap: 10px; }
+  .color input[type=color] { width: 38px; height: 30px; padding: 0; border: 1px solid var(--line); border-radius: 6px; background: none; cursor: pointer; }
+  .color div { display: grid; line-height: 1.35; min-width: 0; }
+  .color small { color: var(--muted); font-size: 11.5px; }
+  .note { color: var(--muted); font-size: 12.5px; margin: 0; }
+  .note code { font-family: var(--num); font-size: 12px; color: var(--text); overflow-wrap: anywhere; }
+  .alert { margin: 0; border: 1px solid rgba(255,179,138,.35); background: rgba(255,179,138,.07); color: var(--warn); border-radius: 8px; padding: 9px 11px; font-size: 12.5px; }
+
+  dialog { background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 12px; width: min(460px, calc(100% - 32px)); padding: 20px; }
+  dialog::backdrop { background: rgba(0,0,0,.6); }
+  dialog h2 { margin: 0 0 6px; font-size: 17px; }
+  .progress { height: 6px; border-radius: 3px; background: var(--ink); overflow: hidden; margin-block: 14px 8px; }
+  .progress i { display: block; height: 100%; width: 0; background: var(--pick); }
+  .dlg-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px; }
+</style>
+</head>
+<body>
+<header>
+  <h1><span class="mark" aria-hidden="true"></span>영상 편집기</h1>
+  <label class="picker"><span class="note">영상</span><select id="video" aria-label="편집할 영상"></select></label>
+  <span class="save-state" id="saveState"></span>
+  <div class="actions">
+    <button class="btn" id="undo" disabled>되돌리기</button>
+    <button class="btn" id="reset">기본값으로</button>
+    <button class="btn" id="load">불러오기</button>
+    <button class="btn" id="saveJson">작업 파일 저장</button>
+    <button class="btn primary" id="export">MP4 내보내기</button>
+    <input type="file" id="fileIn" accept=".json,application/json" hidden>
+  </div>
+</header>
+
+<div class="work">
+  <div class="left">
+    <div class="stage">
+      <canvas id="view" width="1920" height="1080"></canvas>
+      <div class="busy" id="busy">영상을 불러오는 중…</div>
+    </div>
+    <div class="transport">
+      <button class="play" id="play" aria-label="재생">▶</button>
+      <span class="tc" id="tc">00:00:00</span>
+      <span class="hint"><kbd>Space</kbd> 재생 · <kbd>←</kbd><kbd>→</kbd> 한 프레임 · <kbd>Shift</kbd>+화살표 1초</span>
+    </div>
+    <div class="timeline" id="timeline">
+      <div class="tl-row"><span class="tl-label">초</span><div class="track ruler" id="ruler"></div></div>
+      <div class="tl-row"><span class="tl-label">장면</span><div class="track scenes" id="scenes"></div></div>
+      <div class="tl-row" id="barsRow" hidden><span class="tl-label" id="barsLabel">문구</span><div class="track bars" id="bars"></div></div>
+      <div class="tl-row" id="soundsRow" hidden><span class="tl-label">소리</span><div class="track sounds" id="sounds"></div></div>
+      <p class="tl-note" id="tlNote"></p>
+      <div class="playhead" id="playhead" hidden></div>
+    </div>
+  </div>
+  <aside>
+    <div class="tabs" role="tablist" id="tabs"></div>
+    <div id="panes"></div>
+  </aside>
+</div>
+
+<dialog id="dlg">
+  <h2 id="dlgTitle">MP4 만드는 중</h2>
+  <p class="note" id="dlgMsg"></p>
+  <div class="progress"><i id="dlgBar"></i></div>
+  <p class="note" id="dlgStat"></p>
+  <div class="dlg-actions"><button class="btn" id="dlgCancel">취소</button><button class="btn primary" id="dlgSave" hidden>MP4 저장</button></div>
+</dialog>
+
+<iframe id="frame" title="영상 그리기용 (보이지 않음)" aria-hidden="true" tabindex="-1"></iframe>
+<script src="editor/vendor/mp4-muxer.js"></script>
+<script src="editor/videos.js"></script>
+<script src="editor/editor.js"></script>
+</body>
+</html>
