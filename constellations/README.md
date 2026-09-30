@@ -20,9 +20,8 @@
 
 ## 수정·렌더링
 
-- 별 데이터와 별자리 선: `index.html`의 `STARS`, `CONST`
-- 카메라 이동: `CAM` (시각, RA, Dec, 화각)
-- 화면 문구: `PANELS`, `titles()`
+- 화면 문구·색: `content.js` (타이틀, 별자리 4개 설명, 별 이름, 북극성, 마무리 문구, 글자·선·하늘 색). 영상 편집기(`../video-editor.html`)에서 고칠 수 있고, 칸 설명은 `schema.js` (규칙: `../editor/PROTOCOL.md`)
+- 고칠 수 없는 것: 장면 시각(`PANELS`의 s·e·factAt), 카메라(`CAM`), 별 위치·밝기·색(`STARS`), 별자리 선(`CONST`). 선이 그려질 때의 종소리가 이 시각에 맞춰져 있어요
 - 음악: `tools/make_audio.py`
 
 ```bash
@@ -30,6 +29,7 @@ npm install && pip install numpy soundfile imageio-ffmpeg
 python3 tools/make_audio.py          # audio/mix.wav
 export FFMPEG=$(python3 -c "import imageio_ffmpeg as i; print(i.get_ffmpeg_exe())")
 node render.mjs                      # out/constellations.mp4
+node render.mjs --project 작업.json  # 편집기에서 저장한 문구·색으로 렌더링
 ```
 
 GPU가 없는 환경에서는 소프트웨어 WebGL(SwiftShader)로 그려서 렌더링에 10분 넘게 걸립니다. `vendor/three.min.js`는 three.js(MIT 라이선스, `vendor/three.LICENSE`)입니다.
