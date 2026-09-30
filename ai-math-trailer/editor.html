@@ -1,0 +1,536 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI수학 예고편 편집기</title>
+<style>
+  /* Layout: 왼쪽 미리보기+타임라인, 오른쪽 속성 패널(좁으면 아래로). 우주 배경에 맞춘 어두운 편집 도구 한 가지 모습 */
+  :root {
+    --ink: #0A0C13; --panel: #121622; --raise: #1A2030; --line: #283044;
+    --text: #E9E6DF; --muted: #8C94A8; --star: #F2E6CC; --cut: #E60012; --sky: #7CA8FF;
+    --ui: 'Noto Sans KR', 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
+    --num: 'Inter', 'Noto Sans KR', system-ui, sans-serif;
+    color-scheme: dark;
+  }
+  @font-face { font-family: 'Noto Sans KR'; src: url('fonts/NotoSansKR.ttf') format('truetype'); font-weight: 100 900; font-display: block; }
+  @font-face { font-family: 'Inter'; src: url('fonts/Inter.ttf') format('truetype'); font-weight: 100 900; font-display: block; }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  html, body { margin: 0; }
+  body { background: var(--ink); color: var(--text); font: 14px/1.5 var(--ui); padding-inline: 16px; padding-block: 12px 32px; }
+  button, input, select { font: inherit; color: inherit; }
+  :focus-visible { outline: 2px solid var(--star); outline-offset: 2px; }
+
+  header { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; padding-block: 4px 12px; }
+  header h1 { margin: 0; font-size: 17px; font-weight: 800; letter-spacing: -.01em; display: flex; align-items: center; gap: 10px; }
+  header h1 .mark { width: 10px; height: 10px; background: var(--cut); flex: none; }
+  header .save-state { color: var(--muted); font-size: 12.5px; }
+  header .actions { margin-left: auto; display: flex; flex-wrap: wrap; gap: 8px; }
+  .btn { border: 1px solid var(--line); background: var(--raise); border-radius: 8px; padding: 7px 12px; cursor: pointer; white-space: nowrap; }
+  .btn:hover { border-color: #3a4560; }
+  .btn:disabled { opacity: .45; cursor: default; }
+  .btn.primary { background: var(--star); color: #17130C; border-color: var(--star); font-weight: 700; }
+
+  .work { display: grid; grid-template-columns: minmax(0, 1fr) 380px; gap: 16px; align-items: start; }
+  @media (max-width: 1080px) { .work { grid-template-columns: minmax(0, 1fr); } }
+  .left { display: grid; gap: 10px; min-width: 0; }
+
+  .stage { position: relative; background: #000; border-radius: 6px; overflow: hidden; }
+  canvas#c { display: block; width: 100%; max-width: 100%; aspect-ratio: 16 / 9; height: auto; }
+  .stage .busy { position: absolute; inset: 0; display: grid; place-items: center; background: rgba(4,5,10,.72); color: var(--muted); font-size: 15px; }
+
+  .transport { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .play { width: 40px; height: 40px; border-radius: 50%; border: 0; background: var(--text); color: var(--ink); cursor: pointer; font-size: 15px; display: grid; place-items: center; }
+  .tc { font-family: var(--num); font-variant-numeric: tabular-nums; font-size: 20px; font-weight: 600; letter-spacing: .02em; }
+  .tc small { color: var(--muted); font-size: 13px; font-weight: 500; margin-left: 6px; }
+  .transport .hint { color: var(--muted); font-size: 12px; margin-left: auto; }
+  @media (max-width: 700px) { .transport .hint { display: none; } }
+  kbd { font-family: var(--num); font-size: 11px; border: 1px solid var(--line); border-radius: 4px; padding: 0 5px; }
+
+  /* 타임라인 */
+  .timeline { position: relative; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px 10px; user-select: none; touch-action: none; }
+  .tl-row { display: grid; grid-template-columns: 44px minmax(0, 1fr); gap: 8px; align-items: center; }
+  .tl-row + .tl-row { margin-top: 6px; }
+  .tl-label { color: var(--muted); font-size: 11.5px; }
+  .track { position: relative; min-width: 0; }
+  .ruler { height: 22px; cursor: ew-resize; }
+  .ruler i { position: absolute; top: 0; bottom: 0; border-left: 1px solid var(--line); }
+  .ruler i.major { border-color: #3a4560; }
+  .ruler b { position: absolute; top: 2px; font: 500 10.5px var(--num); color: var(--muted); transform: translateX(3px); font-variant-numeric: tabular-nums; }
+  .scenes { height: 30px; }
+  .scene { position: absolute; top: 0; bottom: 0; border-radius: 4px; background: var(--raise); border: 1px solid var(--line); overflow: hidden; font-size: 11px; color: var(--muted); padding: 6px 6px 0; white-space: nowrap; text-overflow: ellipsis; cursor: pointer; }
+  .scene.dark { background: repeating-linear-gradient(135deg, #0c0f18 0 6px, #111522 6px 12px); }
+  .scene.on { color: var(--text); border-color: #4a5676; }
+  .cards { height: 64px; }
+  .bar { position: absolute; height: 28px; border-radius: 5px; background: rgba(242,230,204,.13); border: 1px solid rgba(242,230,204,.35); color: var(--star); font-size: 11.5px; padding: 5px 9px 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: grab; }
+  .bar.sel { background: rgba(242,230,204,.28); border-color: var(--star); color: #fff; }
+  .bar .h { position: absolute; top: 0; bottom: 0; width: 7px; cursor: ew-resize; }
+  .bar .h.l { left: 0; } .bar .h.r { right: 0; }
+  .sounds { height: 18px; }
+  .sounds i { position: absolute; top: 3px; width: 2px; height: 12px; background: var(--sky); opacity: .7; border-radius: 1px; }
+  .sounds i.big { width: 4px; height: 16px; top: 1px; background: #fff; opacity: .9; }
+  .playhead { position: absolute; width: 2px; background: var(--cut); pointer-events: none; }
+  .playhead::before { content: ''; position: absolute; top: -2px; left: -5px; border: 6px solid transparent; border-top-color: var(--cut); }
+  .tl-note { color: var(--muted); font-size: 12px; margin: 8px 0 0 52px; }
+
+  /* 속성 패널 */
+  aside { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; min-width: 0; }
+  .tabs { display: flex; border-bottom: 1px solid var(--line); }
+  .tabs button { flex: 1; background: none; border: 0; border-bottom: 2px solid transparent; padding: 11px 6px 9px; color: var(--muted); cursor: pointer; font-weight: 600; }
+  .tabs button[aria-selected="true"] { color: var(--text); border-bottom-color: var(--star); }
+  .pane { padding: 6px 14px 16px; max-height: calc(100vh - 150px); overflow-y: auto; }
+  @media (max-width: 1080px) { .pane { max-height: none; } }
+  .group { padding-block: 12px; border-bottom: 1px solid var(--line); display: grid; gap: 8px; }
+  .group:last-child { border-bottom: 0; }
+  .group-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .group-head h2 { margin: 0; font-size: 13px; font-weight: 700; color: var(--star); letter-spacing: .01em; }
+  .jump { background: none; border: 1px solid var(--line); border-radius: 999px; color: var(--muted); font: 500 11.5px var(--num); padding: 2px 9px; cursor: pointer; font-variant-numeric: tabular-nums; }
+  .jump:hover { color: var(--text); border-color: #3a4560; }
+  .field { display: grid; gap: 3px; }
+  .field > span { color: var(--muted); font-size: 12px; }
+  .field input[type=text], .field input[type=number], .field select { width: 100%; background: var(--ink); border: 1px solid var(--line); border-radius: 6px; padding: 7px 9px; min-width: 0; }
+  .field input[type=number] { font-family: var(--num); font-variant-numeric: tabular-nums; }
+  .field input:focus { border-color: #4a5676; }
+  .warn { color: #FFB38A; font-size: 11.5px; }
+  .row { display: grid; grid-template-columns: repeat(auto-fit, minmax(72px, 1fr)); gap: 6px; }
+  .card-block { border: 1px solid var(--line); border-radius: 8px; padding: 10px; display: grid; gap: 7px; background: var(--ink); }
+  .card-block.sel { border-color: var(--star); }
+  .card-block .field input, .card-block .field select { background: var(--panel); }
+  .words { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+  .color { display: grid; grid-template-columns: 38px minmax(0, 1fr) auto; align-items: center; gap: 10px; }
+  .color input[type=color] { width: 38px; height: 30px; padding: 0; border: 1px solid var(--line); border-radius: 6px; background: none; cursor: pointer; }
+  .color div { display: grid; line-height: 1.35; min-width: 0; }
+  .color small { color: var(--muted); font-size: 11.5px; }
+  .note { color: var(--muted); font-size: 12.5px; margin: 0; }
+  .note code { font-family: var(--num); font-size: 12px; color: var(--text); }
+
+  dialog { background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 12px; width: min(460px, calc(100% - 32px)); padding: 20px; }
+  dialog::backdrop { background: rgba(0,0,0,.6); }
+  dialog h2 { margin: 0 0 6px; font-size: 17px; }
+  .progress { height: 6px; border-radius: 3px; background: var(--ink); overflow: hidden; margin-block: 14px 8px; }
+  .progress i { display: block; height: 100%; width: 0; background: var(--star); }
+  .dlg-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px; }
+  @media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
+</style>
+</head>
+<body>
+<script src="vendor/three.min.js"></script>
+<script src="vendor/mp4-muxer.js"></script>
+<script src="timeline.js"></script>
+<script src="content.js"></script>
+
+<header>
+  <h1><span class="mark" aria-hidden="true"></span>AI수학 예고편 편집기</h1>
+  <span class="save-state" id="saveState">기본값</span>
+  <div class="actions">
+    <button class="btn" id="undo" disabled>되돌리기</button>
+    <button class="btn" id="reset">기본값으로</button>
+    <button class="btn" id="load">불러오기</button>
+    <button class="btn" id="saveJson">작업 파일 저장</button>
+    <button class="btn primary" id="export">MP4 내보내기</button>
+    <input type="file" id="fileIn" accept=".json,application/json" hidden>
+  </div>
+</header>
+
+<div class="work">
+  <div class="left">
+    <div class="stage">
+      <canvas id="c" width="1920" height="1080"></canvas>
+      <div class="busy" id="busy">폰트와 장면을 불러오는 중…</div>
+    </div>
+    <div class="transport">
+      <button class="play" id="play" aria-label="재생">▶</button>
+      <span class="tc" id="tc">00:00:00<small>/ 00:45:00</small></span>
+      <span class="hint"><kbd>Space</kbd> 재생 · <kbd>←</kbd><kbd>→</kbd> 한 프레임 · <kbd>Shift</kbd>+화살표 1초</span>
+    </div>
+    <div class="timeline" id="timeline">
+      <div class="tl-row"><span class="tl-label">초</span><div class="track ruler" id="ruler"></div></div>
+      <div class="tl-row"><span class="tl-label">장면</span><div class="track scenes" id="scenes"></div></div>
+      <div class="tl-row"><span class="tl-label">문구</span><div class="track cards" id="cards"></div></div>
+      <div class="tl-row"><span class="tl-label">소리</span><div class="track sounds" id="sounds"></div></div>
+      <p class="tl-note">문구 막대를 끌어 나오는 시간을 옮기고, 양 끝을 끌어 길이를 바꿔요. 장면 길이는 음악과 묶여 있어서 이 시제품에서는 고정이에요.</p>
+      <div class="playhead" id="playhead" hidden></div>
+    </div>
+  </div>
+
+  <aside>
+    <div class="tabs" role="tablist">
+      <button role="tab" id="tab-text" aria-selected="true" data-tab="text">문구</button>
+      <button role="tab" id="tab-app" aria-selected="false" data-tab="app">앱 화면</button>
+      <button role="tab" id="tab-color" aria-selected="false" data-tab="color">색</button>
+      <button role="tab" id="tab-info" aria-selected="false" data-tab="info">도움말</button>
+    </div>
+    <div class="pane" id="pane-text" role="tabpanel"></div>
+    <div class="pane" id="pane-app" role="tabpanel" hidden></div>
+    <div class="pane" id="pane-color" role="tabpanel" hidden></div>
+    <div class="pane" id="pane-info" role="tabpanel" hidden>
+      <div class="group">
+        <div class="group-head"><h2>이렇게 써요</h2></div>
+        <p class="note">오른쪽 칸을 고치면 미리보기에 바로 반영돼요. 칸을 누르면 그 글자가 나오는 순간으로 이동해요.</p>
+        <p class="note">고친 내용은 이 브라우저에 자동으로 저장돼요. 다른 사람에게 넘기거나 보관하려면 <b>작업 파일 저장</b>으로 JSON 파일을 받아 두세요. <b>불러오기</b>로 다시 열 수 있어요.</p>
+      </div>
+      <div class="group">
+        <div class="group-head"><h2>MP4 만들기</h2></div>
+        <p class="note"><b>MP4 내보내기</b>는 이 브라우저에서 1350장을 한 장씩 그려 1920×1080, 30fps 영상을 만들어요. 그래픽 성능에 따라 1~5분 걸려요. 크롬이나 엣지 최신 버전에서 돼요.</p>
+        <p class="note">가장 좋은 화질이 필요하면 저장한 작업 파일로 저장소에서 렌더링하세요.<br><code>node render.mjs --project 작업파일.json</code></p>
+      </div>
+      <div class="group">
+        <div class="group-head"><h2>이 시제품에서 할 수 없는 것</h2></div>
+        <p class="note">장면 순서와 길이, 카메라 움직임, 음악은 고칠 수 없어요. 음악의 타격음이 장면 전환에 맞춰져 있어서, 장면 길이를 바꾸려면 음악도 다시 만들어야 해요. 다음 단계에서 장면 틀 고르기와 함께 넣을 수 있어요.</p>
+      </div>
+    </div>
+  </aside>
+</div>
+
+<dialog id="dlg">
+  <h2 id="dlgTitle">MP4 만드는 중</h2>
+  <p class="note" id="dlgMsg">한 장면씩 그리고 있어요. 이 탭을 닫지 마세요.</p>
+  <div class="progress"><i id="dlgBar"></i></div>
+  <p class="note" id="dlgStat"></p>
+  <div class="dlg-actions"><button class="btn" id="dlgCancel">취소</button><button class="btn primary" id="dlgSave" hidden>MP4 저장</button></div>
+</dialog>
+
+<script src="trailer.js"></script>
+<script>
+// ------------------------------------------------------------
+// 편집기: 문구·색(content.js 구조)을 고치면 trailer.js 의 Trailer.apply 로 바로 반영
+// 저장 형식: { "kind": "ai-math-trailer", "version": 1, "content": { ... } }
+// ------------------------------------------------------------
+const T = window.Trailer, DUR = T.DURATION, FPS = 30;   // TL(timeline.js)·W·H 등은 trailer.js 가 이미 선언함
+const $ = id => document.getElementById(id);
+const STORE_KEY = 'ai-math-trailer-editor-v1';
+let state = JSON.parse(JSON.stringify(T.DEFAULT_CONTENT));
+let tCur = 0, playing = false, t0 = 0, selCard = null, exporting = false;
+const undoStack = [];
+
+// ---------- 경로로 값 읽기·쓰기 ('ui.0.copy') ----------
+const getP = (o, path) => path.split('.').reduce((a, k) => a == null ? a : a[k], o);
+function setP(o, path, v) { const ks = path.split('.'); const last = ks.pop(); ks.reduce((a, k) => a[k], o)[last] = v; }
+
+// ---------- 저장 (브라우저 자동 저장은 편의 기능일 뿐) ----------
+function loadLocal() { try { const s = localStorage.getItem(STORE_KEY); return s ? JSON.parse(s) : null; } catch (e) { return null; } }
+function saveLocal() { try { localStorage.setItem(STORE_KEY, JSON.stringify({ content: state })); $('saveState').textContent = '이 브라우저에 저장됨'; } catch (e) { $('saveState').textContent = '자동 저장 안 됨 (작업 파일로 저장하세요)'; } }
+const isDefault = () => JSON.stringify(state) === JSON.stringify(T.DEFAULT_CONTENT);
+
+// ---------- 적용 + 다시 그리기 (연속 입력은 한 프레임에 한 번만) ----------
+let applyQueued = false, saveTimer = 0, histTimer = 0, lastSnap = JSON.stringify(state);
+function changed({ rebuildBars = true } = {}) {
+  if (!applyQueued) { applyQueued = true; requestAnimationFrame(() => { applyQueued = false; T.apply({ content: state }); show(tCur); if (rebuildBars) drawBars(); checkWidths(); }); }
+  clearTimeout(saveTimer); saveTimer = setTimeout(saveLocal, 400);
+  clearTimeout(histTimer); histTimer = setTimeout(() => { const s = JSON.stringify(state); if (s !== lastSnap) { undoStack.push(lastSnap); if (undoStack.length > 100) undoStack.shift(); lastSnap = s; $('undo').disabled = false; } }, 350);
+  $('saveState').textContent = '저장 중…';
+}
+function replaceState(next) { T.apply({ content: next }); state = JSON.parse(JSON.stringify(T.content)); buildPanels(); changed(); }   // 빠진 칸은 기본값으로 채워짐
+
+// ---------- 시간 ----------
+const tc = t => { const f = Math.round(t * FPS), s = Math.floor(f / FPS), fr = f % FPS; return `00:${String(s).padStart(2, '0')}:${String(fr).padStart(2, '0')}`; };
+function show(t) {
+  tCur = Math.min(DUR, Math.max(0, t)); T.draw(Math.min(tCur, DUR - 1e-3));
+  $('tc').innerHTML = `${tc(tCur)}<small>/ ${tc(DUR)}</small>`;
+  const ph = $('playhead'), tr = $('ruler'), box = $('timeline').getBoundingClientRect(), r = tr.getBoundingClientRect();
+  const sb = $('sounds').getBoundingClientRect();
+  ph.hidden = false; ph.style.left = (r.left - box.left + tCur / DUR * r.width - 1) + 'px'; ph.style.top = (r.top - box.top) + 'px'; ph.style.height = (sb.bottom - r.top) + 'px';
+  document.querySelectorAll('.scene').forEach(el => el.classList.toggle('on', tCur >= +el.dataset.s && tCur < +el.dataset.e));
+}
+function seek(t) { show(t); if (playing) { t0 = performance.now() - tCur * 1000; try { audio.currentTime = tCur; } catch (e) {} } }
+
+// ---------- 소리 (미리보기) ----------
+const AUDIO_SRCS = ['audio/mix.m4a', 'audio/mix.wav'];
+const audio = new Audio(); let audioIdx = 0; audio.preload = 'auto';
+audio.onerror = () => { if (++audioIdx < AUDIO_SRCS.length) audio.src = AUDIO_SRCS[audioIdx]; };
+audio.src = AUDIO_SRCS[0];
+function loop(now) {
+  if (!playing) return;
+  const t = (now - t0) / 1000;
+  if (t >= DUR) { setPlaying(false); show(DUR); return; }
+  show(t); requestAnimationFrame(loop);
+}
+function setPlaying(on) {
+  if (exporting) return;
+  playing = on; $('play').textContent = on ? '❚❚' : '▶'; $('play').setAttribute('aria-label', on ? '정지' : '재생');
+  if (on) { if (tCur >= DUR - .01) tCur = 0; t0 = performance.now() - tCur * 1000; try { audio.currentTime = tCur; audio.play().catch(() => {}); } catch (e) {} requestAnimationFrame(loop); }
+  else audio.pause();
+}
+$('play').onclick = () => setPlaying(!playing);
+document.addEventListener('keydown', e => {
+  if (e.target.closest('input, select, textarea') || exporting) return;
+  if (e.code === 'Space') { e.preventDefault(); setPlaying(!playing); }
+  if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') { e.preventDefault(); const d = (e.shiftKey ? 1 : 1 / FPS) * (e.key === 'ArrowRight' ? 1 : -1); seek(Math.round((tCur + d) * FPS) / FPS); }
+  if ((e.metaKey || e.ctrlKey) && e.key === 'z') { e.preventDefault(); undo(); }
+});
+
+// ---------- 타임라인 ----------
+const SCENES = [
+  [0, 4.5, '암전 · 인트로', 1], [4.5, TL.connect[0], '별이 하나씩 켜짐'], [TL.connect[0], TL.braam[0], '북두칠성 완성 · 보상'], [TL.braam[0], TL.ui[0], '그리고', 1],
+  [TL.ui[0], TL.montage[0], '새 앱 화면 4장'], [TL.montage[0], TL.title, '몽타주'], [TL.title, TL.date, '타이틀'], [TL.date, DUR, '개봉일'],
+];
+const pct = t => (t / DUR * 100) + '%';
+function buildStatic() {
+  let h = '';
+  for (let s = 0; s <= DUR; s++) h += `<i class="${s % 5 ? '' : 'major'}" style="left:${pct(s)}"></i>` + (s % 5 || s === DUR ? '' : `<b style="left:${pct(s)}">${s}</b>`);
+  $('ruler').innerHTML = h;
+  $('scenes').innerHTML = SCENES.map(([s, e, n, dark]) => `<div class="scene${dark ? ' dark' : ''}" data-s="${s}" data-e="${e}" style="left:${pct(s)};width:calc(${pct(e - s)} - 2px)" title="${n} (${s}–${e}초)">${n}</div>`).join('');
+  const snd = [...TL.ignite.map(t => [t, '별 종소리']), [TL.braam[0], '브람', 1], ...TL.montage.map(t => [t, '째깍']), [TL.title, '타이틀 타격', 1], [TL.sting, '마지막 스팅', 1]];
+  $('sounds').innerHTML = snd.map(([t, n, big]) => `<i class="${big ? 'big' : ''}" style="left:${pct(t)}" title="${n} ${t}초"></i>`).join('');
+  $('scenes').onclick = e => { const el = e.target.closest('.scene'); if (el) seek(+el.dataset.s + .6); };
+}
+function lanes() { // 겹치는 문구는 아래 줄로
+  const order = state.cards.map((c, i) => i).sort((a, b) => state.cards[a].start - state.cards[b].start), end = [-1, -1], lane = [];
+  order.forEach(i => { const c = state.cards[i]; const l = c.start >= end[0] ? 0 : 1; lane[i] = l; end[l] = Math.max(end[l], c.end); });
+  return lane;
+}
+function drawBars() {
+  const lane = lanes();
+  $('cards').innerHTML = state.cards.map((c, i) => `<div class="bar${selCard === i ? ' sel' : ''}" data-i="${i}" style="left:${pct(c.start)};width:${pct(c.end - c.start)};top:${lane[i] * 34 + 2}px" title="${esc(c.text)} (${c.start.toFixed(2)}–${c.end.toFixed(2)}초)"><span class="h l" data-edge="l"></span>${esc(c.text) || '(빈 문구)'}<span class="h r" data-edge="r"></span></div>`).join('');
+}
+const esc = s => String(s).replace(/[&<>"]/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[ch]);
+const MIN_LEN = .4, snap = t => Math.round(t * 20) / 20;
+function timeAt(x) { const r = $('ruler').getBoundingClientRect(); return Math.min(DUR, Math.max(0, (x - r.left) / r.width * DUR)); }
+let drag = null;
+$('ruler').addEventListener('pointerdown', e => { drag = { kind: 'seek' }; e.target.setPointerCapture(e.pointerId); seek(timeAt(e.clientX)); });
+$('cards').addEventListener('pointerdown', e => {
+  const bar = e.target.closest('.bar'); if (!bar) { seek(timeAt(e.clientX)); drag = { kind: 'seek' }; $('cards').setPointerCapture(e.pointerId); return; }
+  const i = +bar.dataset.i, c = state.cards[i];
+  drag = { kind: 'card', i, edge: e.target.dataset.edge || 'move', t: timeAt(e.clientX), s: c.start, e: c.end, moved: false };
+  $('cards').setPointerCapture(e.pointerId); selectCard(i, false);
+});
+window.addEventListener('pointermove', e => {
+  if (!drag) return;
+  if (drag.kind === 'seek') return seek(timeAt(e.clientX));
+  const c = state.cards[drag.i], d = timeAt(e.clientX) - drag.t; drag.moved = true;
+  if (drag.edge === 'l') c.start = snap(Math.min(drag.e - MIN_LEN, Math.max(0, drag.s + d)));
+  else if (drag.edge === 'r') c.end = snap(Math.max(drag.s + MIN_LEN, Math.min(DUR, drag.e + d)));
+  else { const len = drag.e - drag.s; c.start = snap(Math.min(DUR - len, Math.max(0, drag.s + d))); c.end = snap(c.start + len); }
+  syncCardInputs(drag.i); changed();
+  seek(drag.edge === 'r' ? c.end - .2 : c.start + Math.min(.8, (c.end - c.start) / 2));
+});
+window.addEventListener('pointerup', () => { if (drag && drag.kind === 'card' && !drag.moved) { const c = state.cards[drag.i]; seek(c.start + Math.min(.8, (c.end - c.start) / 2)); } drag = null; });
+window.addEventListener('resize', () => show(tCur));
+
+// ---------- 속성 패널 ----------
+const at = t => Math.min(DUR - .05, t);
+const PANELS = {
+  text: [
+    { title: '별이 켜질 때 표기', at: TL.ignite[0] + .5, fields: [['lesson.day', '앞 글자 (예: DAY → DAY 01)'], ['lesson.done', '설명']] },
+    { title: '별자리 보상', at: 15, fields: [['reward.label', '작은 영문'], ['reward.name', '별자리 이름']] },
+    ...[0, 1, 2, 3].map(i => ({ title: `새 화면 ${i + 1}`, at: TL.ui[i] + 1, fields: [[`ui.${i}.sub`, '작은 영문'], [`ui.${i}.copy`, '문구', `ui${i}`]] })),
+    { title: '몽타주 단어', at: TL.montage[1] + .05, words: true },
+    { title: '타이틀', at: TL.title + 3, fields: [['title.light', '가늘게 쓰는 부분'], ['title.bold', '굵게 쓰는 부분', 'title'], ['title.sub', '아래 영문']] },
+    { title: '개봉일', at: TL.sting + 1.5, fields: [['date.main', '날짜', 'date'], ['date.sub', '아래 문구'], ['date.brand', '회사 이름']] },
+  ],
+  app: [
+    { title: '모든 앱 화면 공통', at: TL.ui[0] + 1, fields: [['app.name', '앱 이름 (왼쪽 위)'], ['app.stars', '별 개수 (오른쪽 위)']] },
+    { title: '홈', at: TL.ui[0] + 1, fields: [['app.homeGreeting', '인사말'], ['app.homeProgress', '오늘의 학습 진행'], ['app.lessons.0', '학습 1'], ['app.lessons.1', '학습 2'], ['app.lessons.2', '학습 3']] },
+    { title: '문제 풀기 · AI 힌트', at: TL.ui[1] + 1, fields: [['app.problem', '문제'], ['app.hint', 'AI 힌트']] },
+    { title: '별자리 도감', at: TL.ui[2] + 1, fields: [['app.dexTitle', '제목'], ['app.dexNames.0', '별자리 1'], ['app.dexNames.1', '별자리 2'], ['app.dexNames.2', '별자리 3'], ['app.dexNames.3', '별자리 4']] },
+    { title: '나의 성장', at: TL.ui[3] + 1, fields: [['app.growthTitle', '제목']] },
+  ],
+  color: [
+    { title: '글자', colors: [['colors.accent', '강조 글자', 'DAY 표기, 보상 영문, 리뉴얼 오픈', TL.sting + 1.5], ['colors.dim', '보조 글자', '새 화면 영문, RENEWAL', TL.ui[0] + 1]] },
+    { title: '빛', colors: [['colors.star', '별빛·별자리 선', '켜진 별의 빛무리와 이어지는 선', 14.2], ['colors.flare', '렌즈 플레어', '별이 켜질 때, 타이틀 뒤 빛', TL.title + .3]] },
+    { title: '브랜드', colors: [['colors.app', '앱 강조색', '앱 화면 안의 별·진행 막대', TL.ui[0] + 1], ['colors.brand', '재능교육 사각형', '마지막 로고 옆', TL.sting + 1.5]] },
+  ],
+};
+const fieldHTML = ([path, label, wid]) => `<label class="field"><span>${label}</span><input type="text" id="f-${path}" data-path="${path}" value="${esc(getP(state, path))}">${wid ? `<span class="warn" id="w-${wid}" hidden></span>` : ''}</label>`;
+function groupHead(title, t) { return `<div class="group-head"><h2>${title}</h2>${t != null ? `<button class="jump" data-at="${at(t)}">▶ ${t.toFixed(1)}초</button>` : ''}</div>`; }
+function cardsHTML() {
+  return `<div class="group">${groupHead('이야기 문구', null)}<p class="note">나오는 시간은 타임라인에서 끌어도 바뀌어요.</p>` + state.cards.map((c, i) => `
+    <div class="card-block${selCard === i ? ' sel' : ''}" id="cb-${i}" data-card="${i}">
+      <label class="field"><span>문구 ${i + 1}</span><input type="text" id="c-${i}-text" data-card="${i}" data-k="text" value="${esc(c.text)}"><span class="warn" id="w-card${i}" hidden></span></label>
+      <div class="row">
+        <label class="field"><span>시작(초)</span><input type="number" id="c-${i}-start" data-card="${i}" data-k="start" step="0.1" min="0" max="${DUR}" value="${c.start}"></label>
+        <label class="field"><span>끝(초)</span><input type="number" id="c-${i}-end" data-card="${i}" data-k="end" step="0.1" min="0" max="${DUR}" value="${c.end}"></label>
+        <label class="field"><span>크기</span><input type="number" id="c-${i}-size" data-card="${i}" data-k="size" step="2" min="16" max="200" value="${c.size}"></label>
+      </div>
+      <div class="row">
+        <label class="field"><span>굵기</span><select id="c-${i}-weight" data-card="${i}" data-k="weight">${[100, 200, 300, 400, 500, 700, 900].map(w => `<option value="${w}"${w === c.weight ? ' selected' : ''}>${w}</option>`).join('')}</select></label>
+        <label class="field"><span>세로 위치(px)</span><input type="number" id="c-${i}-y" data-card="${i}" data-k="y" step="10" min="160" max="920" value="${c.y}"></label>
+        <label class="field"><span>자간</span><input type="number" id="c-${i}-spacing" data-card="${i}" data-k="spacing" step="1" min="0" max="60" value="${c.spacing}"></label>
+      </div>
+    </div>`).join('') + `</div>`;
+}
+function buildPanels() {
+  $('pane-text').innerHTML = cardsHTML() + PANELS.text.map(g => `<div class="group">${groupHead(g.title, g.at)}${g.words
+    ? `<div class="words">${state.montage.map((w, i) => `<label class="field"><span>${i + 1}번째</span><input type="text" id="f-montage.${i}" data-path="montage.${i}" data-at="${at(TL.montage[i * 2 + 1] + .05)}" value="${esc(w)}"></label>`).join('')}</div>`
+    : g.fields.map(fieldHTML).join('')}</div>`).join('');
+  $('pane-app').innerHTML = `<div class="group"><p class="note">앱 화면은 리뉴얼 방향을 보여 주는 가상 목업이에요. 실제 시안이 나오면 문구를 맞춰 넣으세요.</p></div>` + PANELS.app.map(g => `<div class="group">${groupHead(g.title, g.at)}${g.fields.map(fieldHTML).join('')}</div>`).join('');
+  $('pane-color').innerHTML = PANELS.color.map(g => `<div class="group">${groupHead(g.title, null)}${g.colors.map(([path, label, desc, t]) => `
+    <div class="color"><input type="color" id="f-${path}" data-path="${path}" value="${getP(state, path)}" aria-label="${label}"><div><span>${label}</span><small>${desc}</small></div><button class="jump" data-at="${at(t)}">▶ ${t.toFixed(1)}초</button></div>`).join('')}</div>`).join('');
+  // 칸마다 나오는 시각을 기억해 두었다가 누르면 그리로 이동
+  document.querySelectorAll('aside .group').forEach(g => { const j = g.querySelector('.jump'); if (j) g.querySelectorAll('[data-path]').forEach(inp => { if (!inp.dataset.at) inp.dataset.at = j.dataset.at; }); });
+  checkWidths();
+}
+function selectCard(i, scroll = true) {
+  selCard = i; drawBars();
+  document.querySelectorAll('.card-block').forEach(b => b.classList.toggle('sel', +b.dataset.card === i));
+  if (scroll) { switchTab('text'); $('cb-' + i)?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); }
+}
+function syncCardInputs(i) { const c = state.cards[i]; ['start', 'end'].forEach(k => { const el = $(`c-${i}-${k}`); if (el && document.activeElement !== el) el.value = c[k]; }); }
+document.querySelector('aside').addEventListener('input', e => {
+  const el = e.target;
+  if (el.dataset.path) { setP(state, el.dataset.path, el.value); changed({ rebuildBars: false }); return; }
+  if (el.dataset.card) {
+    const i = +el.dataset.card, k = el.dataset.k, c = state.cards[i];
+    if (k === 'text') c.text = el.value;
+    else { const v = parseFloat(el.value); if (!isFinite(v)) return; c[k] = k === 'weight' ? parseInt(el.value) : v; }
+    if (k === 'start' || k === 'end') { c.start = Math.max(0, Math.min(DUR - MIN_LEN, c.start)); c.end = Math.max(c.start + MIN_LEN, Math.min(DUR, c.end)); }
+    changed();
+    if (k === 'start' || k === 'end') seek(k === 'end' ? c.end - .2 : c.start + .5);
+  }
+});
+document.querySelector('aside').addEventListener('change', e => { // 칸을 벗어나면 고쳐진 값(최소 길이 등)을 다시 보여 줌
+  const el = e.target; if (!el.dataset.card || !['start', 'end'].includes(el.dataset.k)) return;
+  const i = +el.dataset.card; ['start', 'end'].forEach(k => { $(`c-${i}-${k}`).value = state.cards[i][k]; });
+});
+document.querySelector('aside').addEventListener('focusin', e => {
+  const el = e.target;
+  if (el.dataset.at) seek(+el.dataset.at);
+  if (el.dataset.card) { const i = +el.dataset.card; if (selCard !== i) selectCard(i, false); if (!['start', 'end'].includes(el.dataset.k)) { const c = state.cards[i]; seek(c.start + Math.min(.9, (c.end - c.start) / 2)); } }
+});
+document.querySelector('aside').addEventListener('click', e => { const j = e.target.closest('.jump'); if (j) seek(+j.dataset.at); });
+
+// 글자가 화면 밖으로 넘칠 것 같으면 알려 줌
+const meas = document.createElement('canvas').getContext('2d');
+function textW(s, size, weight, spacing = 0, fam = "'Noto Sans KR'") { meas.font = `${weight} ${size}px ${fam}`; return meas.measureText(s).width + spacing * [...s].length; }
+function warn(id, over) { const el = $('w-' + id); if (!el) return; el.hidden = !over; el.textContent = over ? '글자가 길어 화면 밖으로 넘칠 수 있어요. 줄이거나 크기를 낮춰 주세요.' : ''; }
+function checkWidths() {
+  state.cards.forEach((c, i) => warn('card' + i, textW(c.text, c.size, c.weight, c.spacing) * 1.06 > 1760));
+  state.ui.forEach((u, i) => warn('ui' + i, textW(u.copy, 56, 300, 3) > 1600));
+  warn('title', textW(state.title.light, 140, 200) + textW(state.title.bold, 140, 800) + 26 > 1780);
+  warn('date', textW(state.date.main, 170, 100, 24, "'Inter'") > 1780);
+}
+
+// ---------- 탭 ----------
+function switchTab(name) { document.querySelectorAll('.tabs button').forEach(b => b.setAttribute('aria-selected', b.dataset.tab === name)); document.querySelectorAll('.pane').forEach(p => p.hidden = p.id !== 'pane-' + name); }
+document.querySelector('.tabs').onclick = e => { const b = e.target.closest('button'); if (b) switchTab(b.dataset.tab); };
+$('cards').addEventListener('dblclick', e => { const bar = e.target.closest('.bar'); if (bar) selectCard(+bar.dataset.i); });
+
+// ---------- 되돌리기·초기화 ----------
+function undo() { if (!undoStack.length) return; clearTimeout(histTimer); const prev = undoStack.pop(); lastSnap = prev; state = JSON.parse(prev); buildPanels(); T.apply({ content: state }); show(tCur); drawBars(); saveLocal(); $('undo').disabled = !undoStack.length; }
+$('undo').onclick = undo;
+let resetArmed = 0;
+$('reset').onclick = () => { // 확인 창을 못 쓰는 환경이라 두 번 눌러 확인
+  if (!resetArmed) { resetArmed = setTimeout(() => { resetArmed = 0; $('reset').textContent = '기본값으로'; }, 3000); $('reset').textContent = '한 번 더 누르면 초기화'; return; }
+  clearTimeout(resetArmed); resetArmed = 0; $('reset').textContent = '기본값으로';
+  replaceState(T.DEFAULT_CONTENT);
+};
+
+// ---------- 파일 저장·불러오기 ----------
+let downloads = null;
+const dlReady = window.claude?.use ? window.claude.use('downloads').then(d => (downloads = d)).catch(() => null) : Promise.resolve(null);
+async function saveFile(filename, blob) {
+  await dlReady;
+  if (downloads) { await downloads.save({ filename, data: blob }); return; }
+  if (window.claude?.use) throw { code: 'unavailable' };   // 아티팩트 안인데 저장 기능이 없으면 링크 다운로드도 막혀 있음
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = filename; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+}
+const saveMsg = e => e?.code === 'declined' ? '저장을 취소했어요.' : e?.code === 'rate_limited' ? '이미 열린 저장 창이 있어요. 잠시 뒤 다시 눌러 주세요.' : '이 화면에서는 파일을 저장할 수 없어요.';
+$('saveJson').onclick = async () => {
+  const blob = new Blob([JSON.stringify({ kind: 'ai-math-trailer', version: 1, content: state }, null, 1)], { type: 'application/json' });
+  try { await saveFile('ai_math_trailer_project.json', blob); $('saveState').textContent = '작업 파일을 저장했어요'; } catch (e) { $('saveState').textContent = saveMsg(e); }
+};
+$('load').onclick = () => $('fileIn').click();
+$('fileIn').onchange = async () => {
+  const f = $('fileIn').files[0]; $('fileIn').value = ''; if (!f) return;
+  try { const j = JSON.parse(await f.text()); if (!j || typeof j.content !== 'object') throw 0; replaceState(j.content); $('saveState').textContent = `${f.name} 을(를) 불러왔어요`; }
+  catch (e) { $('saveState').textContent = '이 편집기에서 저장한 JSON 파일이 아니에요.'; }
+};
+
+// ---------- 브라우저에서 MP4 만들기 (WebCodecs + mp4-muxer) ----------
+let cancelExport = false, exported = null;
+async function pickVideoConfig() {   // H.264 우선. 없으면 VP9 (MP4 안에 VP9: 크롬·엣지·VLC 는 재생, 맥 QuickTime 은 못 열 수 있음)
+  for (const [codec, mux] of [['avc1.640028', 'avc'], ['avc1.4d0028', 'avc'], ['avc1.42003e', 'avc'], ['vp09.00.40.08', 'vp9']]) {
+    const cfg = { codec, width: 1920, height: 1080, bitrate: 14e6, framerate: FPS, ...(mux === 'avc' ? { avc: { format: 'avc' } } : {}) };
+    try { if ((await VideoEncoder.isConfigSupported(cfg)).supported) return { cfg, mux }; } catch (e) {}
+  }
+  return null;
+}
+async function loadAudio() {
+  for (const src of AUDIO_SRCS) {
+    try {
+      const r = await fetch(src); if (!r.ok) continue;
+      const ctx = new OfflineAudioContext(2, 48000, 48000);
+      return await ctx.decodeAudioData(await r.arrayBuffer());
+    } catch (e) {}
+  }
+  return null;
+}
+async function pickAudioConfig(buf) {
+  for (const [codec, mux] of [['mp4a.40.2', 'aac'], ['opus', 'opus']]) {
+    const cfg = { codec, sampleRate: buf.sampleRate, numberOfChannels: 2, bitrate: 192000 };
+    try { if ((await AudioEncoder.isConfigSupported(cfg)).supported) return { cfg, mux }; } catch (e) {}
+  }
+  return null;
+}
+function dlg(title, msg) { $('dlgTitle').textContent = title; $('dlgMsg').textContent = msg; }
+async function exportMp4() {
+  if (!('VideoEncoder' in window) || !window.Mp4Muxer) { dlg('이 브라우저에서는 만들 수 없어요', '크롬이나 엣지 최신 버전에서 열어 주세요. 또는 작업 파일을 저장해 render.mjs 로 렌더링하세요.'); $('dlgStat').textContent = ''; $('dlgCancel').textContent = '닫기'; $('dlgSave').hidden = true; $('dlg').showModal(); return; }
+  setPlaying(false); exporting = true; cancelExport = false; exported = null;
+  $('dlgBar').style.width = '0'; $('dlgSave').hidden = true; $('dlgCancel').textContent = '취소'; $('dlgStat').textContent = '';
+  dlg('MP4 만드는 중', '한 장면씩 그리고 있어요. 이 탭을 닫거나 다른 탭으로 옮기지 마세요.'); $('dlg').showModal();
+  const keepT = tCur;
+  try {
+    const LEN = window.__EXPORT_SECONDS__ || DUR;   // 시험할 때만 앞부분 몇 초로 줄임
+    const vcfg = await pickVideoConfig(); if (!vcfg) throw new Error('이 브라우저는 영상 인코딩(H.264·VP9)을 지원하지 않아요.');
+    const abuf = await loadAudio(), acfg = abuf && 'AudioEncoder' in window ? await pickAudioConfig(abuf) : null;
+    const target = new Mp4Muxer.ArrayBufferTarget();
+    const muxer = new Mp4Muxer.Muxer({ target, fastStart: 'in-memory', firstTimestampBehavior: 'offset',
+      video: { codec: vcfg.mux, width: 1920, height: 1080, frameRate: FPS },
+      ...(acfg ? { audio: { codec: acfg.mux, numberOfChannels: 2, sampleRate: abuf.sampleRate } } : {}) });
+    let encErr = null;
+    const venc = new VideoEncoder({ output: (c, m) => muxer.addVideoChunk(c, m), error: e => (encErr = e) }); venc.configure(vcfg.cfg);
+    // 소리: render.mjs 와 같게 앞 0.3초 페이드인, 마지막 2초 페이드아웃
+    if (acfg) {
+      const aenc = new AudioEncoder({ output: (c, m) => muxer.addAudioChunk(c, m), error: e => (encErr = e) }); aenc.configure(acfg.cfg);
+      const sr = abuf.sampleRate, n = Math.min(abuf.length, Math.round(LEN * sr)), chs = [0, 1].map(c => abuf.getChannelData(Math.min(c, abuf.numberOfChannels - 1)));
+      const BLK = 4800;
+      for (let o = 0; o < n; o += BLK) {
+        const len = Math.min(BLK, n - o), data = new Float32Array(len * 2);
+        for (let c = 0; c < 2; c++) for (let k = 0; k < len; k++) { const s = (o + k) / sr, g = Math.min(1, s / .3, (LEN - s) / 2); data[c * len + k] = chs[c][o + k] * Math.max(0, g); }
+        const ad = new AudioData({ format: 'f32-planar', sampleRate: sr, numberOfFrames: len, numberOfChannels: 2, timestamp: Math.round(o / sr * 1e6), data });
+        aenc.encode(ad); ad.close();
+      }
+      await aenc.flush(); aenc.close();
+    }
+    const frames = Math.round(LEN * FPS), started = performance.now();
+    for (let i = 0; i < frames; i++) {
+      if (cancelExport) throw 'cancel'; if (encErr) throw encErr;
+      T.draw(i / FPS);
+      const vf = new VideoFrame(T.canvas, { timestamp: Math.round(i * 1e6 / FPS), duration: Math.round(1e6 / FPS) });
+      venc.encode(vf, { keyFrame: i % (FPS * 2) === 0 }); vf.close();
+      while (venc.encodeQueueSize > 6) await new Promise(r => setTimeout(r, 4));
+      if (i % 5 === 0) {
+        const k = (i + 1) / frames, el = (performance.now() - started) / 1000, left = el / k - el;
+        $('dlgBar').style.width = (k * 100).toFixed(1) + '%';
+        $('dlgStat').textContent = `${i + 1} / ${frames} 장 · 남은 시간 약 ${left < 60 ? Math.ceil(left) + '초' : Math.ceil(left / 60) + '분'}`;
+        await new Promise(r => setTimeout(r, 0));
+      }
+    }
+    await venc.flush(); venc.close(); muxer.finalize();
+    exported = new Blob([target.buffer], { type: 'video/mp4' });
+    $('dlgBar').style.width = '100%';
+    dlg('MP4를 만들었어요', `${(exported.size / 1048576).toFixed(1)} MB · 1920×1080 · 30fps${acfg ? '' : ' · 소리 없음 (음악 파일을 찾지 못했어요)'}${vcfg.mux === 'vp9' ? ' · VP9 코덱 (맥 QuickTime 에서는 안 열릴 수 있어요)' : ''}`);
+    $('dlgStat').textContent = ''; $('dlgSave').hidden = false; $('dlgCancel').textContent = '닫기';
+  } catch (e) {
+    if (e === 'cancel') { $('dlg').close(); }
+    else { dlg('MP4를 만들지 못했어요', (e && e.message) || String(e)); $('dlgStat').textContent = '작업 파일을 저장해 render.mjs 로 렌더링할 수 있어요.'; $('dlgCancel').textContent = '닫기'; }
+  } finally { exporting = false; show(keepT); }
+}
+$('export').onclick = exportMp4;
+$('dlgCancel').onclick = () => { if (exporting) cancelExport = true; else $('dlg').close(); };
+$('dlg').addEventListener('cancel', e => { if (exporting) { e.preventDefault(); cancelExport = true; } });
+$('dlgSave').onclick = async () => {
+  try { await saveFile('ai_math_trailer_edit.mp4', exported); $('dlgStat').textContent = '저장을 시작했어요.'; } catch (e) { $('dlgStat').textContent = saveMsg(e); }
+};
+
+// ---------- 시작 ----------
+buildStatic();
+window.ready.then(() => {
+  const saved = loadLocal();
+  if (saved && saved.content) { T.apply({ content: saved.content }); state = JSON.parse(JSON.stringify(T.content)); lastSnap = JSON.stringify(state); $('saveState').textContent = isDefault() ? '기본값' : '이 브라우저에 저장된 작업을 열었어요'; }
+  buildPanels(); drawBars(); $('busy').hidden = true; show(TL.title + 3);
+}).catch(e => { $('busy').textContent = e.message; });
+</script>
+</body>
+</html>
