@@ -1,0 +1,68 @@
+// 광합성 영상의 문구·색 기본값. 영상 편집기(../video-editor.html)에서 고친 내용은 이 구조 그대로 JSON 으로 저장됨
+// (render.mjs --project 파일.json 으로 그 JSON 을 렌더링). 규칙: ../editor/PROTOCOL.md
+// 자막(subtitles)의 기본값은 timeline.js(tools/make_audio.py 가 만듦)의 SUBS 문구를 그대로 씀. 자막 시각은 내레이션에 묶여 있어 여기 없음
+window.CONTENT = {
+ "colors": {
+  "ink": "#3B2F25",
+  "white": "#FCF9F3",
+  "cream": "#F3EAD8",
+  "kraft": "#D8BC92",
+  "sky": "#CDE8F4",
+  "skyDark": "#86C5E3",
+  "bgCell": "#EFE6D2",
+  "bgFormula": "#F3E7D3",
+  "bgResult": "#F5EBDC",
+  "bgFactor": "#EFE7D6",
+  "green": "#66B85C",
+  "greenDark": "#2F7D46",
+  "greenLight": "#9AD46F",
+  "leafAlt": "#5AAE52",
+  "cell": "#DDF0C8",
+  "cellWall": "#C6E4A8",
+  "chloroplast": "#3F9A4A",
+  "chlorophyllTag": "#C9E9A5",
+  "sun": "#FFC93C",
+  "sunDark": "#FF9F1C",
+  "soil": "#8B5A3C",
+  "root": "#E2C08D",
+  "water": "#4FA8E8",
+  "red": "#E60012",
+  "gray": "#5A5A5A",
+  "grayPaper": "#D9D4CC",
+  "pink": "#F4A6B8",
+  "starch": "#F2D9A0",
+  "magnifier": "#B98A5A",
+  "skin": "#F6C9A0",
+  "brand": "#E60012"
+ },
+ "terms": {
+  "light": "빛",
+  "water": "물",
+  "co2": "이산화탄소",
+  "lightEnergy": "빛에너지",
+  "glucose": "포도당",
+  "oxygen": "산소",
+  "starch": "녹말",
+  "stoma": "기공",
+  "leaf": "잎",
+  "cell": "세포",
+  "chloroplast": "엽록체",
+  "chlorophyll": "엽록소"
+ },
+ "title": { "main": "광합성", "question": "식물은 어떻게 양분을 만들까요?", "brand": "재능교육" },
+ "wonder": { "rice": "밥", "name": "광합성", "answer": "잎에서 스스로 양분을 만들어요" },
+ "formula": { "chem": "6CO2 + 6H2O → C6H12O6 + 6O2", "o2": "O2" },
+ "result": { "use": "자라고 살아가는 데 사용", "store": "남은 포도당은 녹말로 바뀌어 저장돼요", "breathe": "우리가 숨 쉬는 산소" },
+ "factors": {
+  "names": ["빛의 세기", "이산화탄소 농도", "온도"],
+  "amount": "광합성량",
+  "saturate": "더 늘지 않아요",
+  "best": "알맞은 온도",
+  "tooLow": "너무 낮아도",
+  "tooHigh": "너무 높아도"
+ },
+ "summary": { "line": "식물은 빛, 물, 이산화탄소로 포도당과 산소를 만들어요", "ending": "광합성 덕분에 식물도 자라고, 우리도 숨 쉴 수 있어요!" },
+ "sections": ["궁금해요", "광합성의 재료", "광합성이 일어나는 곳", "광합성 식", "광합성의 결과", "광합성에 영향을 주는 요인"],
+ "transitions": ["궁금해요", "재료", "엽록체", "광합성 식", "결과", "영향", "정리"],
+ "subtitles": (window.SUBS || []).map(s => s[2])
+};
