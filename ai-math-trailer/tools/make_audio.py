@@ -32,26 +32,34 @@ def drone(f, d, bright=.2):
     tt = t_(d); x = np.zeros(len(tt))
     for det in (-.35, 0, .35): x += np.sin(2 * np.pi * (f + det) * tt) + bright * np.sin(2 * np.pi * 2 * (f + det) * tt) + bright * .5 * np.sin(2 * np.pi * 3 * (f + det) * tt)
     return x / 3 * np.minimum(1, tt / 2.5) * np.minimum(1, (d - tt) / 1.5)
-def braam(d=4.5):                                   # 영화 예고편의 '브아아암'
+def braam(d=4.5):                                   # 영화 예고편의 '브아아암' — 배음을 직접 쌓아 깨끗하게 (톱니파·강한 왜곡 없음)
     tt = t_(d); x = np.zeros(len(tt))
-    for f in (36.7, 55.0, 73.4, 110.0):
-        ph = 2 * np.pi * f * tt; saw = 2 * ((ph / (2 * np.pi)) % 1) - 1
-        x += saw * (1 if f < 80 else .6)
-    x = lp(x, 6); x = np.tanh(x * 2.2)
-    return x * np.minimum(1, tt / .02) * np.exp(-tt * .75) * .9
-def boom(d=2.5):                                    # 큰북 타격
+    open_ = np.clip(tt / .35, 0, 1) * np.exp(-tt * .35)             # 소리가 열렸다가 서서히 닫힘 (금관 느낌)
+    for f0, g in ((36.7, 1.0), (55.0, .8), (73.4, .55)):
+        for h in range(1, 18):
+            f = f0 * h
+            if f > 2400: break
+            amp = g / h * np.clip(1.3 * open_ * 2600 / f, 0, 1)        # 높은 배음일수록 늦게·작게
+            x += amp * np.sin(2 * np.pi * f * tt + h * .7)
+    x += .6 * np.sin(2 * np.pi * 36.7 * tt)                          # 아주 낮은 서브 저음
+    x = np.tanh(x * .45) / .45                                       # 살짝만 눌러 줌
+    env = np.minimum(1, tt / .06) * np.exp(-tt * .6)
+    return x / (np.abs(x).max() + 1e-9) * env * .9
+def boom(d=2.5):                                    # 큰북 타격 (왜곡 없이)
     tt = t_(d); f = 38 + 90 * np.exp(-tt * 18)
     body = np.sin(2 * np.pi * np.cumsum(f) / SR) * np.exp(-tt * 2.2)
-    hitn = lp(rs.randn(len(tt)), 3) * np.exp(-tt * 30) * .6
-    return np.tanh((body + hitn) * 1.6) * .9
+    hitn = lp(rs.randn(len(tt)), 4) * np.exp(-tt * 35) * .35
+    return (body + hitn) * .8
 def tick():
     d = .03; return lp(rs.randn(int(d * SR)), 2) * np.exp(-np.arange(int(d * SR)) / SR * 160) * .7
-def riser(d):
+def riser(d):                                       # 끌어올리는 소리: 음정 위주, 잡음은 낮은 쪽만 조금, 끝은 부드럽게 닫힘
     tt = t_(d); n = rs.randn(len(tt)); y = np.zeros_like(n); acc = 0.0
     for i in range(len(n)):
-        a = .005 + .35 * (tt[i] / d) ** 2; acc += a * (n[i] - acc); y[i] = acc
-    tone = np.sin(2 * np.pi * np.cumsum(np.geomspace(110, 880, len(tt))) / SR) * .25
-    return (y * 2.5 + tone) * (tt / d) ** 2
+        a = .004 + .06 * (tt[i] / d) ** 2; acc += a * (n[i] - acc); y[i] = acc
+    fr = np.geomspace(110, 660, len(tt))
+    tone = np.sin(2 * np.pi * np.cumsum(fr) / SR) + .5 * np.sin(2 * np.pi * np.cumsum(fr * 1.5) / SR)
+    env = (tt / d) ** 2 * np.clip((d - tt) / .18, 0, 1)                  # 마지막 0.18초 동안 닫힘
+    return (y * 1.2 + tone * .35) * env
 def whoosh(d=.7):
     tt = t_(d); n = rs.randn(len(tt)); w = np.sin(np.pi * tt / d) ** 2; y = np.zeros_like(n); acc = 0.0
     for i in range(len(n)):
@@ -72,7 +80,7 @@ def main():
     c0, c1 = TL['connect']
     for i in range(7): place(music, c0 + i * (c1 - c0) / 7, bell([1046.5, 1174.7, 1318.5, 1568.0, 1760.0, 2093.0, 2349.3][i], 2), .35)
     place(music, TL['reward'], shimmer([523.25, 659.25, 783.99, 1046.5], 3.2), .9)
-    place(music, 15.2, riser(1.8), .5)
+    place(music, 15.3, riser(1.55), .4)
     # 브람 + 정적
     for t in TL['braam']: place(hits, t, braam(), 1.0); place(hits, t, boom(), .7)
     # 2막 (19~28초): 앱 화면마다 타격 + 긴장감 있는 박동
@@ -90,7 +98,7 @@ def main():
     place(music, TL['title'] + .6, bell(2093.0, 3), .4)
     # 개봉일 스팅
     place(hits, TL['sting'], boom(3), .9); place(music, TL['sting'], piano(523.25, 3.5), .5); place(music, TL['sting'], bell(1046.5, 3.5), .5)
-    mix = music / (np.abs(music).max() + 1e-9) * .6 + hits / (np.abs(hits).max() + 1e-9) * .75
+    mix = music / (np.abs(music).max() + 1e-9) * .5 + hits / (np.abs(hits).max() + 1e-9) * .55
     mix[int(s0 * SR):int(s1 * SR)] *= np.linspace(1, 0, int(s1 * SR) - int(s0 * SR)) ** 4          # 타이틀 직전 정적
     # 잔향 (여러 지연)
     wet = np.zeros_like(mix)
@@ -98,7 +106,8 @@ def main():
         k = int(dl * SR); wet[k:] += mix[:-k] * g
     mix = mix + wet * .6
     tt = np.arange(N) / SR; mix *= np.clip((DUR - tt) / 1.2, 0, 1)
-    mix = np.tanh(mix * 1.3) / np.tanh(1.3) * .92
+    mix = np.tanh(mix * .8) / .8                      # 아주 부드러운 리미터
+    mix *= .89 / (np.abs(mix).max() + 1e-9)            # 피크 -1dB
     L, Rr = mix, np.roll(mix, int(.011 * SR))
     os.makedirs(os.path.dirname(OUT), exist_ok=True)
     sf.write(OUT, np.stack([L, Rr], 1), SR, subtype='PCM_16')

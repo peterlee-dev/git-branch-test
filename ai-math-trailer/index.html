@@ -35,7 +35,8 @@
 const W = 1920, H = 1080, TL = window.TL, DURATION = TL.duration;
 const out = document.getElementById('c'), ctx = out.getContext('2d');
 const KR = "'Noto Sans KR', sans-serif", EN = "'Inter', 'Noto Sans KR', sans-serif";
-const GOLD = '#FFD37A', ICE = '#BFD8FF', RED = '#E60012';
+const GOLD = '#F2E6CC', ICE = '#C9D6EE', RED = '#E60012';   // 별빛: 채도 낮은 샴페인 화이트
+const ACC = 'rgba(236,228,210,.92)', DIM = 'rgba(220,226,240,.55)';   // 글자 강조색 / 보조색
 const BAR = 138;                                     // 2.39:1 시네마스코프 레터박스
 
 const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
@@ -109,6 +110,7 @@ const lineObjs = LINES.map(([a, b]) => {
 const dipperC = lessonV.reduce((s, v) => s.add(v), new THREE.Vector3()).multiplyScalar(1 / 7);
 
 // ---------- 새 앱 화면 (목업) : 캔버스로 그려 3D 판에 붙임 ----------
+const APP_GOLD = '#FFD37A';                          // 앱 목업 안의 강조색 (앱 디자인 요소)
 const UIW = 1600, UIH = 1000;
 function uiCanvas(draw) { const c = document.createElement('canvas'); c.width = UIW; c.height = UIH; const g = c.getContext('2d'); draw(g); const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; t.userData = { g, draw }; return t; }
 function gRect(g, x, y, w, h, r, f, s, lw = 3) { g.beginPath(); g.roundRect(x, y, w, h, r); if (f) { g.fillStyle = f; g.fill(); } if (s) { g.strokeStyle = s; g.lineWidth = lw; g.stroke(); } }
@@ -117,7 +119,7 @@ function gStar(g, x, y, r, col) { g.beginPath(); for (let i = 0; i < 10; i++) { 
 function uiFrame(g, title) {
   const bgG = g.createLinearGradient(0, 0, UIW, UIH); bgG.addColorStop(0, '#171B45'); bgG.addColorStop(1, '#0C0F2A'); gRect(g, 0, 0, UIW, UIH, 60, bgG);
   const r = rng(title.length * 7); for (let i = 0; i < 70; i++) { g.globalAlpha = .3 + r() * .5; g.fillStyle = '#fff'; g.beginPath(); g.arc(r() * UIW, r() * UIH, r() * 2.2, 0, Math.PI * 2); g.fill(); } g.globalAlpha = 1;
-  gText(g, '재능스스로AI수학', 70, 70, 34, '#fff', 800); gRect(g, 1240, 40, 290, 60, 30, 'rgba(255,211,122,.15)', GOLD, 2); gStar(g, 1280, 70, 17, GOLD); gText(g, '128', 1310, 71, 32, GOLD, 800, 'left', EN);
+  gText(g, '재능스스로AI수학', 70, 70, 34, '#fff', 800); gRect(g, 1240, 40, 290, 60, 30, 'rgba(255,211,122,.15)', APP_GOLD, 2); gStar(g, 1280, 70, 17, APP_GOLD); gText(g, '128', 1310, 71, 32, APP_GOLD, 800, 'left', EN);
   gText(g, title, 70, 150, 28, 'rgba(210,220,255,.7)', 500);
 }
 const UI = [
@@ -127,21 +129,21 @@ const UI = [
     gRect(g, 70, 310, 700, 560, 44, 'rgba(255,255,255,.07)', 'rgba(255,255,255,.14)');
     gText(g, '오늘의 학습', 120, 380, 34, 'rgba(255,255,255,.8)', 600);
     g.lineWidth = 34; g.lineCap = 'round'; g.strokeStyle = 'rgba(255,255,255,.1)'; g.beginPath(); g.arc(420, 620, 160, 0, Math.PI * 2); g.stroke();
-    g.strokeStyle = GOLD; g.beginPath(); g.arc(420, 620, 160, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * .6); g.stroke();
+    g.strokeStyle = APP_GOLD; g.beginPath(); g.arc(420, 620, 160, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * .6); g.stroke();
     gText(g, '3 / 5', 420, 610, 76, '#fff', 800, 'center', EN); gText(g, '단계 완료', 420, 680, 30, 'rgba(255,255,255,.6)', 500, 'center');
     [['덧셈과 뺄셈', '#5EE0B5'], ['100까지의 수', '#FF8FB1'], ['시계 보기', '#7CA8FF']].forEach(([s, c], i) => {
       gRect(g, 830, 310 + i * 190, 700, 160, 36, 'rgba(255,255,255,.07)', 'rgba(255,255,255,.14)');
-      gRect(g, 870, 350 + i * 190, 80, 80, 24, c); gText(g, s, 990, 390 + i * 190, 42, '#fff', 700); gText(g, i < 2 ? '완료' : '시작하기 →', 1480, 390 + i * 190, 30, i < 2 ? c : GOLD, 700, 'right');
+      gRect(g, 870, 350 + i * 190, 80, 80, 24, c); gText(g, s, 990, 390 + i * 190, 42, '#fff', 700); gText(g, i < 2 ? '완료' : '시작하기 →', 1480, 390 + i * 190, 30, i < 2 ? c : APP_GOLD, 700, 'right');
     });
   }),
   uiCanvas(g => { // 문제 + AI 힌트
     uiFrame(g, '문제 풀기');
     gRect(g, 70, 200, 900, 690, 44, 'rgba(255,255,255,.07)', 'rgba(255,255,255,.14)');
     gText(g, '18 + 25 = ?', 520, 430, 150, '#fff', 800, 'center', EN);
-    [0, 1].forEach(i => gRect(g, 380 + i * 150, 560, 120, 150, 26, 'rgba(255,255,255,.1)', i ? GOLD : 'rgba(255,255,255,.3)', 4));
+    [0, 1].forEach(i => gRect(g, 380 + i * 150, 560, 120, 150, 26, 'rgba(255,255,255,.1)', i ? APP_GOLD : 'rgba(255,255,255,.3)', 4));
     gText(g, '4', 440, 636, 90, '#fff', 800, 'center', EN);
     for (let i = 0; i < 10; i++) { const x = 1030 + (i % 3) * 170, y = 230 + Math.floor(i / 3) * 150; if (i === 9) { gRect(g, 1200, y, 150, 120, 30, 'rgba(255,255,255,.1)'); gText(g, '0', 1275, y + 60, 56, '#fff', 700, 'center', EN); } else { gRect(g, x, y, 150, 120, 30, 'rgba(255,255,255,.1)'); gText(g, String(i + 1), x + 75, y + 60, 56, '#fff', 700, 'center', EN); } }
-    gRect(g, 120, 760, 800, 100, 50, 'rgba(124,168,255,.22)', '#7CA8FF', 3); gStar(g, 175, 810, 24, GOLD);
+    gRect(g, 120, 760, 800, 100, 50, 'rgba(124,168,255,.22)', '#7CA8FF', 3); gStar(g, 175, 810, 24, APP_GOLD);
     gText(g, 'AI 힌트: 일의 자리부터 더해 볼까요? 8 + 5 = 13', 215, 811, 32, '#fff', 600);
   }),
   uiCanvas(g => { // 별자리 도감
@@ -162,7 +164,7 @@ const UI = [
     gText(g, '이번 주, 이만큼 자랐어요', 70, 240, 60, '#fff', 800);
     gRect(g, 70, 300, 1460, 580, 44, 'rgba(255,255,255,.07)', 'rgba(255,255,255,.14)');
     const days = ['월', '화', '수', '목', '금', '토', '일'], v = [.45, .6, .55, .75, .7, .9, .82];
-    days.forEach((d, i) => { const x = 180 + i * 190, h = v[i] * 380; const gr = g.createLinearGradient(0, 800 - h, 0, 800); gr.addColorStop(0, GOLD); gr.addColorStop(1, '#FF8FB1'); gRect(g, x, 800 - h, 110, h, 24, gr); gText(g, d, x + 55, 845, 32, 'rgba(255,255,255,.7)', 600, 'center'); });
+    days.forEach((d, i) => { const x = 180 + i * 190, h = v[i] * 380; const gr = g.createLinearGradient(0, 800 - h, 0, 800); gr.addColorStop(0, APP_GOLD); gr.addColorStop(1, '#FF8FB1'); gRect(g, x, 800 - h, 110, h, 24, gr); gText(g, d, x + 55, 845, 32, 'rgba(255,255,255,.7)', 600, 'center'); });
     gText(g, '예시 화면', 1480, 350, 24, 'rgba(255,255,255,.4)', 500, 'right');
   }),
 ];
@@ -185,7 +187,7 @@ function shot(t) {
     const pos = side.clone().multiplyScalar(Math.sin(k * 1.2) * 2.5).add(dir.clone().multiplyScalar(lerp(-2, 6, eIO(k))));
     lookFrom(pos, dipperC, Math.sin(k * 2) * .03, lerp(46, 30, eIO(k)));
   } else if (t < 28) {                                   // 앱 화면 4장
-    const i = clamp(Math.floor((t - TL.ui[0]) / 2.2), 0, 3), s = TL.ui[i], k = clamp((t - s) / 2.2);
+    const i = clamp(Math.floor((t - TL.ui[0]) / 2.2 + 1e-6), 0, 3), s = TL.ui[i], k = clamp((t - s) / 2.2);
     const d = UI_DIRS[i].clone(), side = new THREE.Vector3().crossVectors(d, new THREE.Vector3(0, 1, 0)).normalize();
     const pos = d.clone().multiplyScalar(lerp(.6, 2.0, eOut(k))).add(side.clone().multiplyScalar(lerp(.9, -.5, eIO(k)))).add(new THREE.Vector3(0, lerp(.25, -.1, k), 0));
     lookFrom(pos, d.clone().multiplyScalar(4), lerp(.06, -.03, k) * (i % 2 ? -1 : 1), 42);
@@ -206,6 +208,7 @@ function text(str, x, y, { size = 60, color = '#fff', weight = 200, family = KR,
   ctx.font = `${weight} ${size}px ${family}`; ctx.fillStyle = color; ctx.textAlign = align; ctx.textBaseline = 'middle'; ctx.letterSpacing = spacing + 'px';
   if (glow) { ctx.shadowColor = color; ctx.shadowBlur = glow; } ctx.fillText(str, 0, 0); ctx.restore();
 }
+function measureT(str, size, weight = 200, family = KR) { ctx.save(); ctx.font = `${weight} ${size}px ${family}`; const w = ctx.measureText(str).width; ctx.restore(); return w; }
 function card(str, t, s, e, o = {}) { const a = env(t, s, e, o.fi || .7, o.fo || .6); text(str, W / 2, o.y || H / 2, { size: 64, weight: 200, spacing: 14, ...o, alpha: a, scale: 1 + (t - s) * .012 }); }
 function flare(x, y, k, col = ICE, size = 1) {
   if (k <= 0) return; ctx.save(); ctx.globalCompositeOperation = 'lighter';
@@ -217,15 +220,15 @@ function flare(x, y, k, col = ICE, size = 1) {
   ctx.restore();
 }
 function project(v) { const q = v.clone().project(camera); return { x: (q.x + 1) / 2 * W, y: (1 - q.y) / 2 * H, ok: q.z < 1 && Math.abs(q.x) < 1.2 && Math.abs(q.y) < 1.2 }; }
-function lessonCard(t, s, i) {                         // 학습 완료 알림 카드
-  const a = env(t, s - .35, s + .55, .2, .35); if (a <= 0) return;
-  const x = 1500, y = 760 - (1 - eOut(p(t, s - .35, .3))) * 30;
-  ctx.save(); ctx.globalAlpha = a; ctx.fillStyle = 'rgba(20,24,60,.72)'; ctx.strokeStyle = 'rgba(255,211,122,.55)'; ctx.lineWidth = 2;
-  ctx.beginPath(); ctx.roundRect(x - 220, y - 44, 440, 88, 44); ctx.fill(); ctx.stroke(); ctx.restore();
-  text(`${i + 1}일째 학습 완료`, x - 30, y + 2, { size: 30, weight: 600, alpha: a });
-  text('★', x + 150, y, { size: 38, color: GOLD, weight: 800, family: EN, alpha: a, glow: 20 });
+function lessonCard(t, s, i) {                         // 별이 켜질 때 별 옆에 가는 선과 DAY 표기
+  const a = env(t, s + .05, s + 1.1, .25, .45); if (a <= 0) return;
+  const q = project(lessonV[i]); if (!q.ok) return;
+  const k = eOut(p(t, s + .05, .45)), dx = 70, dy = 70;
+  ctx.save(); ctx.globalAlpha = a; ctx.strokeStyle = 'rgba(236,228,210,.6)'; ctx.lineWidth = 1.2;
+  ctx.beginPath(); ctx.moveTo(q.x + 14, q.y + 12); ctx.lineTo(q.x + 14 + (dx - 14) * k, q.y + 12 + (dy - 12) * k); ctx.lineTo(q.x + dx + 90 * k, q.y + dy); ctx.stroke(); ctx.restore();
+  text(`DAY ${String(i + 1).padStart(2, '0')}`, q.x + dx + 4, q.y + dy - 22, { size: 18, weight: 600, family: EN, align: 'left', spacing: 6, color: ACC, alpha: a * k });
+  text('학습 완료', q.x + dx + 4, q.y + dy + 20, { size: 20, weight: 300, align: 'left', spacing: 4, color: DIM, alpha: a * k });
 }
-
 // ---------- 그리기 ----------
 function draw(t) {
   shot(t);
@@ -246,7 +249,7 @@ function draw(t) {
   lineObjs.forEach((L, i) => {
     const per = (TL.connect[1] - TL.connect[0]) / LINES.length, k = eIO(p(t, TL.connect[0] + i * per, per * 1.3));
     L.l.geometry.setFromPoints([L.a, L.a.clone().lerp(L.b, Math.max(k, .0001))]);
-    L.l.material.opacity = ((t >= 17 && t < 28) ? 0 : k > 0 ? .85 : 0) * (1 - eIn(p(t, 39.4, .6)));
+    L.l.material.opacity = ((t >= 17 && t < 28) ? 0 : k > 0 ? .85 : 0) * (1 - eIn(p(t, 39.4, .6))) * (t >= TL.title ? .3 : 1);
   });
   panels.forEach((g, i) => { g.visible = t >= 19 && t < 33; g.children[0].material.opacity = .35; });
   renderer.render(scene, camera);
@@ -276,19 +279,22 @@ function draw(t) {
   card('하루의 학습이', t, 5.6, 10.8, { y: 300, size: 58 });
   card('하나의 별이 되고', t, 7.6, 10.8, { y: 390, size: 58 });
   card('쌓인 별은', t, 11.4, 16.6, { y: 300, size: 58 });
-  card('나만의 별자리가 된다', t, 12.6, 16.6, { y: 390, size: 58, color: GOLD });
-  // 보상 배지
-  { const a = env(t, TL.reward, 16.5, .5, .6); if (a > 0) {
-    ctx.save(); ctx.globalAlpha = a; ctx.fillStyle = 'rgba(40,30,10,.55)'; ctx.strokeStyle = GOLD; ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.roundRect(W / 2 - 290, 790, 580, 96, 48); ctx.fill(); ctx.stroke(); ctx.restore();
-    text('★ 별자리 보상  ·  북두칠성 완성!', W / 2, 840, { size: 34, weight: 700, color: GOLD, alpha: a, glow: 18 }); } }
+  card('나만의 별자리가 된다', t, 12.6, 16.6, { y: 390, size: 58, weight: 400 });
+  // 보상 표기: 양옆 가는 선 + 작은 영문 + 별자리 이름
+  { const a = env(t, TL.reward, 16.5, .6, .6); if (a > 0) {
+    const k = eOut(p(t, TL.reward, .9));
+    ctx.save(); ctx.globalAlpha = a; ctx.strokeStyle = 'rgba(236,228,210,.5)'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(W / 2 - 180 - 160 * k, 812); ctx.lineTo(W / 2 - 180, 812); ctx.moveTo(W / 2 + 180, 812); ctx.lineTo(W / 2 + 180 + 160 * k, 812); ctx.stroke(); ctx.restore();
+    text('CONSTELLATION UNLOCKED', W / 2, 812, { size: 18, weight: 600, family: EN, spacing: 8, color: ACC, alpha: a });
+    text('북두칠성', W / 2, 862, { size: 36, weight: 300, spacing: 14, alpha: a }); } }
   card('그리고,', t, 17.4, 18.9, { size: 60, weight: 200, spacing: 20 });
   const uiCopy = ['완전히 새로워진 화면', 'AI가 곁에서 힌트를', '모으는 재미, 별자리 도감', '한눈에 보는 나의 성장'];
   const uiSub = ['NEW UI', 'AI HINT', 'CONSTELLATION REWARD', 'MY GROWTH'];
   TL.ui.forEach((s, i) => {
     const e = s + 2.15;
-    text(uiSub[i], 160, 820, { size: 20, weight: 600, family: EN, align: 'left', spacing: 10, color: GOLD, alpha: env(t, s + .15, e, .3, .3) });
-    text(uiCopy[i], 160, 880, { size: 62, weight: 300, align: 'left', spacing: 4, alpha: env(t, s + .25, e, .35, .3) });
+    text(uiSub[i], 160, 822, { size: 18, weight: 600, family: EN, align: 'left', spacing: 9, color: DIM, alpha: env(t, s + .15, e, .3, .3) });
+    ctx.save(); ctx.globalAlpha = env(t, s + .15, e, .3, .3); ctx.fillStyle = 'rgba(236,228,210,.6)'; ctx.fillRect(160, 846, 36 * eOut(p(t, s + .15, .5)), 1.5); ctx.restore();
+    text(uiCopy[i], 160, 892, { size: 56, weight: 300, align: 'left', spacing: 3, alpha: env(t, s + .25, e, .35, .3) });
   });
   // 몽타주 단어
   const words = ['스스로', '생각하고', '도전하고', '빛나는', '매일', '스스로', 'AI', '수학'];
@@ -301,22 +307,23 @@ function draw(t) {
   // 타이틀
   if (t >= TL.title) {
     const k = p(t, TL.title, 1.2), ft = 1 - eIn(p(t, 39.6, .5));
-    if (t < 40) flare(W / 2, 470, Math.exp(-(t - TL.title) * 1.2) * 1.2, GOLD, 2.2);
+    if (t < 40) flare(W / 2, 470, Math.exp(-(t - TL.title) * 1.2) * .8, ICE, 1.8);
     ctx.save(); ctx.globalAlpha = ft;
-    text('재능스스로', W / 2 - 250, 480, { size: 150, weight: 900, color: '#FFFFFF', align: 'center', spacing: 2, alpha: eOut(k) * ft, glow: 30 * (1 - k) + 6 });
-    text('AI수학', W / 2 + 330, 480, { size: 150, weight: 900, color: GOLD, align: 'center', spacing: 2, alpha: eOut(p(t, TL.title + .35, 1)) * ft, glow: 26 });
+    { const s1 = 140, w1 = measureT('재능스스로', s1, 200), w2 = measureT('AI수학', s1, 800), gap = 26, x0 = W / 2 - (w1 + gap + w2) / 2;
+      text('재능스스로', x0, 480, { size: s1, weight: 200, align: 'left', spacing: 0, alpha: eOut(k) * ft, glow: 18 * (1 - k) });
+      text('AI수학', x0 + w1 + gap, 480, { size: s1, weight: 800, align: 'left', spacing: 0, alpha: eOut(p(t, TL.title + .35, 1)) * ft, glow: 14 * (1 - p(t, TL.title + .35, 1)) }); }
     // 빛이 글자를 훑고 지나감
     const sx = lerp(-200, W + 200, eIO(p(t, TL.title + .6, 1.4)));
-    ctx.globalCompositeOperation = 'lighter'; const sg = ctx.createLinearGradient(sx - 160, 0, sx + 160, 0); sg.addColorStop(0, 'rgba(255,255,255,0)'); sg.addColorStop(.5, 'rgba(255,255,255,.35)'); sg.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.globalCompositeOperation = 'lighter'; const sg = ctx.createLinearGradient(sx - 160, 0, sx + 160, 0); sg.addColorStop(0, 'rgba(255,255,255,0)'); sg.addColorStop(.5, 'rgba(255,255,255,.18)'); sg.addColorStop(1, 'rgba(255,255,255,0)');
     ctx.globalAlpha = ft; ctx.fillStyle = sg; ctx.fillRect(sx - 160, 380, 320, 200); ctx.globalCompositeOperation = 'source-over';
-    text('R E N E W A L', W / 2, 610, { size: 30, weight: 600, family: EN, spacing: 16, color: ICE, alpha: eOut(p(t, TL.title + 1.4, .8)) * ft });
+    text('RENEWAL', W / 2, 606, { size: 22, weight: 500, family: EN, spacing: 22, color: DIM, alpha: eOut(p(t, TL.title + 1.4, .8)) * ft });
     ctx.restore();
   }
   // 개봉일
   if (t >= TL.date) {
     const a = 1 - eIn(p(t, 44, .9));
-    text('2026. 12', W / 2, 470, { size: 170, weight: 100, family: EN, spacing: 30, alpha: eOut(p(t, TL.date, .9)) * a, glow: 20 });
-    text('리 뉴 얼   오 픈', W / 2, 640, { size: 52, weight: 300, spacing: 18, color: GOLD, alpha: eOut(p(t, TL.sting, .6)) * a });
+    text('2026. 12', W / 2, 470, { size: 170, weight: 100, family: EN, spacing: 24, alpha: eOut(p(t, TL.date, .9)) * a, glow: 20 });
+    text('리뉴얼 오픈', W / 2, 640, { size: 44, weight: 300, spacing: 26, color: ACC, alpha: eOut(p(t, TL.sting, .6)) * a });
     ctx.save(); ctx.globalAlpha = eOut(p(t, 41.8, .6)) * a; ctx.fillStyle = RED; ctx.fillRect(W / 2 - 110, 790, 22, 22); ctx.restore();
     text('재능교육', W / 2 + 12, 802, { size: 30, weight: 700, alpha: eOut(p(t, 41.8, .6)) * a });
   }
