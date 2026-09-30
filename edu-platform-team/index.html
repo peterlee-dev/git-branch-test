@@ -46,11 +46,17 @@ const eIO = x => x < .5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
 const eBack = x => { const c1 = 2.4, c3 = c1 + 1; return x <= 0 ? 0 : 1 + c3 * Math.pow(x - 1, 3) + c1 * Math.pow(x - 1, 2); };
 const eElastic = x => x <= 0 ? 0 : x >= 1 ? 1 : Math.pow(2, -10 * x) * Math.sin((x * 10 - .75) * (2 * Math.PI) / 3) + 1;
 const eBounce = x => { const n = 7.5625, d = 2.75; if (x < 1 / d) return n * x * x; if (x < 2 / d) return n * (x -= 1.5 / d) * x + .75; if (x < 2.5 / d) return n * (x -= 2.25 / d) * x + .9375; return n * (x -= 2.625 / d) * x + .984375; };
-const pop = (t, s, d = .45) => eBack(p(t, s, d));
+// 박자 격자: 모든 등장 시각을 8분음표(0.25초) 격자에 맞춤. 등장 시각은 EV 에 기록해 효과음 배치에 씀
+const Q = (s, g = BEAT / 2) => Math.round(s / g + 1e-6) * g;
+const EV = new Map();
+function mark(type, s, info = 0) { const k = type + ':' + s.toFixed(3); if (!EV.has(k)) EV.set(k, { type, t: +s.toFixed(3), info }); }
+const pop = (t, s, d = .32) => { s = Q(s); mark('pop', s); return eBack(p(t, s, d)); };
 const outK = (t, e, d = .3) => 1 - eIn(p(t, e - d, d));
 function rng(seed) { return () => (seed = (seed * 16807) % 2147483647) / 2147483647; }
 // 박자 펄스 (박마다 0→1→0)
-const beatPulse = t => Math.pow(1 - ((t % BEAT) / BEAT), 4);
+const beatPulse = t => t < 0 ? 0 : Math.pow(1 - ((t % BEAT) / BEAT), 4);
+// 박마다 바닥에 닿는 통통 (박자 순간 = 0, 사이 = 1)
+const hop = t => Math.sin(Math.PI * (((t % BEAT) + BEAT) % BEAT) / BEAT);
 
 // ---------- 그리기 도구 ----------
 function bg(c) { ctx.fillStyle = c; ctx.fillRect(-200, -200, W + 400, H + 400); }
@@ -70,18 +76,28 @@ function text(str, x, y, { size = 60, color = P.ink, family = DISP, weight = 400
 }
 function measure(str, size, family = DISP, weight = 400) { ctx.save(); ctx.font = `${weight} ${size}px ${family}`; const w = ctx.measureText(str).width; ctx.restore(); return w; }
 // 한 글자씩 튀어 오르며 찌그러졌다 펴지는 글자
-function bouncy(str, cx, cy, t, start, { size = 160, color = P.ink, stagger = .05, shadow = 'rgba(0,0,0,.18)', stroke = null, lw = 0, align = 'center', end = null, jiggle = true } = {}) {
+function bouncy(str, cx, cy, t, start, { size = 160, color = P.ink, stagger = BEAT / 4, shadow = 'rgba(0,0,0,.18)', stroke = null, lw = 0, align = 'center', end = null, jiggle = true } = {}) {
   const chars = [...str], ws = chars.map(c => measure(c, size)), total = ws.reduce((a, b) => a + b, 0);
   let x = align === 'center' ? cx - total / 2 : cx;
-  const o = end == null ? 1 : outK(t, end, .25);
+  const o = end == null ? 1 : outK(t, Q(end), .25);
+  const st = Q(start, BEAT / 4);
+  stagger = chars.filter(c => c !== ' ').length > 8 ? BEAT / 8 : BEAT / 4;          // 글자 간격도 16분·32분음표에 고정
+  let li = 0;
   chars.forEach((ch, i) => {
-    const k = p(t, start + i * stagger, .55);
-    if (k <= 0) { x += ws[i]; return; }
-    const y = cy - (1 - eBounce(k)) * 260;
-    const land = p(t, start + i * stagger + .3, .25), sq = land > 0 && land < 1 ? Math.sin(land * Math.PI) * .22 : 0;
-    const wob = jiggle ? Math.sin(t * 6 + i) * .03 : 0;
-    const sc = o;
-    text(ch, x + ws[i] / 2, y + size * .5 * sq * .4, { size, color, sx: (1 + sq) * sc, sy: (1 - sq) * sc, rot: wob, shadow, stroke, lw, alpha: eOut(clamp(k * 3)) });
+    if (ch === ' ') { x += ws[i]; return; }
+    const land = st + (li++) * stagger;                   // 이 글자가 바닥에 닿는 박자 순간
+    mark('land', land, size);
+    const fall = p(t, land - .22, .22);
+    if (fall <= 0) { x += ws[i]; return; }
+    let y = cy - (1 - eIn(fall)) * 300, sq = 0;
+    const after = t - land;
+    if (after >= 0) {
+      sq = Math.exp(-after * 9) * Math.cos(after * 26) * .28;               // 착지 순간 찌그러졌다 튕김
+      y -= Math.max(0, Math.sin(after * 26) * Math.exp(-after * 9)) * 30;
+      sq += beatPulse(t) * .06;                                              // 이후 박마다 통통
+    }
+    const wob = jiggle ? Math.sin(t * 6 + i) * .025 : 0;
+    text(ch, x + ws[i] / 2, y + size * .2 * Math.max(0, sq), { size, color, sx: (1 + sq) * o, sy: (1 - sq) * o, rot: wob, shadow, stroke, lw, alpha: eOut(clamp(fall * 3)) });
     x += ws[i];
   });
   return total;
@@ -90,7 +106,8 @@ function bouncy(str, cx, cy, t, start, { size = 160, color = P.ink, stagger = .0
 function sticker(str, x, y, t, s, { size = 44, fill = P.yellow, color = P.ink, rot = -.06, padX = 30, end = null, family = DISP } = {}) {
   const k = pop(t, s, .45) * (end == null ? 1 : outK(t, end, .25)); if (k <= 0) return;
   const w = measure(str, size, family) + padX * 2, h = size * 1.6;
-  ctx.save(); ctx.translate(x, y); ctx.rotate(rot + Math.sin(t * 5 + x) * .02); ctx.scale(k, k);
+  const hh = t > Q(s) + .3 ? hop(t) * 10 : 0, bp = t > Q(s) + .3 ? beatPulse(t) * .05 : 0;
+  ctx.save(); ctx.translate(x, y - hh); ctx.rotate(rot + Math.sin(t * 5 + x) * .02); ctx.scale(k * (1 + bp), k * (1 - bp));
   rrect(-w / 2 + 8, -h / 2 + 10, w, h, h / 2, 'rgba(0,0,0,.18)');
   rrect(-w / 2, -h / 2, w, h, h / 2, fill, 1, P.white, 6);
   text(str, 0, 3, { size, color, family });
@@ -113,14 +130,15 @@ function confettiField(t, seed, colors, n = 18, a = 1) {
   const r = rng(seed);
   for (let i = 0; i < n; i++) {
     const x = r() * W, y = r() * H, s = 14 + r() * 26, sp = .6 + r(), kind = Math.floor(r() * 4), c = colors[Math.floor(r() * colors.length)], ph = r() * 6;
-    const yy = y + Math.sin(t * sp * 2 + ph) * 26, xx = x + Math.cos(t * sp + ph) * 20, rot = t * sp * 2 + ph;
-    const k = (1 + beatPulse(t) * .25);
+    const yy = y + Math.sin(t * sp + ph) * 20 - hop(t + (i % 2) * BEAT / 2) * 22, xx = x + Math.cos(t * sp + ph) * 20, rot = t * sp + ph + beatPulse(t) * .6;
+    const k = (1 + beatPulse(t) * .35);
     if (kind === 0) star(xx, yy, s * k, c, rot, a); else if (kind === 1) circle(xx, yy, s * .6 * k, c, a); else if (kind === 2) tri(xx, yy, s * k, c, rot, a);
     else { ctx.save(); ctx.globalAlpha = a; ctx.translate(xx, yy); ctx.rotate(rot); ctx.fillStyle = c; ctx.fillRect(-s * .7, -s * .2, s * 1.4, s * .4); ctx.restore(); }
   }
 }
 // 색종이 폭발
 function burst(t, s, x, y, seed, colors, n = 40, power = 700) {
+  s = Q(s); mark('burst', s);
   const k = p(t, s, 1.6); if (k <= 0 || k >= 1) return;
   const r = rng(seed);
   for (let i = 0; i < n; i++) {
@@ -132,7 +150,7 @@ function burst(t, s, x, y, seed, colors, n = 40, power = 700) {
   }
 }
 // 원이 퍼지며 다음 장면 색으로 전환
-function wipe(t, s, x, y, c, d = .45) { const k = eIO(p(t, s, d)); if (k <= 0) return false; circle(x, y, k * Math.hypot(W, H), c); return k >= 1; }
+function wipe(t, s, x, y, c, d = .5) { s = Q(s); mark('wipe', s); const k = eIO(p(t, s, d)); if (k <= 0) return false; circle(x, y, k * Math.hypot(W, H), c); return k >= 1; }
 function mouse(x, y, s = 1) {
   ctx.save(); ctx.translate(x, y); ctx.scale(s, s); ctx.fillStyle = P.white; ctx.strokeStyle = P.ink; ctx.lineWidth = 3;
   ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(0, 44); ctx.lineTo(12, 33); ctx.lineTo(20, 52); ctx.lineTo(28, 49); ctx.lineTo(20, 30); ctx.lineTo(35, 30); ctx.closePath(); ctx.fill(); ctx.stroke(); ctx.restore();
@@ -146,7 +164,7 @@ function s1(t) {
   bg(P.red);
   confettiField(t, 3, [P.yellow, P.white, P.pink, P.blue], 22, eOut(p(t, .2, .6)));
   // 큰 원들이 박자마다 튐
-  [[260, 220, 120, P.yellow], [1700, 860, 160, P.blue], [1640, 200, 70, P.white], [300, 900, 90, P.pink]].forEach(([x, y, r, c], i) => circle(x, y, r * pop(t, .1 + i * .12, .5) * (1 + beatPulse(t + i * .12) * .12), c, .95));
+  [[260, 220, 120, P.yellow], [1700, 860, 160, P.blue], [1640, 200, 70, P.white], [300, 900, 90, P.pink]].forEach(([x, y, r, c], i) => circle(x, y - hop(t + i * .25) * 16, r * pop(t, i * .25, .4) * (1 + beatPulse(t) * .14), c, .95));
   sticker('Hello, World!', 960, 300, t, .3, { size: 40, fill: P.white, color: P.red, family: MONO, rot: -.08 });
   bouncy('우리는', 960, 470, t, .6, { size: 120, color: P.white, shadow: 'rgba(0,0,0,.18)' });
   bouncy('교육플랫폼팀!', 960, 660, t, 1.1, { size: 210, color: P.yellow, stroke: P.ink, lw: 14, shadow: 'rgba(0,0,0,.25)', stagger: .07 });
@@ -168,14 +186,15 @@ function s2(t) {
   ctx.save(); ctx.globalAlpha = o; ctx.setLineDash([2, 26]); ctx.lineCap = 'round'; ctx.lineWidth = 12; ctx.strokeStyle = 'rgba(23,21,31,.25)';
   ctx.beginPath(); ctx.moveTo(x0, y); ctx.lineTo(x0 + gap * 3, y); ctx.stroke(); ctx.restore();
   NODES.forEach(([s, c], i) => {
-    const x = x0 + i * gap, k = pop(t, 4.5 + i * .25, .5) * o;
-    const hit = p(t, 5.0 + i * .5, .3), bump = hit > 0 && hit < 1 ? Math.sin(hit * Math.PI) * .18 : 0;
+    const x = x0 + i * gap, k = pop(t, 4.5 + i * .25, .4) * o;
+    const hit = p(t, 5.0 + i * .5, .25), bump = hit > 0 && hit < 1 ? Math.sin(hit * Math.PI) * .18 : 0;
     ctx.save(); ctx.translate(x, y); ctx.scale(k * (1 + bump), k * (1 - bump * .6)); ctx.rotate((i % 2 ? .05 : -.05));
     rrect(-150 + 10, -95 + 12, 300, 190, 46, 'rgba(0,0,0,.15)'); rrect(-150, -95, 300, 190, 46, c, 1, P.white, 8);
     text(s, 0, 4, { size: s.length > 4 ? 52 : 62, color: P.white });
     ctx.restore();
   });
   // 튀는 공: 노드마다 한 박에 한 번 착지
+  [5, 5.5, 6, 6.5].forEach((h, i) => mark('ball', h, i));
   const bt = (t - 5.0) / BEAT;
   if (bt > -1 && bt < 3.6) {
     const i = Math.floor(clamp(bt, 0, 3)), f = clamp(bt - i);
@@ -201,11 +220,13 @@ function s3(t) {
   rrect(-ww / 2, -wh / 2, ww, wh, 34, P.white, 1, P.ink, 8);
   rrect(-ww / 2, -wh / 2, ww, 70, 34, P.ink); [P.red, P.yellow, P.mint].forEach((c, i) => circle(-ww / 2 + 44 + i * 34, -wh / 2 + 35, 11, c));
   text('수학 1-2 · 문항 만들기', 0, -wh / 2 + 36, { size: 26, color: P.white, family: KR, weight: 700 });
-  const blocks = [[8.8, '문제', '18 + 25 = ?', P.blue], [9.3, '보기', '① 33   ② 43   ③ 53', P.pink], [9.8, '정답', '② 43', P.mint], [10.3, '해설', '8 + 5 = 13, 받아올림 1!', P.purple]];
-  blocks.forEach(([s, lbl, body, c], i) => {
-    const kk = p(t, s, .6); if (kk <= 0) return;
-    const y = -wh / 2 + 130 + i * 118 - (1 - eBounce(kk)) * 700, x = -ww / 2 + 50;
-    const land = p(t, s + .32, .2), sq = land > 0 && land < 1 ? Math.sin(land * Math.PI) * .08 : 0;
+  const blocks = [[9.0, '문제', '18 + 25 = ?', P.blue], [9.5, '보기', '① 33   ② 43   ③ 53', P.pink], [10.0, '정답', '② 43', P.mint], [10.5, '해설', '8 + 5 = 13, 받아올림 1!', P.purple]];
+  blocks.forEach(([s0, lbl, body, c], i) => {
+    const s = Q(s0); mark('block', s, i);                       // s = 바닥에 닿는 박자 순간
+    const fall = p(t, s - .25, .25); if (fall <= 0) return;
+    const after = Math.max(0, t - s);
+    const y = -wh / 2 + 130 + i * 118 - (1 - eIn(fall)) * 700 - Math.max(0, Math.sin(after * 22) * Math.exp(-after * 8)) * 40, x = -ww / 2 + 50;
+    const sq = after > 0 ? Math.exp(-after * 9) * Math.cos(after * 22) * .12 + beatPulse(t) * .03 : 0;
     ctx.save(); ctx.translate(0, y + 48); ctx.scale(1 + sq, 1 - sq); ctx.translate(0, -(y + 48));
     rrect(x, y, ww - 100, 96, 24, c, 1, P.ink, 5);
     rrect(x + 20, y + 22, 110, 52, 26, P.white); text(lbl, x + 75, y + 49, { size: 28, color: c });
@@ -213,7 +234,7 @@ function s3(t) {
     ctx.restore();
   });
   // 발행 도장
-  const sk = p(t, 10.9, .3);
+  mark('stamp', 11.0); const sk = p(t, 10.85, .15);
   if (sk > 0) {
     const sc = lerp(2.4, 1, eOut(sk)), a = eOut(sk);
     ctx.save(); ctx.translate(ww / 2 - 170, wh / 2 - 90); ctx.rotate(-.18); ctx.scale(sc, sc); ctx.globalAlpha = a;
@@ -232,23 +253,24 @@ function s4(t) {
   bg(P.blue);
   confettiField(t, 16, [P.yellow, P.white, P.pink], 14, .8);
   const o = outK(t, 15.9);
-  const steps = [1, 2, 4, 8, 16, 32, 64, 128], si = clamp(Math.floor((t - 12.4) / BEAT), 0, steps.length - 1), n = steps[si];
+  const steps = [1, 2, 4, 8, 16, 32, 64, 128], si = clamp(Math.floor((t - 12.5) / BEAT), 0, steps.length - 1), n = steps[si];
+  steps.forEach((_, i) => mark('double', 12.5 + i * BEAT, i));
   const cols = Math.ceil(Math.sqrt(n * 16 / 9)), rows = Math.ceil(n / cols);
   const cw = Math.min(260, 1500 / cols), ch = cw * .66, g = cw * .14;
   const gw = cols * cw + (cols - 1) * g, gh = rows * ch + (rows - 1) * g, gx = (W - gw) / 2, gy = 620 - gh / 2;
-  const since = p(t, 12.4 + si * BEAT, .3);
+  const since = p(t, 12.5 + si * BEAT, .22);
   const colors = [P.white, P.yellow, P.pink, P.mint];
   for (let i = 0; i < n; i++) {
     const c = i % cols, r = Math.floor(i / cols), x = gx + c * (cw + g), y = gy + r * (ch + g);
     const isNew = i >= n / 2 && si > 0, k = isNew ? eBack(since) : 1;
     if (k <= 0) continue;
-    ctx.save(); ctx.globalAlpha = o; ctx.translate(x + cw / 2, y + ch / 2); ctx.scale(k, k); ctx.rotate(Math.sin(i * 1.7 + t * 3) * .04);
+    ctx.save(); ctx.globalAlpha = o; ctx.translate(x + cw / 2, y + ch / 2 - hop(t + (i % 2) * BEAT / 2) * ch * .06); ctx.scale(k * (1 + beatPulse(t) * .05), k * (1 - beatPulse(t) * .05)); ctx.rotate(Math.sin(i * 1.7 + t * 3) * .04);
     rrect(-cw / 2, -ch / 2, cw, ch, cw * .12, colors[i % 4], 1, P.ink, Math.max(2, cw * .025));
     rrect(-cw * .38, -ch * .26, cw * .45, ch * .12, ch * .06, P.ink);
     rrect(-cw * .38, -ch * .02, cw * .7, ch * .09, ch * .05, 'rgba(23,21,31,.35)'); rrect(-cw * .38, ch * .16, cw * .5, ch * .09, ch * .05, 'rgba(23,21,31,.35)');
     ctx.restore();
   }
-  text(`×${n}`, 1700, 200, { size: 110 * (1 + beatPulse(t - .02) * .2), color: P.yellow, stroke: P.ink, lw: 10, alpha: o * eOut(p(t, 12.4, .3)), rot: .08 });
+  text(`×${n}`, 1700, 200, { size: 110 * (1 + beatPulse(t) * .25), color: P.yellow, stroke: P.ink, lw: 10, alpha: o * eOut(p(t, 12.5, .2)), rot: .08 });
   bouncy('하나를 만들면', 200, 170, t, 12.2, { size: 96, color: P.white, align: 'left', end: 15.9, stagger: .04 });
   bouncy('모두에게!', 200 + measure('하나를 만들면 ', 96), 170, t, 12.8, { size: 96, color: P.yellow, align: 'left', end: 15.9, stroke: P.ink, lw: 8 });
   sticker('빠르게 · 정확하게 · 많이!', 960, 990, t, 14.0, { size: 44, fill: P.white, color: P.blue, rot: .02, end: 15.9 });
@@ -285,8 +307,9 @@ function s5(t) {
   bg(P.mint);
   confettiField(t, 20, [P.white, P.yellow, P.blue, P.pink], 16, .85);
   const o = outK(t, 19.9);
-  const hopW = Math.abs(Math.sin((t - 16) * Math.PI / BEAT)) * 50 * (Math.floor((t - 16) / BEAT) % 2 === 0 ? 1 : .2);
-  const hopA = Math.abs(Math.sin((t - 16) * Math.PI / BEAT)) * 50 * (Math.floor((t - 16) / BEAT) % 2 === 1 ? 1 : .2);
+  const beatIdx = Math.floor((t - 16) / BEAT);
+  const hopW = hop(t) * 60 * (beatIdx % 2 === 0 ? 1 : .15), hopA = hop(t) * 60 * (beatIdx % 2 === 1 ? 1 : .15);
+  for (let i = 0; i < 8; i++) mark('device', 16.5 + i * BEAT, i % 2);
   device('web', 700, 610, pop(t, 16.3, .5) * o, t, hopW);
   device('app', 1450, 600, pop(t, 16.7, .5) * o, t, hopA);
   bouncy('웹도!', 480, 180, t, 16.3, { size: 130, color: P.white, stroke: P.ink, lw: 10, end: 19.9 });
@@ -306,7 +329,7 @@ function s6(t) {
   bouncy('AI랑 같이,', 960, 170, t, 20.2, { size: 120, color: P.white, end: 24.9 });
   bouncy('더 빠르게!', 960, 320, t, 20.7, { size: 140, color: P.pink, end: 24.9, stroke: P.white, lw: 6 });
   // AI 캐릭터 (둥근 로봇 얼굴)
-  const bk = pop(t, 20.9, .5) * o, bob = Math.sin(t * 6) * 10;
+  const bk = pop(t, 21.0, .4) * o, bob = -hop(t) * 22;
   ctx.save(); ctx.translate(1560, 640 + bob); ctx.scale(bk, bk);
   rrect(-150 + 12, -130 + 16, 300, 260, 90, 'rgba(0,0,0,.3)'); rrect(-150, -130, 300, 260, 90, P.blue, 1, P.white, 8);
   const blink = (t % 2.1) < .1 ? .15 : 1;
@@ -327,14 +350,14 @@ function s6(t) {
   // 결과 카드가 톡톡 튀어나옴
   const cards = ['27 + 35', '48 + 16', '53 + 29', '66 + 18', '39 + 44'], cc = [P.yellow, P.pink, P.mint, P.blue, P.purple];
   cards.forEach((s, i) => {
-    const k = pop(t, 22.7 + i * .2, .45) * o; if (k <= 0) return;
+    const k = pop(t, 22.75 + i * .25, .35) * o; if (k <= 0) return;
     const x = 290 + i * 240, y = 780 + (i % 2 ? 30 : -10);
     ctx.save(); ctx.translate(x, y); ctx.rotate((i - 2) * .06); ctx.scale(k, k);
     rrect(-105 + 8, -85 + 10, 210, 170, 30, 'rgba(0,0,0,.3)'); rrect(-105, -85, 210, 170, 30, cc[i], 1, P.white, 6);
     text(`Q${i + 1}`, 0, -40, { size: 30, color: P.white }); text(s, 0, 20, { size: 44, color: P.ink, family: EN, weight: 800 });
     ctx.restore();
   });
-  burst(t, 22.7, 900, 780, 41, [P.yellow, P.pink, P.mint, P.blue, P.white], 36, 600);
+  burst(t, 22.75, 900, 780, 41, [P.yellow, P.pink, P.mint, P.blue, P.white], 36, 600);
   sticker('사람의 아이디어 + AI의 속도', 960, 1000, t, 23.6, { size: 40, fill: P.yellow, rot: .02, end: 24.9 });
   wipe(t, 24.6, 1560, 640, P.red);
 }
@@ -343,14 +366,14 @@ function s7(t) {
   bg(P.red);
   confettiField(t, 25, [P.yellow, P.white, P.pink, P.blue, P.mint], 24, eOut(p(t, 25.2, .5)));
   // 토글 스위치가 딸깍 켜짐
-  const on = eElastic(p(t, 25.5, .7)), tk = pop(t, 25.1, .45);
+  mark('toggle', 25.5); const on = eElastic(p(t, 25.5, .6)), tk = pop(t, 25.0, .35);
   ctx.save(); ctx.translate(1010, 300); ctx.scale(tk, tk);
   rrect(-190 + 10, -80 + 12, 380, 160, 80, 'rgba(0,0,0,.2)');
   rrect(-190, -80, 380, 160, 80, on > .5 ? P.yellow : '#B00010', 1, P.white, 8);
   circle(lerp(-110, 110, on), 0, 62, P.white); text(on > .5 ? 'ON' : 'OFF', lerp(80, -80, on), 4, { size: 48, color: on > .5 ? P.ink : P.white, family: EN, weight: 900 });
   ctx.restore();
   bouncy('열정', 500, 300, t, 25.3, { size: 130, color: P.white, stroke: P.ink, lw: 10 });
-  burst(t, 25.6, 1010, 300, 51, [P.yellow, P.white, P.pink, P.blue, P.mint], 60, 900);
+  burst(t, 25.5, 1010, 300, 51, [P.yellow, P.white, P.pink, P.blue, P.mint], 60, 900);
   bouncy('교육의 미래를,', 960, 560, t, 26.0, { size: 150, color: P.white, shadow: 'rgba(0,0,0,.2)', stagger: .05 });
   bouncy('코드로.', 960, 740, t, 26.6, { size: 190, color: P.yellow, stroke: P.ink, lw: 14, shadow: 'rgba(0,0,0,.25)', stagger: .08 });
   sticker('재능교육 교육플랫폼팀', 960, 925, t, 27.4, { size: 50, fill: P.white, color: P.red, rot: -.03 });
@@ -360,12 +383,12 @@ function s7(t) {
 
 function draw(t) {
   ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalAlpha = 1;
-  // 박자마다 화면이 살짝 쿵 (장면 전환 순간엔 조금 더 크게)
-  const hits = [1.8, 4.0, 8.0, 10.9, 12.0, 16.0, 20.0, 22.7, 25.0, 25.6];
-  let shake = beatPulse(t) * 3;
-  hits.forEach(h => { const k = p(t, h, .35); if (k > 0 && k < 1) shake += (1 - k) * 18; });
+  // 박마다 화면 전체가 통 (줌 펄스), 큰 순간(장면 전환·도장·폭발·토글)엔 쿵 흔들림
+  const hits = [0, 4, 8, 11, 12, 16, 20, 22.75, 25, 25.5, 26.5];
+  let shake = beatPulse(t) * 4;
+  hits.forEach(h => { const k = p(t, h, .3); if (k > 0 && k < 1) shake += (1 - k) * 22; });
   const r = rng(1 + Math.floor(t * 30));
-  const sx = (r() - .5) * shake, sy = (r() - .5) * shake, zoom = 1 + beatPulse(t) * .006;
+  const sx = (r() - .5) * shake, sy = (r() - .5) * shake, zoom = 1 + beatPulse(t) * .018 + (Math.floor(t / BEAT) % 4 === 0 ? beatPulse(t) * .012 : 0);
   ctx.translate(W / 2 + sx, H / 2 + sy); ctx.scale(zoom, zoom); ctx.translate(-W / 2, -H / 2);
   if (t < 4) s1(t); else if (t < 8) s2(t); else if (t < 12) s3(t); else if (t < 16) s4(t); else if (t < 20) s5(t); else if (t < 25) s6(t); else s7(t);
 }
@@ -389,6 +412,7 @@ playEl.onclick = () => {
 seekEl.oninput = () => { show(+seekEl.value); if (playing) { t0 = performance.now() - tCur * 1000; try { audio.currentTime = tCur; } catch (e) {} } };
 
 window.draw = draw;
+window.collectEvents = () => { EV.clear(); for (let f = 0; f <= DURATION * 30; f++) draw(f / 30); return [...EV.values()].sort((a, b) => a.t - b.t); };
 window.DURATION = DURATION;
 window.ready = Promise.all([document.fonts.load(`100px 'Black Han Sans'`, '가'), document.fonts.load(`700 100px 'Noto Sans KR'`, '가'), document.fonts.load(`800 100px 'Inter'`, 'A'), document.fonts.load(`500 100px 'JetBrains Mono'`, 'a')]).then(r => {
   if (r.some(fs => !fs.length)) throw new Error('폰트를 불러오지 못했습니다 (fonts/ 폴더 확인)');

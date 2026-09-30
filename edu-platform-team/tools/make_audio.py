@@ -1,10 +1,13 @@
-"""교육플랫폼팀 30초 홍보 영상 사운드트랙: 통통 튀는 120BPM 비트 + 마림바 멜로디 + 효과음 (모두 numpy 로 합성, 외부 음원 없음)
+"""교육플랫폼팀 30초 홍보 영상 사운드트랙: 통통 튀는 120BPM 비트 + 마림바 멜로디 + 효과음
+
+효과음은 tools/events.json (node tools/export_events.mjs 로 영상에서 뽑은 등장·착지 시각)에 맞춰 놓아서 화면과 소리가 같은 박자에 맞음 (모두 numpy 로 합성, 외부 음원 없음)
 
 사용법: python3 tools/make_audio.py  → audio/mix.wav 생성 후 `node render.mjs`
 """
 import os
 import numpy as np
 import soundfile as sf
+import json
 
 SR = 44100
 DURATION = 30.0
@@ -102,33 +105,29 @@ def main():
             for s16 in range(4): place(music, tb + s16 * BEAT / 4, shaker(), .7 if drums else .35)
             if drums: place(music, tb, bass(root, BEAT * .45), .9); place(music, tb + BEAT / 2, bass(root * 2, BEAT * .3), .6)
         if t0 >= 2:                                   # 통통 튀는 마림바
-            for i in range(16):
-                if (i + bar) % 5 == 4: continue
-                place(music, t0 + i * BEAT / 2 * .5 * 2 / 2, marimba(SCALE[(MEL[i] + bar) % len(SCALE)]), .55)
+            for i in range(8):
+                place(music, t0 + i * BEAT / 2, marimba(SCALE[(MEL[i * 2] + bar) % len(SCALE)]), .38)
     place(music, 3.0, riser(1.0), .5)
-    # 효과음 (장면 전환·등장에 맞춤)
-    for t in [3.55, 7.55, 11.55, 15.55, 19.55, 24.6]: place(fx, t, sfx_whoosh(.45), .9)
-    place(fx, .3, sfx_pop(800), .7)
-    for i in range(3): place(fx, .6 + i * .05, boing(260 + i * 60, 700 + i * 80), .5)
-    for i in range(7): place(fx, 1.1 + i * .07 + .3, sfx_pop(520 + i * 70), .6)
-    place(fx, 1.8, sfx_sparkle(), .8)
-    for i in range(4): place(fx, 4.5 + i * .25, sfx_pop(600 + i * 90), .7)
-    for i in range(4): place(fx, 5.0 + i * .5, boing(300, 900, .22), .7)
-    place(fx, 6.2, sfx_pop(900), .6)
-    for i, t in enumerate([8.8, 9.3, 9.8, 10.3]): place(fx, t + .32, kick(), .5); place(fx, t + .32, sfx_pop(500 + i * 80), .6)
-    place(fx, 10.9, kick(), 1.0); place(fx, 10.9, clap(), .9); place(fx, 11.0, sfx_sparkle(), .7)
-    for i in range(8): place(fx, 12.4 + i * BEAT, sfx_pop(600 + i * 60), .6)
-    for i, t in enumerate([16.3, 16.7]): place(fx, t, boing(250, 800), .7)
-    for i in range(8): place(fx, 16 + i * BEAT, sfx_tick(1800 - (i % 2) * 400), .35)
-    place(fx, 18.2, sfx_pop(760), .6)
-    place(fx, 20.9, boing(400, 1200, .3), .7)
-    for i in range(24): place(fx, 21.3 + i * 1.2 / 24, sfx_tick(2200 + (i % 3) * 300), .3)
-    for i in range(5): place(fx, 22.7 + i * .2, sfx_pop(700 + i * 90), .7)
-    place(fx, 22.7, sfx_sparkle(), .6)
-    place(fx, 25.1, sfx_pop(500), .7); place(fx, 25.5, sfx_tick(1200), 1.0); place(fx, 25.6, sfx_sparkle(), .9); place(fx, 25.6, clap(), .8)
-    for i in range(6): place(fx, 26.0 + i * .05, sfx_pop(600 + i * 50), .4)
-    for i in range(4): place(fx, 26.6 + i * .08, sfx_pop(800 + i * 60), .5)
-    place(fx, 27.4, sfx_ding(1046.5), .7)
+    # 효과음: 영상에서 뽑은 이벤트 시각에 그대로 놓음
+    events = json.load(open(os.path.join(HERE, 'events.json')))
+    land_i = 0
+    for e in events:
+        t, kind, info = e['t'], e['type'], e['info']
+        if kind == 'land':                            # 글자가 바닥에 닿는 순간: 음계를 따라 오르는 통통 소리
+            f = SCALE[land_i % len(SCALE)] * (0.5 if info >= 180 else 1); land_i += 1
+            place(fx, t, marimba(f, .25), .5 if info >= 120 else .35)
+            if info >= 180: place(fx, t, kick(), .25)
+        elif kind == 'pop': place(fx, t, sfx_pop(620 + (int(t * 4) % 5) * 70), .65)
+        elif kind == 'ball': place(fx, t, boing(260 + info * 60, 780 + info * 90, .24), .8); place(fx, t, kick(), .3)
+        elif kind == 'block': place(fx, t, kick(), .6); place(fx, t, sfx_pop(420 + info * 80), .7)
+        elif kind == 'stamp': place(fx, t, kick(), 1.0); place(fx, t, clap(), 1.0); place(fx, t, sfx_tick(900), .8)
+        elif kind == 'double': place(fx, t, sfx_pop(520 * 2 ** (info / 7)), .6)
+        elif kind == 'device': place(fx, t, boing(300 if info else 380, 700 if info else 900, .2), .55)
+        elif kind == 'wipe': place(fx, t - .05, sfx_whoosh(.5), .85)
+        elif kind == 'burst': place(fx, t, sfx_sparkle(), .8)
+        elif kind == 'toggle': place(fx, t, sfx_tick(1400), 1.0); place(fx, t, clap(), .7)
+    # AI 프롬프트 타이핑 (21.3초부터 1.2초, 16분음표마다)
+    for i in range(10): place(fx, 21.25 + i * BEAT / 4 * .96, sfx_tick(2200 + (i % 3) * 300), .3)
     mix = music / max(1e-6, np.abs(music).max()) * .75 + fx / max(1e-6, np.abs(fx).max()) * .35
     tt = np.arange(len(mix)) / SR
     mix *= np.minimum(1, tt / .05) * np.clip((DURATION - tt) / 1.2, 0, 1)   # 끝 1.2초 페이드아웃
