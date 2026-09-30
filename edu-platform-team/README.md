@@ -32,7 +32,13 @@
 
 ## 수정·렌더링
 
-문구와 타이밍은 `index.html`의 `s1`~`s7`에, 사운드는 `tools/make_audio.py`에 있습니다.
+문구와 색은 `content.js`에, 장면·박자 타이밍은 `index.html`의 `s1`~`s7`에, 사운드는 `tools/make_audio.py`에 있어요.
+
+### 영상 편집기로 고치기
+
+- 저장소 맨 위 `video-editor.html`에서 **교육플랫폼팀 홍보**를 고르면 문구(팀 이름·파이프라인 단계·저작도구 블록·AI 요청·엔딩 문구 등)와 색 10가지를 바꿀 수 있어요. 칸 설명은 `schema.js`, 연결 규칙은 `../editor/PROTOCOL.md`
+- 장면 길이·순서, 글자가 떨어지는 박자는 곡에 맞춰져 있어서 편집기에서 고칠 수 없어요
+- 편집기에서 저장한 작업 파일로 렌더링: `node render.mjs --project 작업파일.json`
 
 ```bash
 npm install && pip install numpy soundfile imageio-ffmpeg
