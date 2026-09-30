@@ -327,4 +327,5 @@ window.DURATION = DURATION;
 window.ready = Promise.all([document.fonts.load(`900 100px 'Noto Sans KR'`, '가'), document.fonts.load(`200 100px 'Noto Sans KR'`, '가'), document.fonts.load(`600 100px 'Inter'`, 'A')]).then(r => {
   if (r.some(fs => !fs.length)) throw new Error('폰트를 불러오지 못했습니다 (fonts/ 폴더 확인)');
 }).then(() => document.fonts.ready).then(() => { redrawUI(); return true; });   // 폰트가 준비된 뒤 앱 화면 텍스처를 다시 그림
+window.VIDEO = { schema: window.SCHEMA, defaults: DEFAULT_CONTENT, get content() { return C; }, apply(content) { apply({ content }); }, canvas: out };   // 영상 편집기 연결 (../editor/PROTOCOL.md)
 window.Trailer = { draw, apply, get content() { return C; }, DEFAULT_CONTENT, TL, W, H, DURATION, canvas: out, ready: window.ready };
