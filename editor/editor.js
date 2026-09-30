@@ -47,16 +47,47 @@ bufA.width = bufB.width = W; bufA.height = bufB.height = H;
 const images = {};             // dataURL -> HTMLImageElement
 
 // ---------- 영상 불러오기 (iframe) ----------
+// 영상 페이지는 iframe srcdoc 으로 엶: 페이지를 받아 <script src> 를 본문으로 넣고, 글꼴은 받아 둔 파일로 등록
+// (아티팩트처럼 자체 파일의 스크립트·글꼴·iframe 주소가 막힌 곳에서도 열리게)
+const fontCache = {};
+const fetchOK = async (url, kind) => { const r = await fetch(url); if (!r.ok) throw new Error(`${url} 을(를) 받지 못했어요 (${r.status})`); return kind === 'buf' ? r.arrayBuffer() : r.text(); };
+const fontBuf = url => fontCache[url] || (fontCache[url] = fetchOK(url, 'buf'));
+window.__JEI_FONTS = {};
+async function buildSrcdoc(id) {
+  const base = new URL(`${id}/`, location.href).href;
+  let html = await fetchOK(`${id}/index.html`);
+  const fonts = [];
+  html = html.replace(/@font-face\s*\{[^}]*\}/g, rule => {
+    const fam = /font-family:\s*['"]([^'"]+)['"]/.exec(rule), src = /url\(\s*['"]?([^'")]+)['"]?\s*\)/.exec(rule);
+    if (!fam || !src) return rule;
+    const w = /font-weight:\s*([^;}]+)/.exec(rule), st = /font-style:\s*([^;}]+)/.exec(rule);
+    fonts.push({ family: fam[1], url: new URL(src[1], base).href, desc: { weight: w ? w[1].trim() : 'normal', style: st ? st[1].trim() : 'normal' } });
+    return '';
+  });
+  const re = /<script\s+src="([^"]+)"\s*><\/script>/g, srcs = [...html.matchAll(re)].map(m => m[1]), code = {};
+  await Promise.all(srcs.map(async u => { code[u] = await fetchOK(new URL(u, base).href); }));
+  html = html.replace(re, (m, u) => `<script>${code[u].replace(/<\/script/gi, '<\\/script')}\n</script>`);
+  const bufs = await Promise.all(fonts.map(f => fontBuf(f.url)));
+  window.__JEI_FONTS[id] = fonts.map((f, i) => ({ ...f, buf: bufs[i] }));
+  const boot = `<base href="${base}"><script>(function(){var F=(parent.__JEI_FONTS||{})[${JSON.stringify(id)}]||[];F.forEach(function(f){var ff=new FontFace(f.family,f.buf,f.desc);document.fonts.add(ff);ff.load();});})();</script>`;
+  return /<head>/i.test(html) ? html.replace(/<head>/i, m => m + boot) : boot + html;
+}
 function ensureSource(id) {
   if (sources[id]) return sources[id].loading;
   const frame = document.createElement('iframe');
   frame.className = 'src-frame'; frame.title = '영상 그리기용 (보이지 않음)'; frame.setAttribute('aria-hidden', 'true'); frame.tabIndex = -1;
   const s = sources[id] = { frame, win: null, V: null, S: null, audioBuf: null, audioSrcs: [] };
   s.loading = (async () => {
-    await new Promise(res => { frame.onload = res; frame.src = `${id}/index.html?render`; document.body.appendChild(frame); });
+    const name = TITLE_OF[id] || id;
+    step(`${name} 파일을 받는 중…`);
+    const html = await buildSrcdoc(id);
+    step(`${name} 장면을 준비하는 중…`);
+    const loaded = await Promise.race([new Promise(res => { frame.onload = () => res(true); frame.srcdoc = html; document.body.appendChild(frame); }), sleep(30000).then(() => false)]);
+    if (!loaded) throw new Error(`${name} 페이지가 열리지 않아요.`);
     s.win = frame.contentWindow;
+    if (!s.win || !s.win.ready) throw new Error(`${name} 페이지를 실행하지 못했어요.`);
     const ok = await Promise.race([Promise.resolve(s.win.ready).then(() => true), sleep(90000).then(() => false)]);
-    if (!ok) throw new Error(`${TITLE_OF[id]} 을(를) 준비하는 데 너무 오래 걸려요.`);
+    if (!ok) throw new Error(`${name} 을(를) 준비하는 데 너무 오래 걸려요.`);
     s.V = s.win.VIDEO || null; s.S = s.V ? s.V.schema : null; s.dur = s.win.DURATION;
     s.canvas = s.V ? s.V.canvas : s.win.document.getElementById('c');
     if (s.V && project && project.sources[id]) s.V.apply(project.sources[id]);
@@ -64,8 +95,10 @@ function ensureSource(id) {
     s.audioReady = loadAudio(s);
     return s;
   })();
+  s.loading.catch(() => { delete sources[id]; frame.remove(); });   // 다음에 다시 시도할 수 있게
   return s.loading;
 }
+function step(msg) { if (!$('busy').hidden) $('busy').textContent = msg; }
 async function loadAudio(s) {
   for (const src of s.audioSrcs) {
     try { const r = await fetch(src); if (!r.ok) continue; s.audioBuf = await actx().decodeAudioData(await r.arrayBuffer()); mixDirty = true; if (playing) startAudio(tCur); return; } catch (e) {}
@@ -676,6 +709,8 @@ function wavBase64() {   // 저장소 렌더링용: 섞은 소리를 16비트 WA
   for (let i = 0; i < n; i++) { dv.setInt16(44 + i * 4, clamp(L[i], -1, 1) * 32767, true); dv.setInt16(46 + i * 4, clamp(R[i], -1, 1) * 32767, true); }
   let s = ''; const u = new Uint8Array(buf); for (let i = 0; i < u.length; i += 32768) s += String.fromCharCode.apply(null, u.subarray(i, i + 32768)); return btoa(s);
 }
+window.addEventListener('error', e => { if (!$('busy').hidden) $('busy').textContent = '편집기에 문제가 생겼어요: ' + (e.message || ''); });
+window.addEventListener('unhandledrejection', e => { if (!$('busy').hidden) $('busy').textContent = '편집기에 문제가 생겼어요: ' + ((e.reason && e.reason.message) || e.reason || ''); });
 window.EDITOR = {
   get project() { return project; }, get total() { return TOTAL; }, get ready() { return !!project && $('busy').hidden; }, get sel() { return sel; },
   seek, selectClip, loadProject: async j => { await loadProjectJSON(j); }, fps: FPS,
@@ -683,7 +718,10 @@ window.EDITOR = {
 };
 (async () => {
   setControls(false);
-  await Promise.all([document.fonts.load(`800 100px 'Noto Sans KR'`, '가'), document.fonts.load(`400 100px 'Noto Sans KR'`, '가'), document.fonts.load(`300 100px 'Noto Sans KR'`, '가')]).catch(() => {});
+  step('글꼴을 받는 중…');
+  for (const [fam, file] of [['Noto Sans KR', 'NotoSansKR.ttf'], ['Inter', 'Inter.ttf']]) {   // 편집기 글자·새 장면용 글꼴 (저장소와 게시본의 위치가 달라 차례로 시도)
+    for (const dir of ['fonts/', 'ai-math-trailer/fonts/']) { try { const ff = new FontFace(fam, await fontBuf(new URL(dir + file, location.href).href), { weight: '100 900' }); document.fonts.add(await ff.load()); break; } catch (e) { delete fontCache[new URL(dir + file, location.href).href]; } }
+  }
   if (RENDER_MODE) { busy(''); return; }   // 저장소 렌더링: loadProject 를 기다림
   let p = null; try { p = JSON.parse(localStorage.getItem(STORE) || 'null'); } catch (e) {}
   const want = location.hash.slice(1);
