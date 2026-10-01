@@ -1,12 +1,15 @@
 """동물 관찰 일기 (재능스스로과학 F01) — 내레이션·효과음·배경음 만들기
 
 교재: 재능스스로과학 F01 (동물의 몸 색깔과 생김새, 움직임, 빠르기, 살아가는 데 필요한 것)
-- 내레이션: Supertonic 3 (sherpa-onnx, 온디바이스 소형 TTS, 한국어)
+- 내레이션: Qwen3-TTS 1.7B CustomVoice (Alibaba Qwen, Apache 2.0) 의 한국어 목소리 Sohee
+  (TTS_ENGINE=supertonic 으로 예전 Supertonic 3 도 쓸 수 있음)
 - 줄마다 음성을 만든 뒤 실제 길이로 시각을 정해 ../timeline.js 를 씀 → 화면(index.html)이 그 시각을 따라 움직임
 - 효과음·배경음은 numpy 로 합성 (외부 음원 없음)
 
-  pip install sherpa-onnx soundfile numpy
-  TTS_MODEL_DIR=/path/to/sherpa-onnx-supertonic-3-tts-int8-2026-05-11 python3 tools/make_audio.py
+  pip install torch qwen-tts soundfile numpy
+  QWEN_MODEL_DIR=/path/to/Qwen3-TTS-12Hz-1.7B-CustomVoice python3 tools/make_audio.py
+  # 예전 목소리: pip install sherpa-onnx 후
+  TTS_ENGINE=supertonic TTS_MODEL_DIR=/path/to/sherpa-onnx-supertonic-3-tts-int8-2026-05-11 python3 tools/make_audio.py
 """
 import os, sys, json
 import numpy as np
@@ -73,7 +76,39 @@ SCRIPT = [
 ]
 
 # ---------------------------------------------------------------- TTS
+QWEN_SPEAKER = 'Sohee'      # Qwen3-TTS CustomVoice 의 한국어 여성 목소리
+QWEN_INSTRUCT = '초등학생에게 과학을 설명하듯 다정하고 밝은 목소리로, 또박또박 천천히 말해 주세요.'
+
 def load_tts():
+    # 기본: Qwen3-TTS 1.7B CustomVoice (Apache 2.0). TTS_ENGINE=supertonic 이면 예전 Supertonic 3
+    if os.environ.get('TTS_ENGINE', 'qwen') == 'qwen':
+        return load_qwen()
+    return load_supertonic()
+
+def load_qwen():
+    import hashlib, torch
+    from qwen_tts import Qwen3TTSModel
+    d = os.environ.get('QWEN_MODEL_DIR')
+    if not d or not os.path.isdir(d):
+        sys.exit('QWEN_MODEL_DIR 에 Qwen3-TTS-12Hz-1.7B-CustomVoice 모델 폴더를 지정하세요.')
+    torch.set_num_threads(os.cpu_count() or 4)
+    model = Qwen3TTSModel.from_pretrained(d, device_map='cuda' if torch.cuda.is_available() else 'cpu', dtype=torch.bfloat16)
+    cache = os.path.join(ROOT, 'audio', 'tts_cache'); os.makedirs(cache, exist_ok=True)
+    def say(text):
+        # 같은 문장·목소리·말투면 다시 만들지 않음 (CPU 에서는 한 줄에 1분 남짓 걸림)
+        key = hashlib.sha1(f'{QWEN_SPEAKER}|{QWEN_INSTRUCT}|{text}'.encode()).hexdigest()[:16]
+        f = os.path.join(cache, key + '.wav')
+        if not os.path.exists(f):
+            torch.manual_seed(1234)
+            w, sr = model.generate_custom_voice(text=text, language='Korean', speaker=QWEN_SPEAKER, instruct=QWEN_INSTRUCT)
+            sf.write(f, w[0], sr)
+        x, sr = sf.read(f, dtype='float32')
+        n = int(len(x) * SR / sr)
+        x = np.interp(np.linspace(0, len(x) - 1, n), np.arange(len(x)), x).astype(np.float32)
+        return trim(x)
+    return say
+
+def load_supertonic():
     import sherpa_onnx as s
     d = os.environ.get('TTS_MODEL_DIR')
     if not d or not os.path.isdir(d):
