@@ -1,0 +1,389 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>재능교육 홍보 · CELEBRATION 버전</title>
+<style>
+  @font-face { font-family: 'Black Han Sans'; src: url('fonts/BlackHanSans-Regular.ttf') format('truetype'); font-display: block; }
+  @font-face { font-family: 'Noto Sans KR'; src: url('fonts/NotoSansKR.ttf') format('truetype'); font-weight: 100 900; font-display: block; }
+  @font-face { font-family: 'Inter'; src: url('fonts/Inter.ttf') format('truetype'); font-weight: 100 900; font-display: block; }
+  html, body { margin: 0; background: #111; }
+  body { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 12px; font-family: 'Noto Sans KR', sans-serif; color: #ddd; }
+  canvas { width: min(100%, 1280px); aspect-ratio: 16 / 9; display: block; background: #000; }
+  .bar { display: flex; gap: 12px; align-items: center; width: min(100%, 1280px); }
+  .bar input { flex: 1; }
+  body.render { padding: 0; gap: 0; }
+  body.render canvas { width: 1920px; height: 1080px; }
+  body.render .bar { display: none; }
+</style>
+</head>
+<body>
+<script src="song.js"></script>
+<script src="content.js"></script>
+<script src="schema.js"></script>
+<canvas id="c" width="1920" height="1080"></canvas>
+<div class="bar">
+  <button id="play">▶ 재생</button>
+  <input id="seek" type="range" min="0" max="34" step="0.01" value="0">
+  <span id="time">0.00s</span>
+</div>
+<script>
+// ------------------------------------------------------------
+// 재능교육 홍보 — CELEBRATION 버전 (재능교육 홍보 30초의 사실·문구를 곡의 드롭과 박자에 맞춰 다시 짬)
+// 120BPM 격자(한 박 0.5초)로 짜고, 곡의 실제 박 길이(song.js)에 맞게 늘이거나 줄임
+// 격자 2.0초 = 곡의 드롭. 장면 전환: 2 · 6 · 10 · 16 · 22 · 27초 (모두 마디 첫 박)
+// draw(t) 는 시간 t(초)만으로 화면을 그리는 순수 함수 → 프레임 단위 렌더 가능
+// ------------------------------------------------------------
+const W = 1920, H = 1080, BEAT = .5, GRID_DURATION = 34;
+const SONG = window.SONG || { beat: BEAT, start: 0 };
+const TK = SONG.beat / BEAT;                         // 격자 1초 → 실제 몇 초
+const DURATION = GRID_DURATION * TK;
+const cv = document.getElementById('c'), ctx = cv.getContext('2d');
+const DEFAULT_CONTENT = JSON.parse(JSON.stringify(window.CONTENT));   // 편집 전 기본값
+let C = window.CONTENT;                                               // 지금 쓰는 문구·색
+function rgba(hex, a) { const n = parseInt(hex.slice(1), 16); return `rgba(${n >> 16 & 255},${n >> 8 & 255},${n & 255},${a})`; }
+let P;
+function readColors() { P = { ...C.colors }; }
+readColors();
+const DISP = "'Black Han Sans', 'Noto Sans KR', sans-serif", KR = "'Noto Sans KR', sans-serif", EN = "'Inter', 'Noto Sans KR', sans-serif";
+
+// ---------- easing ----------
+const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
+const lerp = (a, b, k) => a + (b - a) * k;
+const p = (t, s, d) => clamp((t - s) / d);
+const eOut = x => 1 - Math.pow(1 - x, 3);
+const eIn = x => x * x * x;
+const eIO = x => x < .5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
+const eExpo = x => x >= 1 ? 1 : 1 - Math.pow(2, -10 * x);
+const eBack = x => { const c1 = 2.2, c3 = c1 + 1; return x <= 0 ? 0 : 1 + c3 * Math.pow(x - 1, 3) + c1 * Math.pow(x - 1, 2); };
+// 박자 격자 (8분음표 0.25초). 등장 시각은 EV 에 기록해 효과음 배치에 씀 (tools/export_events.mjs)
+const Q = (s, g = BEAT / 2) => Math.round(s / g + 1e-6) * g;
+const EV = new Map();
+function mark(type, s, info = 0) { const k = type + ':' + s.toFixed(3); if (!EV.has(k)) EV.set(k, { type, t: +s.toFixed(3), info }); }
+const pop = (t, s, d = .32) => { s = Q(s); return eBack(p(t, s, d)); };
+const outK = (t, e, d = .3) => 1 - eIn(p(t, e - d, d));
+function rng(seed) { return () => (seed = (seed * 16807) % 2147483647) / 2147483647; }
+const beatPulse = t => t < 0 ? 0 : Math.pow(1 - ((t % BEAT) / BEAT), 4);       // 박마다 1 → 0
+
+// ---------- 그리기 도구 ----------
+function bg(c) { ctx.fillStyle = c; ctx.fillRect(-200, -200, W + 400, H + 400); }
+function circle(x, y, r, c, a = 1) { if (r <= 0 || a <= 0) return; ctx.save(); ctx.globalAlpha *= a; ctx.fillStyle = c; ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill(); ctx.restore(); }
+function ring(x, y, r, w, c, a = 1) { if (r <= 0 || a <= 0) return; ctx.save(); ctx.globalAlpha *= a; ctx.strokeStyle = c; ctx.lineWidth = w; ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.stroke(); ctx.restore(); }
+function rect(x, y, w, h, c, a = 1) { if (a <= 0 || w <= 0 || h <= 0) return; ctx.save(); ctx.globalAlpha *= a; ctx.fillStyle = c; ctx.fillRect(x, y, w, h); ctx.restore(); }
+function rrect(x, y, w, h, r, fill, a = 1, stroke = null, lw = 4) {
+  if (a <= 0 || w <= 0 || h <= 0) return;
+  ctx.save(); ctx.globalAlpha *= a; ctx.beginPath(); ctx.roundRect(x, y, w, h, Math.min(r, w / 2, h / 2));
+  if (fill) { ctx.fillStyle = fill; ctx.fill(); } if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = lw; ctx.stroke(); } ctx.restore();
+}
+function text(str, x, y, { size = 60, color = P.ink, family = DISP, weight = 400, align = 'center', alpha = 1, rot = 0, sx = 1, sy = 1, stroke = null, lw = 0, shadow = null, spacing = 0 } = {}) {
+  if (alpha <= 0 || sx <= 0 || sy <= 0) return;
+  ctx.save(); ctx.globalAlpha *= alpha; ctx.translate(x, y); ctx.rotate(rot); ctx.scale(sx, sy);
+  ctx.font = `${weight} ${size}px ${family}`; ctx.textAlign = align; ctx.textBaseline = 'middle'; ctx.letterSpacing = spacing + 'px';
+  if (shadow) { ctx.fillStyle = shadow; ctx.fillText(str, size * .05, size * .06); }
+  if (stroke) { ctx.lineJoin = 'round'; ctx.strokeStyle = stroke; ctx.lineWidth = lw; ctx.strokeText(str, 0, 0); }
+  ctx.fillStyle = color; ctx.fillText(str, 0, 0); ctx.restore();
+}
+function measure(str, size, family = DISP, weight = 400, spacing = 0) { ctx.save(); ctx.font = `${weight} ${size}px ${family}`; ctx.letterSpacing = spacing + 'px'; const w = ctx.measureText(str).width; ctx.restore(); return w; }
+// 한 글자씩 떨어져 박자에 착지하며 찌그러졌다 펴지는 글자. 반환: 마지막 글자가 닿는 시각
+function bouncy(str, x0, cy, t, start, { size = 160, color = P.white, shadow = null, stroke = null, lw = 0, align = 'left', end = null } = {}) {
+  const chars = [...str], ws = chars.map(c => measure(c, size)), total = ws.reduce((a, b) => a + b, 0);
+  let x = align === 'center' ? x0 - total / 2 : align === 'right' ? x0 - total : x0;
+  const o = end == null ? 1 : outK(t, Q(end), .25);
+  const st = Q(start, BEAT / 4);
+  const stagger = chars.filter(c => c !== ' ').length > 6 ? BEAT / 8 : BEAT / 4;     // 16분·32분음표
+  let li = 0, last = st;
+  chars.forEach((ch, i) => {
+    if (ch === ' ') { x += ws[i]; return; }
+    const land = last = st + (li++) * stagger;
+    const fall = p(t, land - .2, .2);
+    if (fall <= 0) { x += ws[i]; return; }
+    let y = cy - (1 - eIn(fall)) * 260, sq = 0;
+    const after = t - land;
+    if (after >= 0) { sq = Math.exp(-after * 10) * Math.cos(after * 28) * .26; y -= Math.max(0, Math.sin(after * 28) * Math.exp(-after * 10)) * 26; }
+    text(ch, x + ws[i] / 2, y + size * .2 * Math.max(0, sq), { size, color, sx: (1 + sq) * o, sy: (1 - sq) * o, rot: Math.sin(i * 2.3) * .025, shadow, stroke, lw, alpha: eOut(clamp(fall * 3)) });
+    x += ws[i];
+  });
+  return last;
+}
+// 스티커 (돌아간 둥근 사각형). x 는 align 기준점
+function sticker(str, x, y, t, s, { size = 40, fill = P.yellow, color = P.ink, rot = -.04, padX = 28, end = null, family = DISP, weight = 400, align = 'center', border = null } = {}) {
+  const k = pop(t, s, .4) * (end == null ? 1 : outK(t, end, .25)); if (k <= 0) return;
+  const w = measure(str, size, family, weight) + padX * 2, h = size * 1.7;
+  const cx = align === 'left' ? x + w / 2 : align === 'right' ? x - w / 2 : x;
+  ctx.save(); ctx.translate(cx, y); ctx.rotate(rot); ctx.scale(k, k);
+  rrect(-w / 2 + 7, -h / 2 + 9, w, h, h / 2, 'rgba(0,0,0,.22)');
+  rrect(-w / 2, -h / 2, w, h, h / 2, fill, 1, border, 5);
+  text(str, 0, size * .04, { size, color, family, weight });
+  ctx.restore();
+}
+// 흐르는 띠 (기울어진 테이프 위로 문구가 계속 흘러감)
+function ticker(t, y, rot, str, fill, color, { speed = 220, size = 54, h = 96, k = 1, dir = 1 } = {}) {
+  if (k <= 0) return;
+  ctx.save(); ctx.translate(W / 2, y); ctx.rotate(rot); ctx.scale(1, k);
+  rect(-W, -h / 2, W * 2, h, fill);
+  const unit = str + '   ✦   ', uw = measure(unit, size);
+  const off = ((t * speed * dir) % uw + uw) % uw;
+  for (let x = -W - uw + off; x < W + uw; x += uw) text(unit, x, 4, { size, color, align: 'left' });
+  ctx.restore();
+}
+function star(x, y, r, c, rot = 0, a = 1) {
+  if (r <= 0 || a <= 0) return; ctx.save(); ctx.globalAlpha *= a; ctx.translate(x, y); ctx.rotate(rot); ctx.fillStyle = c; ctx.beginPath();
+  for (let i = 0; i < 8; i++) { const rr = i % 2 ? r * .32 : r, an = i / 8 * Math.PI * 2 - Math.PI / 2; ctx.lineTo(Math.cos(an) * rr, Math.sin(an) * rr); }
+  ctx.closePath(); ctx.fill(); ctx.restore();
+}
+function sparkles(t, seed, colors, n = 16, a = 1) {    // 반짝이 (박마다 살짝 커짐)
+  const r = rng(seed), bp = beatPulse(t);
+  for (let i = 0; i < n; i++) {
+    const x = r() * W, y = r() * H, s = 10 + r() * 20, c = colors[i % colors.length], ph = r() * 6;
+    star(x + Math.cos(t * .6 + ph) * 10, y + Math.sin(t * .5 + ph) * 10, s * (1 + bp * .35), c, t * .5 + ph, a);
+  }
+}
+function burst(t, s, x, y, seed, colors, n = 46, power = 800) {      // 색종이 폭발
+  s = Q(s); mark('burst', s);
+  const k = p(t, s, 1.5); if (k <= 0 || k >= 1) return;
+  const r = rng(seed);
+  for (let i = 0; i < n; i++) {
+    const an = r() * Math.PI * 2, sp = power * (.4 + r() * .8), c = colors[i % colors.length], sz = 12 + r() * 16, spin = (r() - .5) * 20;
+    const tt = k * 1.5, px = x + Math.cos(an) * sp * tt * (1 - k * .35), py = y + Math.sin(an) * sp * tt * (1 - k * .35) + 520 * tt * tt;
+    ctx.save(); ctx.globalAlpha = 1 - eIn(k); ctx.translate(px, py); ctx.rotate(spin * tt); ctx.fillStyle = c;
+    if (i % 3 === 0) { ctx.beginPath(); ctx.arc(0, 0, sz * .5, 0, Math.PI * 2); ctx.fill(); } else ctx.fillRect(-sz / 2, -sz / 4, sz, sz / 2);
+    ctx.restore();
+  }
+}
+function wipe(t, s, x, y, c, d = .45) { s = Q(s); mark('wipe', s); const k = eIO(p(t, s, d)); if (k <= 0) return; circle(x, y, k * Math.hypot(W, H), c); }
+function slam(s) { mark('slam', Q(s)); }
+
+// ============================================================
+// 장면 (시각은 120BPM 격자 초)
+// ============================================================
+const L = 160;
+function hud(t, dark) {
+  const a = eOut(p(t, 2.25, .4)) * outK(t, 26.9, .3);
+  const fg = dark ? P.white : P.ink;
+  text(C.hud.brand, L, 70, { size: 22, color: fg, family: KR, weight: 700, align: 'left', alpha: a * .9 });
+  text(C.hud.since, W - L, 70, { size: 18, color: fg, family: EN, weight: 700, align: 'right', spacing: 6, alpha: a * .7 });
+  rect(L, H - 50, 360, 4, fg, a * .2);
+  rect(L, H - 50, 360 * clamp((t - 2) / 25), 4, dark ? P.yellow : P.red, a);
+}
+// 0–2 : 드롭 전 4박 — AI 시대에도 (한 글자씩 쿵, 마지막엔 화면 안으로 빨려 들어감)
+function s0(t) {
+  bg(P.black);
+  for (let i = 0; i < 4; i++) { const k = p(t, i * BEAT, 1.2); ring(W / 2, H / 2, 120 + eOut(k) * 900, 3, P.white, (1 - k) * .3); }
+  const str = C.hook.line1, chars = [...str], size = 210, ws = chars.map(c => measure(c, size)), total = ws.reduce((a, b) => a + b, 0);
+  const suck = eIn(p(t, 1.75, .25));
+  ctx.save(); ctx.translate(W / 2, H / 2); ctx.scale(1 + suck * 5, 1 + suck * 5); ctx.globalAlpha = 1 - suck;
+  let x = -total / 2, li = 0;
+  chars.forEach((ch, i) => {
+    if (ch === ' ') { x += ws[i]; return; }
+    const s = .25 + (li++) * .25; mark('tick', s, li);
+    const k = p(t, s, .18);
+    if (k > 0) text(ch, x + ws[i] / 2, 0, { size, color: li === chars.filter(c => c !== ' ').length ? P.red : P.white, sx: lerp(1.7, 1, eOut(k)), sy: lerp(1.7, 1, eOut(k)), alpha: eOut(k) });
+    x += ws[i];
+  });
+  ctx.restore();
+  // 16분음표 스트로브
+  [1.5, 1.625, 1.75, 1.875].forEach((s, i) => { const k = p(t, s, .1); if (k > 0 && k < 1) rect(0, 0, W, H, i % 2 ? P.red : P.white, (1 - k) * .18); });
+}
+// 2–6 : 드롭 — 결국, 스스로.
+function s1(t) {
+  bg(P.red);
+  const fl = p(t, 2, .25); if (fl < 1) rect(0, 0, W, H, P.white, 1 - eOut(fl));
+  for (let i = 0; i < 8; i++) { const k = ((t - 2) / BEAT + i / 8) % 1; if (t > 2) ring(W / 2, 560, 200 + k * 900, 4, P.white, (1 - k) * .22); }
+  sparkles(t, 7, [P.yellow, P.white], 14, eOut(p(t, 2, .4)) * outK(t, 5.8));
+  ticker(t, 140, -.035, C.tickers.drop, P.black, P.white, { k: eOut(p(t, 2, .25)) * outK(t, 5.8), speed: 260 });
+  ticker(t, 960, .03, C.tickers.drop, P.yellow, P.ink, { k: eOut(p(t, 2.25, .25)) * outK(t, 5.8), speed: 260, dir: -1 });
+  bouncy(C.hook.line2, W / 2, 360, t, 2.0, { size: 150, color: P.white, align: 'center', shadow: 'rgba(0,0,0,.2)', end: 5.9 });
+  slam(2.5);
+  bouncy(C.hook.accent, W / 2, 620, t, 2.5, { size: 330, color: P.white, stroke: P.ink, lw: 18, align: 'center', shadow: 'rgba(0,0,0,.3)', end: 5.9 });
+  burst(t, 2.0, W / 2, 560, 11, [P.yellow, P.white, P.ink], 56, 950);
+  burst(t, 3.0, W / 2, 620, 13, [P.yellow, P.white], 34, 700);
+  wipe(t, 5.55, W / 2, 620, P.paper);
+}
+// 6–10 : 교육 한 길, 50년 (연도 카운터가 16분음표마다 착착)
+function s2(t) {
+  bg(P.paper);
+  const o = outK(t, 9.9);
+  sticker(C.history.label, L, 190, t, 6.0, { size: 36, fill: P.ink, color: P.white, family: EN, weight: 800, align: 'left', end: 9.9 });
+  const steps = 14, s0 = 6.25, g = BEAT / 4;
+  for (let i = 0; i <= steps; i++) mark('tick', s0 + i * g, i);
+  const si = clamp(Math.floor((t - s0) / g), 0, steps), done = t >= s0 + steps * g;
+  const yr = Math.round(lerp(C.history.yearFrom, C.history.yearTo, si / steps));
+  const since = p(t, s0 + si * g, .12), ni = eExpo(p(t, 6.0, .3));
+  slam(s0 + steps * g);
+  const big = done ? 1 + (1 - eOut(p(t, s0 + steps * g, .3))) * .12 : 1 + (1 - since) * .04;
+  text(String(yr), W / 2, 450 + (1 - ni) * 500, { size: 430, color: done ? P.red : P.ink, family: EN, weight: 900, spacing: -18, sx: big * o, sy: big * o });
+  const w1 = measure(C.history.title1 + ' ', 150);
+  const tw = w1 + measure(C.history.title2, 150);
+  bouncy(C.history.title1, W / 2 - tw / 2, 790, t, 8.0, { size: 150, color: P.ink, end: 9.9 });
+  bouncy(C.history.title2, W / 2 - tw / 2 + w1, 790, t, 8.5, { size: 150, color: P.red, end: 9.9 });
+  sticker(C.history.sub, W / 2, 955, t, 9.0, { size: 40, fill: P.yellow, color: P.ink, rot: .02, end: 9.9 });
+  burst(t, 8.0, W / 2, 450, 21, [P.red, P.yellow, P.ink], 40, 800);
+  wipe(t, 9.55, W / 2, 790, P.black);
+}
+// 10–16 : 스스로 생각하고 / 풀고 / 자란다 (줄마다 마디 첫 박에 착지, 공이 계단을 박마다 오름)
+const ROWS = [10.5, 11.5, 12.5];
+function s3(t) {
+  bg(P.black);
+  sparkles(t, 31, [P.red, P.yellow, P.white], 10, .55);
+  const o = outK(t, 15.9);
+  sticker(C.system.label, L, 170, t, 10.0, { size: 32, fill: P.red, color: P.white, family: EN, weight: 800, align: 'left', end: 15.9 });
+  ROWS.forEach((s, i) => {
+    const { a = '', b = '' } = C.system.rows[i] || {};
+    const y = 380 + i * 185, size = 140;
+    slam(s);
+    bouncy(a, L, y, t, s, { size, color: P.white, end: 15.9 });
+    const wa = measure(a + ' ', size), wb = measure(b, size);
+    const mk = eExpo(p(t, s + .25, .25)) * o;                         // 노란 형광펜이 먼저 그어짐
+    if (mk > 0) ctx.save(), ctx.translate(L + wa - 16, y), ctx.rotate(-.015), rrect(0, -size * .55, (wb + 32) * mk, size * 1.1, 14, P.yellow), ctx.restore();
+    bouncy(b, L + wa, y, t, s + .25, { size, color: P.ink, end: 15.9 });
+  });
+  // 계단 막대 + 박마다 한 칸씩 오르는 공
+  const bx = 1330, by = 860, bw = 100, gap = 34, LAND = [10.5, 11.5, 12.5, 13.5];
+  LAND.forEach((s, i) => {
+    const h = (150 + i * 120) * pop(t, s - .25, .4) * o;
+    rrect(bx + i * (bw + gap), by - h, bw, h, 14, i === 3 ? P.red : P.white);
+  });
+  const top = i => by - (150 + i * 120) - 36;
+  let bxp, byp, sq = 0;
+  if (t < LAND[0]) { const k = p(t, LAND[0] - .5, .5); bxp = bx + bw / 2; byp = lerp(-80, top(0), eIn(k)); }
+  else {
+    let i = LAND.findIndex((s, j) => t >= s && (j === 3 || t < LAND[j + 1]));
+    const s = LAND[i], u = t - s;
+    if (i < 3 && t > LAND[i + 1] - .5) { const k = (t - (LAND[i + 1] - .5)) / .5; bxp = lerp(bx + i * (bw + gap), bx + (i + 1) * (bw + gap), k) + bw / 2; byp = lerp(top(i), top(i + 1), k) - Math.sin(k * Math.PI) * 160; }
+    else { bxp = bx + i * (bw + gap) + bw / 2; byp = top(i) - (i === 3 ? Math.abs(Math.sin(Math.PI * (u % BEAT) / BEAT)) * 90 : 0); }
+    const since = i === 3 ? (u % BEAT) : u; sq = since < .1 ? (1 - since / .1) * .35 : 0;
+  }
+  LAND.forEach(s => mark('ball', s));
+  ctx.save(); ctx.globalAlpha = o; ctx.translate(bxp, byp + 36 * sq * .5); ctx.scale(1 + sq, 1 - sq); circle(0, 0, 36, P.yellow); circle(-11, -11, 10, 'rgba(255,255,255,.7)'); ctx.restore();
+  sticker(C.system.sub, L, 960, t, 14.0, { size: 40, fill: P.white, color: P.ink, align: 'left', rot: -.02, end: 15.9 });
+  burst(t, 13.5, bx + 3 * (bw + gap) + bw / 2, top(3), 33, [P.yellow, P.red, P.white], 30, 600);
+  wipe(t, 15.55, 1600, 500, P.red);
+}
+// 16–22 : 수상 — 숫자가 16분음표마다 올라가고 마디 첫 박에 쾅
+function stat(t, x, s, it, end) {
+  const { n = 0, unit = '', title = '', brand = '', org = '' } = it || {};
+  const o = outK(t, end), steps = 8, g = BEAT / 4, fin = s + steps * g;
+  for (let i = 0; i < steps; i++) mark('tick', s + i * g, i);
+  slam(fin);
+  const k = clamp(Math.floor((t - s) / g + 1e-6) / steps), v = Math.round(n * k);
+  const ni = eExpo(p(t, s - .25, .3)); if (ni <= 0) return;
+  const punch = 1 + (1 - eOut(p(t, fin, .3))) * .14 * (t >= fin ? 1 : 0);
+  text(String(v), x, 520 + (1 - ni) * 500, { size: 340, color: P.white, family: EN, weight: 900, align: 'left', spacing: -14, sx: punch * o, sy: punch * o, shadow: 'rgba(0,0,0,.18)' });
+  const nw = measure(String(n), 340, EN, 900, -14);
+  sticker(unit, x + nw + 30, 450, t, fin, { size: 52, fill: P.yellow, color: P.ink, align: 'left', rot: -.08, end });
+  text(title, x, 760, { size: 46, color: P.white, family: KR, weight: 800, align: 'left', alpha: eOut(p(t, fin, .3)) * o });
+  sticker(brand, x, 850, t, fin + .5, { size: 38, fill: P.ink, color: P.white, align: 'left', rot: 0, end });
+  text(org, x, 930, { size: 26, color: P.white, family: KR, weight: 500, align: 'left', alpha: eOut(p(t, fin + .75, .3)) * o * .8 });
+}
+function s4(t) {
+  bg(P.red);
+  sparkles(t, 41, [P.yellow, P.white], 12, .7 * outK(t, 21.9));
+  sticker(C.awards.label, L, 190, t, 16.0, { size: 32, fill: P.white, color: P.red, family: EN, weight: 800, align: 'left', end: 21.9 });
+  stat(t, L, 16.25, C.awards.items[0], 21.9);
+  stat(t, 1010, 18.25, C.awards.items[1], 21.9);
+  burst(t, 17.25, 500, 520, 43, [P.yellow, P.white, P.ink], 44, 800);
+  burst(t, 19.25, 1350, 520, 47, [P.yellow, P.white, P.ink], 44, 800);
+  wipe(t, 21.55, W / 2, 540, P.black);
+}
+// 22–27 : 세계로 — 나라 이름이 박마다 하나씩 톡
+function s5(t) {
+  bg(P.black);
+  const o = outK(t, 26.9);
+  for (let i = 0; i < 3; i++) ring(1560, 330, 170 + i * 70 + beatPulse(t) * 12, 3, P.white, .14 * o);
+  ctx.save(); ctx.globalAlpha = o; ctx.translate(1560, 330); ctx.rotate(t * .6);
+  for (let i = 0; i < 12; i++) { const an = i / 12 * Math.PI * 2; circle(Math.cos(an) * 240, Math.sin(an) * 240, 6, i % 3 ? P.white : P.yellow); }
+  ctx.restore();
+  sticker(C.global.label, L, 190, t, 22.0, { size: 32, fill: P.yellow, color: P.ink, family: EN, weight: 800, align: 'left', end: 26.9 });
+  const lk = eExpo(p(t, 22.25, .4));
+  text(C.global.lead, L, 320 + (1 - lk) * 40, { size: 54, color: P.white, family: KR, weight: 700, align: 'left', alpha: lk * o });
+  slam(22.5);
+  bouncy(C.global.title, L, 450, t, 22.5, { size: 130, color: P.white, end: 26.9 });
+  const cols = [P.red, P.yellow, P.white];
+  const xs = []; let cx = L;
+  C.global.countries.slice(0, 6).forEach((c, i) => { xs.push(cx); cx += measure(c, 58) + 56 + 30; });
+  // 나라를 잇는 점선
+  const lineK = clamp((t - 23.25) / 2.5);
+  ctx.save(); ctx.globalAlpha = o * .5; ctx.setLineDash([2, 22]); ctx.lineCap = 'round'; ctx.lineWidth = 8; ctx.strokeStyle = P.white;
+  ctx.beginPath(); ctx.moveTo(L, 700); ctx.lineTo(lerp(L, cx - 30, lineK), 700); ctx.stroke(); ctx.restore();
+  C.global.countries.slice(0, 6).forEach((c, i) => {
+    const s = 23.25 + i * .5; mark('country', s, i);
+    sticker(c, xs[i], 700 + (i % 2 ? 24 : -24), t, s, { size: 58, fill: cols[i % 3], color: i % 3 === 0 ? P.white : P.ink, align: 'left', rot: (i % 2 ? .05 : -.05), end: 26.9 });
+  });
+  const sk = eExpo(p(t, 25.5, .4));
+  text(C.global.sub, L, 880 + (1 - sk) * 30, { size: 38, color: P.white, family: KR, weight: 500, align: 'left', alpha: sk * o * .85 });
+  wipe(t, 26.55, W / 2, 700, P.paper);
+}
+// 27–34 : 엔딩 — 재능교육 · AI 시대에도 결국, 스스로.
+function s6(t) {
+  bg(P.paper);
+  sparkles(t, 61, [P.red, P.yellow], 12, eOut(p(t, 27.5, .5)) * .8);
+  const cx = W / 2;
+  const mk = pop(t, 27.0, .45);
+  if (mk > 0) { ctx.save(); ctx.translate(cx, 230); ctx.rotate((1 - mk) * Math.PI / 2 + Math.sin(t * 2) * .05); rect(-38 * mk, -38 * mk, 76 * mk, 76 * mk, P.red); ctx.restore(); }
+  slam(27.5);
+  bouncy(C.ending.brand, cx, 450, t, 27.5, { size: 270, color: P.ink, align: 'center', shadow: 'rgba(0,0,0,.12)' });
+  const lk = eExpo(p(t, 28.25, .5));
+  rect(cx - 330 * lk, 610, 660 * lk, 8, P.red);
+  const w1 = measure(C.ending.slogan1 + ' ', 76), w2 = measure(C.ending.slogan2, 96), x0 = cx - (w1 + w2) / 2;
+  const sk = eExpo(p(t, 28.5, .4));
+  text(C.ending.slogan1, x0, 720 + (1 - sk) * 30, { size: 76, color: P.ink, align: 'left', alpha: sk });
+  slam(29.0);
+  bouncy(C.ending.slogan2, x0 + w1, 716, t, 29.0, { size: 96, color: P.red });
+  sticker(C.ending.url, cx, 850, t, 29.75, { size: 34, fill: P.ink, color: P.white, family: EN, weight: 700, rot: 0 });
+  ticker(t, 1010, -.02, C.tickers.end, P.red, P.white, { k: eOut(p(t, 30.0, .3)), speed: 200, size: 46, h: 84 });
+  burst(t, 27.5, cx, 450, 63, [P.red, P.yellow, P.ink], 60, 1000);
+  burst(t, 31.0, cx, 700, 67, [P.red, P.yellow, P.ink, P.white], 50, 900);
+  const f = p(t, 33.0, 1.0); if (f > 0) { ctx.fillStyle = `rgba(0,0,0,${eIO(f)})`; ctx.fillRect(-200, -200, W + 400, H + 400); }
+}
+
+function draw(realT) {
+  const t = realT / TK;
+  ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalAlpha = 1;
+  // 큰 순간에만 쿵: 흔들림 + 짧은 줌 펀치 (드롭에서 가장 크게)
+  const hits = [[2, 1.6], [2.5, 1], [8, .8], [10.5, .7], [11.5, .7], [12.5, .7], [17.25, 1], [19.25, 1], [22.5, .7], [27.5, 1], [29, .7], [31, .8]];
+  let shake = 0, punch = 0;
+  hits.forEach(([h, g]) => { const k = p(t, h, .28); if (k > 0 && k < 1) { shake += (1 - k) * 18 * g; punch += (1 - eOut(k)) * .03 * g; } });
+  const r = rng(1 + Math.floor(t * 30));
+  ctx.translate(W / 2 + (r() - .5) * shake, H / 2 + (r() - .5) * shake); ctx.scale(1 + punch, 1 + punch); ctx.translate(-W / 2, -H / 2);
+  let dark = true;
+  if (t < 2) s0(t); else if (t < 6) s1(t); else if (t < 10) { s2(t); dark = false; } else if (t < 16) s3(t); else if (t < 22) s4(t); else if (t < 27) s5(t); else { s6(t); dark = false; }
+  if (t >= 2 && t < 27) hud(t, dark);
+}
+
+// ---------- preview player ----------
+const seekEl = document.getElementById('seek'), timeEl = document.getElementById('time'), playEl = document.getElementById('play');
+seekEl.max = DURATION.toFixed(2);
+let playing = false, t0 = 0, tCur = 0;
+const audio = new Audio('audio/mix.wav');   // tools/make_audio.py 가 곡 구간 + 효과음으로 만듦
+audio.preload = 'auto';
+function show(t) { tCur = t; draw(t); seekEl.value = t; timeEl.textContent = t.toFixed(2) + 's'; }
+function loop(now) {
+  if (!playing) return;
+  const t = (now - t0) / 1000;
+  if (t >= DURATION) { playing = false; playEl.textContent = '▶ 재생'; audio.pause(); show(DURATION); return; }
+  show(t); requestAnimationFrame(loop);
+}
+playEl.onclick = () => {
+  playing = !playing; playEl.textContent = playing ? '❚❚ 정지' : '▶ 재생';
+  if (playing) { if (tCur >= DURATION) tCur = 0; t0 = performance.now() - tCur * 1000; try { audio.currentTime = tCur; audio.play().catch(() => {}); } catch (e) {} requestAnimationFrame(loop); }
+  else audio.pause();
+};
+seekEl.oninput = () => { show(+seekEl.value); if (playing) { t0 = performance.now() - tCur * 1000; try { audio.currentTime = tCur; } catch (e) {} } };
+
+window.draw = draw;
+window.collectEvents = () => { EV.clear(); for (let f = 0; f <= DURATION * 30; f++) draw(f / 30); return [...EV.values()].map(e => ({ ...e, grid: e.t, t: +(e.t * TK).toFixed(4) })).sort((a, b) => a.t - b.t); };
+window.DURATION = DURATION;
+// ---------- 영상 편집기 연결 (../editor/PROTOCOL.md) ----------
+function merge(base, over) {
+  if (Array.isArray(base)) return Array.isArray(over) ? over.map((v, i) => base[i] !== undefined ? merge(base[i], v) : v) : base;
+  if (base && typeof base === 'object') { const o = {}; for (const k in base) o[k] = over && k in over ? merge(base[k], over[k]) : base[k]; return o; }
+  return over === undefined || over === null ? base : over;
+}
+function apply(content) { C = window.CONTENT = merge(DEFAULT_CONTENT, content); readColors(); }
+window.VIDEO = { schema: window.SCHEMA, defaults: DEFAULT_CONTENT, get content() { return C; }, apply, canvas: cv };
+window.ready = Promise.all([document.fonts.load(`100px 'Black Han Sans'`, '가'), document.fonts.load(`700 100px 'Noto Sans KR'`, '가'), document.fonts.load(`900 100px 'Inter'`, '0')]).then(r => {
+  if (r.some(fs => !fs.length)) throw new Error('폰트를 불러오지 못했습니다 (fonts/ 폴더 확인)');
+}).then(() => document.fonts.ready).then(() => { if (location.search.includes('render')) document.body.classList.add('render'); show(0); return true; });
+</script>
+</body>
+</html>
