@@ -15,7 +15,7 @@
 - 종이 표현: 종이결 텍스처, 겹친 종이 그림자, 가위로 오린 가장자리, 종이가 밀려 지나가는 장면 전환, 15fps 스톱모션 (광합성 영상과 같은 방식)
 - 단원 색은 교재처럼 1단원 보라, 2단원 연두, 3단원 주황, 4단원 분홍
 - 폰트: Jua(주아체) + Noto Sans KR, SIL OFL
-- 내레이션: Supertonic 3(sherpa-onnx, 온디바이스 소형 TTS) 한국어 음성. 효과음(종이 소리, 출발 호루라기 등)과 배경음(잔잔한 마림바)은 `tools/make_audio.py`에서 합성
+- 내레이션: Qwen3-TTS 1.7B CustomVoice(Alibaba Qwen, Apache 2.0)의 한국어 목소리 Sohee. 말투는 `QWEN_INSTRUCT`(다정하고 또박또박)로 지정. 예전 Supertonic 3 음성은 `TTS_ENGINE=supertonic`으로 다시 쓸 수 있어요. 효과음(종이 소리, 출발 호루라기 등)과 배경음(잔잔한 마림바)은 `tools/make_audio.py`에서 합성
 - 시각: `tools/make_audio.py`가 문장마다 음성을 만들고 실제 길이로 `timeline.js`를 써요
 
 ## 편집기
@@ -29,8 +29,10 @@
 - 장면 그림: `index.html`의 `sIntro` ~ `sEnd`
 
 ```bash
-npm install && pip install sherpa-onnx soundfile numpy
-TTS_MODEL_DIR=/path/to/sherpa-onnx-supertonic-3-tts-int8-2026-05-11 python3 tools/make_audio.py   # timeline.js, audio/mix.wav
+npm install && pip install torch qwen-tts soundfile numpy
+# 모델(약 4.3GB): Hugging Face Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice
+QWEN_MODEL_DIR=/path/to/Qwen3-TTS-12Hz-1.7B-CustomVoice python3 tools/make_audio.py   # timeline.js, audio/mix.wav
+# CPU 에서는 한 줄에 1분 남짓(37줄 약 40분). 만든 음성은 audio/tts_cache/ 에 남아서 바뀐 줄만 다시 만들어요
 export FFMPEG=$(python3 -c "import imageio_ffmpeg as i; print(i.get_ffmpeg_exe())")
 node render.mjs                      # out/science_animals.mp4 (종이 질감 때문에 GPU 없는 환경에서 약 50분)
 ```
