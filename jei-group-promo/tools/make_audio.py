@@ -1,4 +1,4 @@
-"""재능그룹 홍보 영상 사운드트랙: 120BPM 비트 + 효과음 (모두 numpy 로 합성, 외부 음원 없음)
+"""재능그룹 홍보 영상 사운드트랙: 배경음 CELEBRATION(audio/celebration.mp3, 사내용)을 처음부터 + 큰 순간에만 작은 효과음 (합성)
 효과음 시각은 화면에서 뽑은 tools/events.json (node tools/export_events.mjs) 을 따름
 
 사용법: python3 tools/make_audio.py  → audio/mix.wav 생성 후 `node render.mjs`
@@ -79,44 +79,34 @@ def place(buf, t, x, g=1.0):
     n = min(len(x), len(buf) - o); buf[o:o + n] += x[:n] * g
 
 def main():
-    import json
-    music = np.zeros(int(DURATION * SR)); fx = np.zeros_like(music)
-    # C - G - Am - F (한 마디 2초에 코드 하나). 4~44초는 비트, 그 앞뒤는 패드만
-    prog = [(130.81, [261.63, 329.63, 392.0]), (98.0, [246.94, 293.66, 392.0]), (110.0, [220.0, 261.63, 329.63]), (87.31, [220.0, 261.63, 349.23])]
-    for bar in range(int(DURATION // 2)):
-        t0 = bar * 2.0; root, chord = prog[bar % 4]
-        place(music, t0, pad(chord, 2.1), .9 if 4 <= t0 < 44 else 1.1)
-        for b in range(4):
-            tb = t0 + b * BEAT
-            on = 4 <= t0 < 44
-            if on: place(music, tb, kick(), .85)
-            if on and b in (1, 3): place(music, tb, clap(), .6)
-            place(music, tb + BEAT / 2, hat(b == 3), .7 if on else .25)
-            if on: place(music, tb, bass(root, BEAT * .9), .8); place(music, tb + BEAT * .75, bass(root * 2, BEAT * .2), .35)
-    place(music, 2.0, riser(2.0), .5); place(music, 42.0, riser(2.0), .5)       # 비트 시작·엔딩 직전 상승음
-    place(music, 44.0, kick(), 1.0); place(music, 44.0, pad([261.63, 329.63, 392.0, 523.25], 7.5), 1.6)
-    ev = json.load(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'events.json')))
-    for e in ev:
+    import json, subprocess, imageio_ffmpeg
+    here = os.path.dirname(os.path.abspath(__file__))
+    song_js = open(os.path.join(here, '..', 'song.js'), encoding='utf-8').read()
+    info = json.loads(song_js[song_js.index('{'):song_js.rindex('}') + 1])
+    dur = 48 * info['beat'] / .5                                       # 영상 길이 (격자 48초 → 실제 초)
+    raw = subprocess.run([imageio_ffmpeg.get_ffmpeg_exe(), '-v', 'error', '-ss', str(info['start']), '-t', str(dur), '-i', os.path.join(here, '..', info['file']),
+                          '-f', 'f32le', '-ac', '2', '-ar', str(SR), '-'], capture_output=True, check=True).stdout
+    song = np.frombuffer(raw, np.float32).reshape(-1, 2).astype(np.float64)
+    N = len(song); fx = np.zeros(N)
+    # 효과음은 곡을 해치지 않게 작게: 전환 슉, 계열사 등장 톡, 지식맵 반짝 (음높이 있는 소리는 거의 쓰지 않음)
+    for e in json.load(open(os.path.join(here, 'events.json'))):
         t, k, i = e['t'], e['type'], e['info']
-        if k == 'wipe': place(fx, t - .05, sfx_whoosh(.5), .8)
-        elif k == 'slam': place(fx, t, sfx_ding(784 if t < 44 else 523.25), .5)
-        elif k == 'card': place(fx, t, sfx_pop(520 + i * 90), .55)
-        elif k == 'chip': place(fx, t, sfx_tick(1400 + i * 120), .4)
-        elif k == 'tick': place(fx, t, sfx_tick(1500 + (int(i) % 7) * 80), .35)
-        elif k == 'node': place(fx, t, sfx_tick(1700 + (int(i) % 8) * 60), .22)
-        elif k == 'spark': place(fx, t, sfx_tick(2200 + (int(i) % 5) * 150), .1)
-    place(fx, 44.25, sfx_sparkle(), .7)
-    place(music, 38.1, kick(), 1.0); place(fx, 38.1, sfx_sparkle(), .5)          # 지식맵 점화
-    for q in range(12): place(fx, 40.5 + q * .2, sfx_ding(1046.5 * 2 ** ((q % 6) / 12), .5), .12)   # 지식맵이 번지는 반짝임
-    tt = np.arange(len(music)) / SR
-    mix = music * .55 + fx * .5
-    mix *= np.minimum(1, tt / .05) * np.clip((DURATION - tt) / 1.8, 0, 1)
-    mix = np.tanh(mix * 1.1) / np.tanh(1.1)
-    mix = mix / (np.abs(mix).max() + 1e-9) * .89
-    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'audio', 'mix.wav')
-    os.makedirs(os.path.dirname(out), exist_ok=True)
-    sf.write(out, np.stack([mix, mix], 1).astype(np.float32), SR, subtype='PCM_16')
-    print(f'완료: {os.path.normpath(out)} ({DURATION}초)')
+        if k == 'wipe': place(fx, t - .05, sfx_whoosh(.5), .7)
+        elif k == 'card': place(fx, t, sfx_tick(1300 + (int(i) % 5) * 120), .45)
+        elif k == 'tick': place(fx, t, sfx_tick(1600 + (int(i) % 7) * 80), .25)
+        elif k == 'node': place(fx, t, sfx_tick(1800 + (int(i) % 8) * 60), .16)
+        elif k == 'spark': place(fx, t, sfx_tick(2400 + (int(i) % 5) * 150), .07)
+    G = lambda g: g * info['beat'] / .5
+    place(fx, G(34.1), sfx_sparkle(), .35)                               # 드롭에서 지식맵이 켜짐
+    place(fx, G(40.25), sfx_sparkle(), .35)                              # 엔딩
+    fx = fx / (np.abs(fx).max() + 1e-9) * .25
+    mix = song * .92 + fx[:, None]
+    tt = np.arange(N) / SR
+    mix *= (np.minimum(1, tt / .1) * np.clip((tt[-1] - tt) / 2.2, 0, 1))[:, None]   # 끝 2.2초 페이드아웃
+    mix = np.tanh(mix * 1.05) / np.tanh(1.05)
+    out = os.path.join(here, '..', 'audio', 'mix.wav'); os.makedirs(os.path.dirname(out), exist_ok=True)
+    sf.write(out, mix.astype(np.float32), SR, subtype='PCM_16')
+    print(f'완료: {os.path.normpath(out)} ({dur:.2f}초, 곡 {info["start"]}초부터)')
 
 if __name__ == '__main__':
     main()
