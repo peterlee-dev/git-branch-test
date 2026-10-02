@@ -62,7 +62,7 @@ const EV = new Map();
 function mark(type, s, info = 0) { s -= SH; const k = type + ':' + s.toFixed(3); if (!EV.has(k)) EV.set(k, { type, t: +s.toFixed(3), info }); }
 
 // ---------- 그리기 도구 ----------
-function bg(c) { ctx.fillStyle = c; ctx.fillRect(-200, -200, W + 400, H + 400); }
+function bg(c) { ctx.fillStyle = c; ctx.fillRect(-1200, -1200, W + 2400, H + 2400); }
 function rect(x, y, w, h, c, a = 1) { if (a <= 0 || w <= 0 || h <= 0) return; ctx.save(); ctx.globalAlpha *= a; ctx.fillStyle = c; ctx.fillRect(x, y, w, h); ctx.restore(); }
 function circle(x, y, r, c, a = 1) { if (r <= 0 || a <= 0) return; ctx.save(); ctx.globalAlpha *= a; ctx.fillStyle = c; ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill(); ctx.restore(); }
 function rrect(x, y, w, h, r, fill, a = 1, stroke = null, lw = 2) {
@@ -120,7 +120,7 @@ function rng(seed) { return () => (seed = (seed * 16807) % 2147483647) / 2147483
 // 은은한 배경: 어둠 + 색 번짐 + 천천히 흐르는 점과 가까운 점끼리 잇는 선
 function night(t, glow = null, gx = W / 2, gy = H / 2, ga = .35) {
   bg(P.night);
-  if (glow) { const g = ctx.createRadialGradient(gx, gy, 0, gx, gy, 900); g.addColorStop(0, rgba(glow, ga)); g.addColorStop(1, rgba(glow, 0)); ctx.fillStyle = g; ctx.fillRect(-200, -200, W + 400, H + 400); }
+  if (glow) { const g = ctx.createRadialGradient(gx, gy, 0, gx, gy, 900); g.addColorStop(0, rgba(glow, ga)); g.addColorStop(1, rgba(glow, 0)); ctx.fillStyle = g; ctx.fillRect(-1200, -1200, W + 2400, H + 2400); }
   const r = rng(77), pts = [];
   for (let i = 0; i < 70; i++) {
     const x = ((r() * W + t * (8 + r() * 14)) % (W + 200)) - 100, y = r() * H + Math.sin(t * .3 + i) * 14, z = .3 + r() * .7;
@@ -135,7 +135,7 @@ function night(t, glow = null, gx = W / 2, gy = H / 2, ga = .35) {
   pts.forEach(([x, y, z]) => circle(x, y, 1.2 + z * 1.6, P.white, .15 + z * .35));
   // 가장자리 어둡게
   const v = ctx.createRadialGradient(W / 2, H / 2, H * .35, W / 2, H / 2, H * 1.05); v.addColorStop(0, 'rgba(0,0,0,0)'); v.addColorStop(1, 'rgba(0,0,0,.6)');
-  ctx.fillStyle = v; ctx.fillRect(-200, -200, W + 400, H + 400);
+  ctx.fillStyle = v; ctx.fillRect(-1200, -1200, W + 2400, H + 2400);
 }
 function glowDot(x, y, r, c, a = 1) {
   if (r <= 0 || a <= 0) return;
@@ -172,19 +172,6 @@ function streaks(cx, cy, k, c) {
   }
   ctx.restore();
 }
-// 장면 카메라: 시작은 살짝 멀리서 다가오고, 끝은 (fx, fy) 로 빨려 들어감
-function camera(t, S, E, fx, fy, fn) {
-  const zin = lerp(.84, 1, eExpo(p(t, S, 1.1))), zo = eIn(p(t, E - .55, .55));
-  const z = zin * (1 + zo * 2.6), drift = (t - S) * 5;
-  ctx.save();
-  ctx.translate(fx, fy); ctx.scale(z, z); ctx.translate(-fx - drift, -fy);
-  fn();
-  ctx.restore();
-  streaks(fx, fy, zo, P.white);
-  const fade = Math.max(1 - eOut(p(t, S, .35)), eIn(p(t, E - .3, .3)));      // 어둠에서 열리고 어둠으로 닫힘
-  if (fade > 0) rect(-200, -200, W + 400, H + 400, P.night, fade);
-}
-function wrapTo(str, size, weight, max) { return Math.min(size, size * max / Math.max(1, measure(str, size, KR, weight))); }
 
 // 0–4 : 비전
 function s0(t) {
@@ -222,50 +209,113 @@ function s1(t) {
     });
   });
 }
-// 8–38 : 사업 부문 5개 — 부문마다 구체 하나, 계열사는 빛줄기로 이어지는 별
-const ORB = { x: 600, y: 470 };
+// 8–32 : 사업 부문 5개 — 부문마다 구도·배경·카메라·전환을 다르게
+//   구체 = 부문, 빛줄기 끝의 별 = 계열사. 뒤로 큰 영문 글씨가 흐르고, 별이 뜰 때마다 카메라가 살짝 튕김
 const DICON = ['book', 'tv', 'print', 'concert', 'cap'];
 // 부문마다 시작·길이 (격자 초). 18초 베이스가 들어오는 순간에 03 이 시작
 const DS = [8, 14, 18, 22, 26], DL = [6, 4, 4, 4, 6];
+// 구도: 구체 위치(ox, oy), 별이 놓이는 방향(각도, 도), 반지름(rx, ry), 부문 이름 위치(ty: 구체 기준), 카메라(이동 px/s, 회전), 배경 무늬, 들어오기·나가기
+const LAYOUT = [
+  { ox: 560, oy: 480, angs: n => fan(0, 50, n), rx: 520, ry: 380, ty: 245, pan: [-14, 0], rot: .015, motif: 'glyphs', enter: 'zoom', exit: 'whip' },
+  { ox: 1360, oy: 470, angs: n => fan(180, 40, n), rx: 520, ry: 360, ty: 245, pan: [12, 0], rot: -.012, motif: 'waves', enter: 'whip', exit: 'zoom' },
+  { ox: 960, oy: 600, angs: n => [-150, -30, 90].slice(0, n), rx: 560, ry: 330, ty: -225, orbit: .18, pan: [0, -10], rot: .02, motif: 'streams', enter: 'zoom', exit: 'spin' },
+  { ox: 640, oy: 700, angs: n => fan(-45, 40, n), rx: 640, ry: 470, ty: 220, pan: [10, -6], rot: -.015, motif: 'spot', enter: 'spin', exit: 'zoom' },
+  { ox: 960, oy: 380, angs: n => fan(90, 62, n).reverse(), rx: 660, ry: 430, ty: -235, pan: [0, 8], rot: .012, motif: 'rise', enter: 'zoom', exit: 'zoom' },
+];
+function fan(center, spread, n) { return n === 1 ? [center] : Array.from({ length: n }, (_, i) => center - spread + i * 2 * spread / (n - 1)); }
+// 장면 카메라: 들어오기(zoom: 멀리서 다가옴 / whip: 옆에서 휙 / spin: 돌며 다가옴), 나가기(zoom: 구체로 빨려 듦 / whip: 옆으로 휙 / spin: 돌며 빨려 듦)
+function camera(t, S, E, fx, fy, fn, o = {}) {
+  const { enter = 'zoom', exit = 'zoom', pan = [5, 0], rot = 0, bump = 0 } = o;
+  const ki = eExpo(p(t, S, 1.0)), zo = eIn(p(t, E - .55, .55)), u = t - S;
+  let z = lerp(.84, 1, ki) * (1 + bump), dx = -u * pan[0], dy = -u * pan[1], r = rot * u;
+  if (enter === 'whip') dx += (1 - ki) * W * .9;
+  if (enter === 'spin') { r += (1 - ki) * -.9; z *= lerp(.6, 1, ki); }
+  if (exit === 'zoom') z *= 1 + zo * 2.6;
+  if (exit === 'spin') { z *= 1 + zo * 2.2; r += zo * 1.1; }
+  if (exit === 'whip') dx -= zo * W * 1.1;
+  rect(-200, -200, W + 400, H + 400, P.night);            // 돌거나 밀릴 때 드러나는 가장자리도 어둡게
+  ctx.save();
+  ctx.translate(fx, fy); ctx.rotate(r); ctx.scale(z, z); ctx.translate(-fx + dx, -fy + dy);
+  fn();
+  ctx.restore();
+  if (exit === 'whip') hstreaks(zo); else streaks(fx, fy, zo, P.white);
+  if (enter === 'whip') hstreaks((1 - ki) * .8);
+  const fade = Math.max(1 - eOut(p(t, S, enter === 'whip' ? .15 : .35)), exit === 'whip' ? 0 : eIn(p(t, E - .3, .3)));
+  if (fade > 0) rect(-200, -200, W + 400, H + 400, P.night, fade);
+}
+function hstreaks(k) {                                   // 옆으로 휙 넘어갈 때의 가로 빛살
+  if (k <= 0.01) return;
+  const r = rng(13);
+  for (let i = 0; i < 40; i++) { const y = r() * H, len = (300 + r() * 900) * k, x = r() * W; rect(x - len / 2, y, len, 1 + r() * 3, i % 4 ? P.white : P.red, .45 * k); }
+}
+function wrapTo(str, size, weight, max) { return Math.min(size, size * max / Math.max(1, measure(str, size, KR, weight))); }
+// 부문별 배경 무늬
+function motif(kind, t, S, col, L) {
+  const u = t - S, r = rng(31 + kind.length);
+  if (kind === 'glyphs') {                               // 교육·출판: 글자들이 천천히 떠다님
+    const G = ['가', 'A', '1', '스', '?', 'B', '2', '로', '+', 'a', '읽', '=', '3', 'C'];
+    for (let i = 0; i < 26; i++) { const x = r() * W, y = ((r() * H - u * (20 + r() * 40)) % H + H) % H, s = 30 + r() * 90, a = .05 + r() * .08;
+      text(G[i % G.length], x, y, { size: s, color: i % 3 ? P.white : col, family: i % 2 ? EN : KR, weight: 900, align: 'center', alpha: a }); }
+  } else if (kind === 'waves') {                         // 방송·IT: 박자마다 퍼지는 전파 고리 + 주사선
+    for (let i = 0; i < 6; i++) { const q = ((u / BEAT) + i / 6) % 1; ctx.save(); ctx.globalAlpha = (1 - q) * .28; ctx.strokeStyle = col; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(L.ox, L.oy, 140 + q * 900, 0, Math.PI * 2); ctx.stroke(); ctx.restore(); }
+    for (let y = (u * 60) % 8; y < H; y += 8) rect(0, y, W, 1, P.white, .018);
+  } else if (kind === 'streams') {                       // 인쇄·유통: 빛 알갱이가 강처럼 흘러감
+    for (let k = 0; k < 4; k++) {
+      const y0 = 160 + k * 250, amp = 60 + k * 15;
+      for (let i = 0; i < 34; i++) { const q = ((i / 34) + u * (.12 + k * .03)) % 1, x = q * (W + 200) - 100, y = y0 + Math.sin(q * Math.PI * 2 + k) * amp;
+        circle(x, y, 2 + (i % 3), i % 5 ? col : P.white, .35 * Math.sin(q * Math.PI)); }
+    }
+  } else if (kind === 'spot') {                          // 문화·예술: 무대 조명처럼 흔들리는 빛줄기 + 먼지
+    for (let i = 0; i < 3; i++) {
+      const bx = 380 + i * 580, a = Math.sin(u * .9 + i * 2) * .25 + (i - 1) * .2;
+      ctx.save(); ctx.translate(bx, -40); ctx.rotate(a);
+      const g = ctx.createLinearGradient(0, 0, 0, 1200); g.addColorStop(0, rgba(col, .22)); g.addColorStop(1, rgba(col, 0));
+      ctx.fillStyle = g; ctx.beginPath(); ctx.moveTo(-30, 0); ctx.lineTo(30, 0); ctx.lineTo(260, 1200); ctx.lineTo(-260, 1200); ctx.closePath(); ctx.fill(); ctx.restore();
+    }
+    for (let i = 0; i < 40; i++) circle(r() * W, (r() * H + Math.sin(u + i) * 20), 1 + r() * 2, P.white, .2 + .3 * Math.abs(Math.sin(u * 2 + i)));
+  } else if (kind === 'rise') {                          // 연수·학교법인: 아래에서 위로 솟는 불꽃 (성장)
+    for (let i = 0; i < 50; i++) { const x = r() * W, sp = 60 + r() * 120, y = H + 40 - ((u * sp + r() * H) % (H + 80)); glowDot(x, y, 1.5 + r() * 2.5, i % 3 ? col : P.white, .5); }
+  }
+}
 function division(t, di) {
-  const D = C.divisions[di] || { name: '', items: [] }, S = DS[di], E = S + DL[di], col = DCOL()[di];
-  // 계열사가 하나면(재능교육) 그 계열사 + 대표 브랜드를 별로
+  const D = C.divisions[di] || { name: '', items: [] }, S = DS[di], E = S + DL[di], col = DCOL()[di], L = LAYOUT[di];
   let sats = D.items.slice(0, 5).map(it => ({ name: it.name, desc: it.desc }));
   if (sats.length === 1 && D.items[0].chips) sats = sats.concat(D.items[0].chips.slice(0, 4).map(c => ({ name: c, desc: '' })));
-  const n = sats.length, spread = n >= 5 ? 50 : n === 4 ? 50 : 42;
-  camera(t, S, E, ORB.x, ORB.y, () => {
-    night(t, col, ORB.x, ORB.y, .3);
+  const n = sats.length, angs = L.angs(n), short = E - S <= 4;
+  const times = sats.map((_, i) => S + (short ? .75 : 1.0) + i * (n >= 4 ? .75 : short ? .6 : 1.0));
+  // 별이 뜰 때마다 카메라가 살짝 튕김
+  let bump = 0; times.forEach(s => { const k = p(t, s + .35, .3); if (k > 0 && k < 1) bump += (1 - eOut(k)) * .018; });
+  camera(t, S, E, L.ox, L.oy, () => {
+    night(t, col, L.ox, L.oy, .3);
+    motif(L.motif, t, S, col, L);
+    // 뒤로 흐르는 큰 영문 글씨 (테두리만)
+    ctx.save(); ctx.globalAlpha = .07 * eOut(p(t, S, .8)); ctx.font = `900 230px ${EN}`; ctx.textBaseline = 'middle'; ctx.lineWidth = 2; ctx.strokeStyle = P.white;
+    ctx.strokeText((D.en || '').replace(/ · /g, '  '), W * .9 - (t - S) * 90 - di * 120, L.oy + (L.ty > 0 ? -330 : 330)); ctx.restore();
     const ok = eBack(p(t, S + .1, .7)); mark('slam', S + .1, di);
-    const R = 130 * ok, pulse = 1 + Math.sin(t * Math.PI * 2 / BEAT) * .012;
-    // 궤도 고리
-    ctx.save(); ctx.globalAlpha = .25 * ok; ctx.strokeStyle = P.white; ctx.lineWidth = 1.5; ctx.setLineDash([3, 10]);
-    ctx.beginPath(); ctx.ellipse(ORB.x, ORB.y, 520, 380, 0, -Math.PI * .45, Math.PI * .45); ctx.stroke(); ctx.restore();
+    const R = 130 * ok, pulse = 1 + Math.pow(1 - ((t % BEAT) / BEAT), 3) * .05;      // 박마다 쿵
     sats.forEach((sa, i) => {
-      const s = S + (E - S <= 4 ? .75 : 1.0) + i * (n >= 4 ? .75 : E - S <= 4 ? .6 : 1.0); mark('card', s, i);
-      const a = (n === 1 ? 0 : -spread + i * (2 * spread / (n - 1))) * Math.PI / 180 + Math.sin(t * .4) * .02;
-      const nx = ORB.x + Math.cos(a) * 520, ny = ORB.y + Math.sin(a) * 380 + Math.sin(t * .9 + i) * 6;
+      const s = times[i]; mark('card', s, i);
+      const a = (angs[i] + (L.orbit ? (t - S) * L.orbit * 57.3 : 0) + Math.sin(t * .4) * 1.2) * Math.PI / 180;
+      const nx = L.ox + Math.cos(a) * L.rx, ny = L.oy + Math.sin(a) * L.ry + Math.sin(t * .9 + i) * 6;
       const k = eExpoIO(p(t, s, .5)), nk = eBack(p(t, s + .35, .4));
-      beam(ORB.x + Math.cos(a) * R, ORB.y + Math.sin(a) * R, nx, ny, k, col, 3, .9);
-      // 빛줄기를 따라 박자마다 흐르는 빛
-      if (k >= 1) { const q = ((t - s) / BEAT) % 1; glowDot(lerp(ORB.x, nx, q), lerp(ORB.y, ny, q), 3, P.white, .7 * (1 - q)); }
-      const rp = p(t, s + .35, .8); if (rp > 0 && rp < 1) { ctx.save(); ctx.globalAlpha = 1 - rp; ctx.strokeStyle = col; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(nx, ny, 14 + rp * 60, 0, Math.PI * 2); ctx.stroke(); ctx.restore(); }
+      beam(L.ox + Math.cos(a) * R, L.oy + Math.sin(a) * R, nx, ny, k, col, 3, .9);
+      if (k >= 1) { const q = ((t - s) / BEAT) % 1; glowDot(lerp(L.ox, nx, q), lerp(L.oy, ny, q), 3, P.white, .7 * (1 - q)); }
+      const rp = p(t, s + .35, .8); if (rp > 0 && rp < 1) { ctx.save(); ctx.globalAlpha = 1 - rp; ctx.strokeStyle = col; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(nx, ny, 14 + rp * 70, 0, Math.PI * 2); ctx.stroke(); ctx.restore(); }
       glowDot(nx, ny, 13 * nk, col);
-      const tk = eExpo(p(t, s + .45, .6)); if (tk <= 0) return;
-      const tx = nx + 44, maxW = W - 90 - tx;
-      ctx.save(); ctx.beginPath(); ctx.rect(tx - 10, ny - 70, maxW + 20, 140); ctx.clip();
-      const ox = (1 - tk) * -60;
-      const nsz = wrapTo(sa.name, 50, 900, maxW);
-      text(sa.name, tx + ox, ny - (sa.desc ? 18 : 0), { size: nsz, color: P.white, weight: 900, alpha: tk });
-      if (sa.desc) text(sa.desc, tx + ox, ny + 30, { size: wrapTo(sa.desc, 27, 500, maxW), color: rgba(P.white, .72), weight: 500, alpha: tk });
-      ctx.restore();
+      // 이름: 한 글자씩 올라옴, 설명은 뒤따라 미끄러짐
+      const right = nx >= L.ox - 10, tx = nx + (right ? 40 : -40), maxW = right ? W - 70 - tx : tx - 70;
+      const nsz = wrapTo(sa.name, 50, 900, maxW), chars = [...sa.name];
+      let w = measure(sa.name, nsz, KR, 900), x = right ? tx : tx - w;
+      chars.forEach((ch, ci) => { const ck = eExpo(p(t, s + .45 + ci * .035, .45)); if (ck <= 0) return; const cw = measure(ch, nsz, KR, 900);
+        text(ch, x, ny - (sa.desc ? 18 : 0) + (1 - ck) * 34, { size: nsz, color: P.white, weight: 900, alpha: ck }); x += cw; });
+      if (sa.desc) { const dk = eExpo(p(t, s + .7, .5)); text(sa.desc, tx + (right ? -1 : 1) * (1 - dk) * 40, ny + 30, { size: wrapTo(sa.desc, 27, 500, maxW), color: rgba(P.white, .72), weight: 500, align: right ? 'left' : 'right', alpha: dk }); }
     });
-    orb(ORB.x, ORB.y, R * pulse, col, 1);
-    if (ok > 0) { ctx.save(); ctx.globalAlpha = clamp(ok); icon(DICON[di], ORB.x, ORB.y, 120 * ok); ctx.restore(); }
-    // 부문 이름 (영문은 자간이 좁혀지며 나타남)
-    const ek = eExpo(p(t, S + .35, 1.0));
-    text(D.en || '', ORB.x, ORB.y + 245, { size: 22, color: rgba(P.white, .65), family: EN, weight: 800, align: 'center', spacing: lerp(26, 9, ek), alpha: ek });
-    reveal(D.name, ORB.x, ORB.y + 320, t, S + .45, { size: wrapTo(D.name, 72, 900, 560), color: P.white, weight: 900, align: 'center' });
-  });
+    orb(L.ox, L.oy, R * pulse, col, 1);
+    if (ok > 0) { ctx.save(); ctx.globalAlpha = clamp(ok); icon(DICON[di], L.ox, L.oy, 120 * ok * pulse); ctx.restore(); }
+    const ek = eExpo(p(t, S + .35, 1.0)), ny0 = L.oy + L.ty;
+    text(D.en || '', L.ox, ny0, { size: 22, color: rgba(P.white, .65), family: EN, weight: 800, align: 'center', spacing: lerp(26, 9, ek), alpha: ek });
+    reveal(D.name, L.ox, ny0 + 75, t, S + .45, { size: wrapTo(D.name, 72, 900, 560), color: P.white, weight: 900, align: 'center' });
+  }, { enter: L.enter, exit: L.exit, pan: L.pan, rot: L.rot, bump });
   mark('wipe', E - .5);
 }
 // 38–44 : 지식맵 — 가운데에서 부문 → 계열사 → 키워드로 빛의 지도가 번져 나감
