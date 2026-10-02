@@ -60,39 +60,34 @@
   "info": 6
  },
  {
-  "type": "wipe",
-  "t": 7.5,
-  "info": 0
- },
- {
   "type": "slam",
-  "t": 8.25,
+  "t": 8.1,
   "info": 0
  },
  {
   "type": "card",
-  "t": 8.75,
+  "t": 9,
   "info": 0
  },
  {
-  "type": "chip",
+  "type": "card",
   "t": 9.75,
-  "info": 0
- },
- {
-  "type": "chip",
-  "t": 10,
   "info": 1
  },
  {
-  "type": "chip",
-  "t": 10.25,
+  "type": "card",
+  "t": 10.5,
   "info": 2
  },
  {
-  "type": "chip",
-  "t": 10.5,
+  "type": "card",
+  "t": 11.25,
   "info": 3
+ },
+ {
+  "type": "card",
+  "t": 12,
+  "info": 4
  },
  {
   "type": "wipe",
@@ -101,22 +96,22 @@
  },
  {
   "type": "slam",
-  "t": 14.25,
+  "t": 14.1,
   "info": 1
  },
  {
   "type": "card",
-  "t": 14.75,
+  "t": 15,
   "info": 0
  },
  {
   "type": "card",
-  "t": 15.75,
+  "t": 16,
   "info": 1
  },
  {
   "type": "card",
-  "t": 16.75,
+  "t": 17,
   "info": 2
  },
  {
@@ -126,22 +121,22 @@
  },
  {
   "type": "slam",
-  "t": 20.25,
+  "t": 20.1,
   "info": 2
  },
  {
   "type": "card",
-  "t": 20.75,
+  "t": 21,
   "info": 0
  },
  {
   "type": "card",
-  "t": 21.75,
+  "t": 22,
   "info": 1
  },
  {
   "type": "card",
-  "t": 22.75,
+  "t": 23,
   "info": 2
  },
  {
@@ -151,22 +146,22 @@
  },
  {
   "type": "slam",
-  "t": 26.25,
+  "t": 26.1,
   "info": 3
  },
  {
   "type": "card",
-  "t": 26.75,
+  "t": 27,
   "info": 0
  },
  {
   "type": "card",
-  "t": 27.75,
+  "t": 28,
   "info": 1
  },
  {
   "type": "card",
-  "t": 28.75,
+  "t": 29,
   "info": 2
  },
  {
@@ -176,27 +171,27 @@
  },
  {
   "type": "slam",
-  "t": 32.25,
+  "t": 32.1,
   "info": 4
  },
  {
   "type": "card",
-  "t": 32.75,
+  "t": 33,
   "info": 0
  },
  {
   "type": "card",
-  "t": 33.5,
+  "t": 33.75,
   "info": 1
  },
  {
   "type": "card",
-  "t": 34.25,
+  "t": 34.5,
   "info": 2
  },
  {
   "type": "card",
-  "t": 35,
+  "t": 35.25,
   "info": 3
  },
  {
@@ -206,103 +201,118 @@
  },
  {
   "type": "slam",
-  "t": 38.25,
+  "t": 38.1,
   "info": 0
  },
  {
   "type": "node",
-  "t": 38.75,
-  "info": 100
+  "t": 38.125,
+  "info": 0
  },
  {
   "type": "node",
-  "t": 39,
-  "info": 101
- },
- {
-  "type": "node",
-  "t": 39.25,
-  "info": 102
- },
- {
-  "type": "node",
-  "t": 39.5,
-  "info": 103
- },
- {
-  "type": "node",
-  "t": 39.75,
-  "info": 104
- },
- {
-  "type": "node",
-  "t": 40,
+  "t": 38.5,
   "info": 1
  },
  {
   "type": "node",
-  "t": 40.125,
+  "t": 38.625,
   "info": 2
  },
  {
   "type": "node",
-  "t": 40.25,
+  "t": 38.875,
   "info": 3
  },
  {
   "type": "node",
-  "t": 40.375,
+  "t": 39,
   "info": 4
  },
  {
   "type": "node",
-  "t": 40.5,
+  "t": 39.25,
   "info": 5
  },
  {
   "type": "node",
-  "t": 40.625,
+  "t": 39.375,
   "info": 6
  },
  {
   "type": "node",
-  "t": 40.75,
-  "info": 7
- },
- {
-  "type": "node",
-  "t": 40.875,
-  "info": 8
- },
- {
-  "type": "node",
-  "t": 41,
-  "info": 9
- },
- {
-  "type": "node",
-  "t": 41.125,
-  "info": 10
- },
- {
-  "type": "node",
-  "t": 41.25,
-  "info": 11
- },
- {
-  "type": "node",
-  "t": 41.375,
-  "info": 12
- },
- {
-  "type": "node",
-  "t": 41.5,
+  "t": 39.5,
   "info": 13
  },
  {
   "type": "node",
-  "t": 41.625,
-  "info": 14
+  "t": 39.625,
+  "info": 20
+ },
+ {
+  "type": "node",
+  "t": 39.75,
+  "info": 27
+ },
+ {
+  "type": "node",
+  "t": 39.875,
+  "info": 41
+ },
+ {
+  "type": "node",
+  "t": 40,
+  "info": 48
+ },
+ {
+  "type": "node",
+  "t": 40.125,
+  "info": 55
+ },
+ {
+  "type": "node",
+  "t": 40.25,
+  "info": 62
+ },
+ {
+  "type": "node",
+  "t": 40.375,
+  "info": 76
+ },
+ {
+  "type": "spark",
+  "t": 40.5,
+  "info": 7
+ },
+ {
+  "type": "node",
+  "t": 40.5,
+  "info": 83
+ },
+ {
+  "type": "spark",
+  "t": 40.625,
+  "info": 42
+ },
+ {
+  "type": "node",
+  "t": 40.625,
+  "info": 90
+ },
+ {
+  "type": "spark",
+  "t": 40.75,
+  "info": 70
+ },
+ {
+  "type": "node",
+  "t": 40.75,
+  "info": 97
+ },
+ {
+  "type": "spark",
+  "t": 40.875,
+  "info": 77
  },
  {
   "type": "slam",
