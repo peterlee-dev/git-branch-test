@@ -1,0 +1,309 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>재능그룹 홍보 영상</title>
+<style>
+  @font-face { font-family: 'Noto Sans KR'; src: url('fonts/NotoSansKR.ttf') format('truetype'); font-weight: 100 900; font-display: block; }
+  @font-face { font-family: 'Inter'; src: url('fonts/Inter.ttf') format('truetype'); font-weight: 100 900; font-display: block; }
+  html, body { margin: 0; background: #111; }
+  body { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 12px; font-family: 'Noto Sans KR', sans-serif; color: #ddd; }
+  canvas { width: min(100%, 1280px); aspect-ratio: 16 / 9; display: block; background: #000; }
+  .bar { display: flex; gap: 12px; align-items: center; width: min(100%, 1280px); }
+  .bar input { flex: 1; }
+  body.render { padding: 0; gap: 0; }
+  body.render canvas { width: 1920px; height: 1080px; }
+  body.render .bar { display: none; }
+</style>
+</head>
+<body>
+<script src="content.js"></script>
+<script src="schema.js"></script>
+<canvas id="c" width="1920" height="1080"></canvas>
+<div class="bar">
+  <button id="play">▶ 재생</button>
+  <input id="seek" type="range" min="0" max="52" step="0.01" value="0">
+  <span id="time">0.00s</span>
+</div>
+<script>
+// ------------------------------------------------------------
+// 재능그룹 홍보 — 그룹 비전 → 사업 부문 5개와 계열사 → 계열사 연결도 → 엔딩
+// 120BPM (한 박 0.5초, 한 마디 2초). 장면 전환은 마디 첫 박: 4 · 8 · 14 · 20 · 26 · 32 · 38 · 44초
+// draw(t) 는 시간 t(초)만으로 화면을 그리는 순수 함수 → 프레임 단위 렌더 가능
+// ------------------------------------------------------------
+const W = 1920, H = 1080, BEAT = .5, DURATION = 52;
+const cv = document.getElementById('c'), ctx = cv.getContext('2d');
+const DEFAULT_CONTENT = JSON.parse(JSON.stringify(window.CONTENT));
+let C = window.CONTENT, P;
+function readColors() { P = { ...C.colors }; }
+readColors();
+function rgba(hex, a) { const n = parseInt(hex.slice(1), 16); return `rgba(${n >> 16 & 255},${n >> 8 & 255},${n & 255},${a})`; }
+const KR = "'Noto Sans KR', sans-serif", EN = "'Inter', 'Noto Sans KR', sans-serif";
+
+// ---------- easing ----------
+const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
+const lerp = (a, b, k) => a + (b - a) * k;
+const p = (t, s, d) => clamp((t - s) / d);
+const eOut = x => 1 - Math.pow(1 - x, 3);
+const eIn = x => x * x * x;
+const eIO = x => x < .5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
+const eExpo = x => x >= 1 ? 1 : 1 - Math.pow(2, -10 * x);
+const eExpoIO = x => x <= 0 ? 0 : x >= 1 ? 1 : x < .5 ? Math.pow(2, 20 * x - 10) / 2 : (2 - Math.pow(2, -20 * x + 10)) / 2;
+const eBack = x => { const c1 = 1.9, c3 = c1 + 1; return x <= 0 ? 0 : 1 + c3 * Math.pow(x - 1, 3) + c1 * Math.pow(x - 1, 2); };
+const outK = (t, e, d = .3) => 1 - eIn(p(t, e - d, d));
+const EV = new Map();
+function mark(type, s, info = 0) { const k = type + ':' + s.toFixed(3); if (!EV.has(k)) EV.set(k, { type, t: +s.toFixed(3), info }); }
+
+// ---------- 그리기 도구 ----------
+function bg(c) { ctx.fillStyle = c; ctx.fillRect(-200, -200, W + 400, H + 400); }
+function rect(x, y, w, h, c, a = 1) { if (a <= 0 || w <= 0 || h <= 0) return; ctx.save(); ctx.globalAlpha *= a; ctx.fillStyle = c; ctx.fillRect(x, y, w, h); ctx.restore(); }
+function circle(x, y, r, c, a = 1) { if (r <= 0 || a <= 0) return; ctx.save(); ctx.globalAlpha *= a; ctx.fillStyle = c; ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill(); ctx.restore(); }
+function rrect(x, y, w, h, r, fill, a = 1, stroke = null, lw = 2) {
+  if (a <= 0 || w <= 0 || h <= 0) return;
+  ctx.save(); ctx.globalAlpha *= a; ctx.beginPath(); ctx.roundRect(x, y, w, h, Math.min(r, w / 2, h / 2));
+  if (fill) { ctx.fillStyle = fill; ctx.fill(); } if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = lw; ctx.stroke(); } ctx.restore();
+}
+function text(str, x, y, { size = 60, color = P.ink, family = KR, weight = 700, align = 'left', alpha = 1, spacing = 0, base = 'middle' } = {}) {
+  if (alpha <= 0 || !str) return;
+  ctx.save(); ctx.globalAlpha *= alpha; ctx.font = `${weight} ${size}px ${family}`; ctx.textAlign = align; ctx.textBaseline = base; ctx.letterSpacing = spacing + 'px';
+  ctx.fillStyle = color; ctx.fillText(str, x, y); ctx.restore();
+}
+function measure(str, size, family = KR, weight = 700, spacing = 0) { ctx.save(); ctx.font = `${weight} ${size}px ${family}`; ctx.letterSpacing = spacing + 'px'; const w = ctx.measureText(str).width; ctx.restore(); return w; }
+// 가려진 선 아래에서 밀려 올라오는 글자
+function reveal(str, x, y, t, s, o = {}) {
+  const { size = 80, dur = .6, align = 'left', family = KR, weight = 700, spacing = 0, end = null } = o;
+  const k = eExpo(p(t, s, dur)), ko = end == null ? 0 : eIn(p(t, end - .35, .35));
+  if (k <= 0 || ko >= 1) return;
+  const w = measure(str, size, family, weight, spacing), x0 = align === 'left' ? x : align === 'center' ? x - w / 2 : x - w;
+  ctx.save(); ctx.beginPath(); ctx.rect(x0 - 20, y - size * .8, w + 40, size * 1.6); ctx.clip();
+  text(str, x, y + (1 - k) * size * 1.3 - ko * size * 1.3, o); ctx.restore();
+}
+function shadowCard(x, y, w, h, r, a) {
+  ctx.save(); ctx.globalAlpha *= a; ctx.shadowColor = 'rgba(40,30,20,.14)'; ctx.shadowBlur = 30; ctx.shadowOffsetY = 12;
+  ctx.beginPath(); ctx.roundRect(x, y, w, h, r); ctx.fillStyle = P.white; ctx.fill(); ctx.restore();
+}
+// ---------- 아이콘 (흰 선, s = 칸 크기) ----------
+function icon(kind, cx, cy, s, c = P.white) {
+  ctx.save(); ctx.translate(cx, cy); ctx.scale(s / 100, s / 100); ctx.strokeStyle = c; ctx.fillStyle = c; ctx.lineWidth = 6; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  const L = (pts, close) => { ctx.beginPath(); pts.forEach(([x, y], i) => i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)); if (close) ctx.closePath(); ctx.stroke(); };
+  const R = (x, y, w, h, r = 6) => { ctx.beginPath(); ctx.roundRect(x, y, w, h, r); ctx.stroke(); };
+  switch (kind) {
+    case 'book': L([[0, -22], [-30, -30], [-30, 26], [0, 34], [30, 26], [30, -30], [0, -22], [0, 34]]); break;
+    case 'tv': R(-34, -24, 68, 46, 8); L([[-12, -38], [0, -26], [12, -38]]); L([[-16, 34], [16, 34]]); break;
+    case 'abc': R(-34, -28, 68, 48, 10); L([[-14, 20], [-24, 36], [-4, 20]]); ctx.font = '800 26px Inter'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('ABC', 0, -3); break;
+    case 'code': L([[-14, -22], [-34, 0], [-14, 22]]); L([[14, -22], [34, 0], [14, 22]]); L([[6, -30], [-6, 30]]); break;
+    case 'print': R(-20, -34, 40, 20, 3); R(-36, -14, 72, 32, 8); R(-22, 6, 44, 28, 3); L([[-12, 18], [12, 18]]); break;
+    case 'truck': R(-38, -20, 44, 34, 4); L([[6, -8], [24, -8], [36, 6], [36, 14], [6, 14]]); circle(-22, 22, 8, c); circle(22, 22, 8, c); break;
+    case 'building': R(-26, -36, 52, 72, 4); for (let i = 0; i < 3; i++) for (let j = 0; j < 2; j++) R(-16 + j * 20, -26 + i * 18, 12, 10, 2); L([[-6, 36], [-6, 22], [6, 22], [6, 36]]); break;
+    case 'concert': L([[-36, 30], [36, 30]]); ctx.beginPath(); ctx.arc(0, 30, 34, Math.PI, 0); ctx.stroke(); L([[-14, 30], [-14, 6]]); L([[14, 30], [14, 6]]); L([[0, -22], [0, 8]]); circle(-6, 8, 7, c); break;
+    case 'hanok': L([[-40, -6], [-28, -24], [28, -24], [40, -6], [26, -12], [-26, -12], [-40, -6]], true); L([[-28, -12], [-28, 30], [28, 30], [28, -12]]); L([[-8, 30], [-8, 8], [8, 8], [8, 30]]); break;
+    case 'flower': for (let i = 0; i < 6; i++) { const a = i / 6 * Math.PI * 2; circle(Math.cos(a) * 16, Math.sin(a) * 16 - 6, 11, c); } circle(0, -6, 8, rgba('#000000', .25)); L([[0, 12], [0, 38]]); break;
+    case 'tree': ctx.beginPath(); ctx.arc(0, -10, 26, 0, Math.PI * 2); ctx.stroke(); L([[0, 16], [0, 38]]); L([[0, 8], [-12, -4]]); L([[0, 2], [12, -10]]); break;
+    case 'cap': L([[-40, -8], [0, -26], [40, -8], [0, 10], [-40, -8]], true); L([[-22, 2], [-22, 22], [0, 32], [22, 22], [22, 2]]); L([[40, -8], [40, 18]]); break;
+    case 'school': L([[-36, 34], [-36, -6], [0, -30], [36, -6], [36, 34], [-36, 34]], true); L([[-8, 34], [-8, 12], [8, 12], [8, 34]]); ctx.beginPath(); ctx.arc(0, -8, 7, 0, Math.PI * 2); ctx.stroke(); break;
+  }
+  ctx.restore();
+}
+const DCOL = () => [P.d1, P.d2, P.d3, P.d4, P.d5];
+
+// ============================================================
+// 장면
+// ============================================================
+// 0–4 : 비전 — A Better Life Through Better Education
+function s0(t) {
+  bg(P.ink);
+  // 가는 격자선이 그어짐
+  for (let i = 0; i < 6; i++) { const k = eExpoIO(p(t, .1 + i * .08, 1)); rect(0, 180 + i * 144, W * k, 1, P.white, .07); }
+  const mk = eBack(p(t, .5, .5));
+  if (mk > 0) { ctx.save(); ctx.translate(W / 2, 330); ctx.rotate((1 - mk) * Math.PI / 2); rect(-34 * mk, -34 * mk, 68 * mk, 68 * mk, P.red); ctx.restore(); }
+  mark('tick', .5);
+  reveal(C.intro.en, W / 2, 500, t, 1.0, { size: 74, color: P.white, family: EN, weight: 800, align: 'center', spacing: -1, dur: .8 });
+  reveal(C.intro.ko, W / 2, 610, t, 1.75, { size: 46, color: rgba(P.white, .75), weight: 500, align: 'center' });
+  reveal(C.intro.brand, W / 2, 770, t, 2.5, { size: 64, color: P.white, weight: 900, align: 'center', spacing: 6 });
+  mark('tick', 1.0); mark('tick', 2.5);
+  const lk = eExpoIO(p(t, 2.75, .6)); rect(W / 2 - 120 * lk, 830, 240 * lk, 4, P.red);
+  wipeUp(t, 3.5, P.paper);
+}
+function wipeUp(t, s, c) { mark('wipe', s); const k = eExpoIO(p(t, s, .5)); if (k > 0) rect(0, H * (1 - k), W, H * k, c); }
+// 4–8 : 종합교육문화기업 + 사업 분야 7개
+function s1(t) {
+  bg(P.paper);
+  const o = outK(t, 7.9);
+  rrect(160, 190, measure(C.overview.since, 26, EN, 800, 6) + 48, 52, 26, P.ink, eOut(p(t, 4.1, .3)) * o);
+  text(C.overview.since, 184, 217, { size: 26, color: P.white, family: EN, weight: 800, spacing: 6, alpha: eOut(p(t, 4.1, .3)) * o });
+  reveal(C.overview.title, 160, 360, t, 4.25, { size: 84, color: P.ink, weight: 700, end: 7.9 });
+  reveal(C.overview.title2, 160, 490, t, 4.75, { size: 132, color: P.red, weight: 900, spacing: -3, end: 7.9 });
+  mark('slam', 4.75);
+  const F = C.overview.fields.slice(0, 7), cols = DCOL(), tw = 210, gap = 26;
+  F.forEach((f, i) => {
+    const s = 5.5 + i * .25; mark('tick', s, i);
+    const k = eBack(p(t, s, .35)) * o; if (k <= 0) return;
+    const x = 160 + i * (tw + gap) + tw / 2, y = 760;
+    ctx.save(); ctx.translate(x, y); ctx.scale(k, k);
+    rrect(-tw / 2, -70, tw, 140, 22, [P.d1, P.d1, P.d2, P.d2, P.d3, P.d3, P.d4][i] || cols[i % 5]);
+    text(f, 0, 2, { size: 52, color: P.white, weight: 900, align: 'center' });
+    ctx.restore();
+  });
+  sweepIn(t, 7.5, DCOL()[0]);
+}
+// 전환: 다음 부문 색이 오른쪽에서 화면을 덮음 → 다음 장면에서 왼쪽 판으로 줄어듦
+function sweepIn(t, s, c) { mark('wipe', s); const k = eExpoIO(p(t, s, .5)); if (k > 0) rect(W * (1 - k), 0, W * k, H, c); }
+const PANEL = 640;
+// 8–38 : 사업 부문 5개 (부문마다 6초)
+function division(t, di) {
+  const D = C.divisions[di] || { no: '', name: '', items: [] }, S = 8 + di * 6, col = DCOL()[di];
+  bg(P.paper);
+  const pw = lerp(W, PANEL, eExpoIO(p(t, S, .55)));
+  rect(0, 0, pw, H, col);
+  const lo = outK(t, S + 5.9, .2);
+  // 왼쪽 판: 번호 · 부문 이름
+  const nk = eExpo(p(t, S + .25, .5));
+  ctx.save(); ctx.beginPath(); ctx.rect(0, 0, pw, H); ctx.clip();
+  text(D.no, 120, 400 + (1 - nk) * 160, { size: 260, color: P.white, family: EN, weight: 900, spacing: -12, alpha: nk * lo });
+  const nsz = Math.min(66, 66 * (PANEL - 260) / Math.max(1, measure(D.name, 66, KR, 900)));      // 긴 부문 이름은 판 안에 맞게 줄임
+  reveal(D.name, 128, 620, t, S + .5, { size: nsz, color: P.white, weight: 900 });
+  text('재능그룹 사업 부문', 130, 700, { size: 26, color: rgba(P.white, .7), weight: 500, alpha: eOut(p(t, S + .75, .4)) * lo });
+  text(`${D.items.length}개 계열사`, 130, 950, { size: 26, color: rgba(P.white, .7), family: KR, weight: 700, alpha: eOut(p(t, S + .75, .4)) * lo });
+  ctx.restore();
+  mark('slam', S + .25, di);
+  // 오른쪽: 계열사 카드
+  const items = D.items.slice(0, 4), n = items.length;
+  const x0 = 760, cw = 1030;
+  const ch = n === 1 ? 330 : n === 4 ? 165 : 200, gap = n === 4 ? 24 : 32;
+  const total = n * ch + (n - 1) * gap, y0 = n === 1 ? 300 : (H - total) / 2;
+  const step = n >= 4 ? .75 : 1.0;
+  items.forEach((it, i) => {
+    const s = S + .75 + i * step; mark('card', s, i);
+    const k = eExpo(p(t, s, .45)), ko = eIn(p(t, S + 5.6, .3));
+    if (k <= 0) return;
+    const x = x0 + (1 - k) * 140 - ko * 60, y = y0 + i * (ch + gap), a = clamp(k * 1.4) * (1 - ko);
+    shadowCard(x, y, cw, ch, 26, a);
+    const tile = ch - 44;
+    rrect(x + 22, y + 22, tile, tile, 20, col, a);
+    ctx.save(); ctx.globalAlpha = a; icon(it.icon, x + 22 + tile / 2, y + 22 + tile / 2, tile * .9); ctx.restore();
+    const tx = x + 22 + tile + 36;
+    text(it.name, tx, y + ch * (n === 1 ? .36 : .38), { size: n === 1 ? 72 : n === 4 ? 44 : 50, color: P.ink, weight: 900, alpha: a });
+    text(it.desc, tx, y + ch * (n === 1 ? .62 : .7), { size: n === 1 ? 32 : n === 4 ? 26 : 28, color: P.muted, weight: 500, alpha: a });
+  });
+  // 재능교육처럼 계열사가 하나면 대표 브랜드를 칩으로
+  if (n === 1 && items[0].chips) {
+    let cx = x0;
+    items[0].chips.slice(0, 5).forEach((c, i) => {
+      const s = S + 1.75 + i * .25; mark('chip', s, i);
+      const k = eBack(p(t, s, .35)) * (1 - eIn(p(t, S + 5.6, .3))); if (k <= 0) { cx += measure(c, 34, KR, 700) + 70; return; }
+      const w = measure(c, 34, KR, 700) + 52;
+      ctx.save(); ctx.translate(cx + w / 2, 760); ctx.scale(k, k);
+      rrect(-w / 2, -36, w, 72, 36, P.white, 1, rgba(col, .5), 3);
+      text(c, 0, 2, { size: 34, color: col, weight: 700, align: 'center' });
+      ctx.restore();
+      cx += w + 18;
+    });
+  }
+  if (di < 4) sweepIn(t, S + 5.5, DCOL()[di + 1]);
+  else wipeUp(t, S + 5.5, P.paper);
+}
+// 38–44 : 계열사 연결도
+function s7(t) {
+  bg(P.paper);
+  const cx = W / 2, cy = 520, cols = DCOL(), o = outK(t, 43.9, .2);
+  const ang = i => -Math.PI / 2 + i * Math.PI * 2 / 5;
+  let j = 0;
+  C.divisions.forEach((D, i) => {
+    const a = ang(i), dx = cx + Math.cos(a) * 270, dy = cy + Math.sin(a) * 240;
+    const items = D.items.slice(0, 4);
+    items.forEach((it, m) => {
+      const s = 40.0 + (j++) * .125; mark('node', s, j);
+      const spread = (m - (items.length - 1) / 2) * .34, aa = a + spread;
+      const ix = cx + Math.cos(aa) * 560, iy = cy + Math.sin(aa) * 380;
+      const k = eBack(p(t, s, .3)) * o; if (k <= 0) return;
+      ctx.save(); ctx.globalAlpha = .45 * o; ctx.strokeStyle = cols[i]; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(dx, dy); ctx.lineTo(lerp(dx, ix, k), lerp(dy, iy, k)); ctx.stroke(); ctx.restore();
+      circle(ix, iy, 12 * k, cols[i]);
+      const right = Math.cos(aa) >= -.05;
+      text(it.name, ix + (right ? 24 : -24), iy, { size: 28, color: P.ink, weight: 700, align: right ? 'left' : 'right', alpha: k });
+    });
+  });
+  C.divisions.forEach((D, i) => {
+    const a = ang(i), dx = cx + Math.cos(a) * 270, dy = cy + Math.sin(a) * 240;
+    const s = 38.75 + i * .25; mark('node', s, 100 + i);
+    const k = eBack(p(t, s, .35)) * o; if (k <= 0) return;
+    ctx.save(); ctx.globalAlpha = .6 * o; ctx.strokeStyle = cols[i]; ctx.lineWidth = 5; ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(lerp(cx, dx, k), lerp(cy, dy, k)); ctx.stroke(); ctx.restore();
+    const w = measure(D.name, 30, KR, 900) + 44;
+    ctx.save(); ctx.translate(dx, dy); ctx.scale(k, k); rrect(-w / 2, -32, w, 64, 32, cols[i]); text(D.name, 0, 2, { size: 30, color: P.white, weight: 900, align: 'center' }); ctx.restore();
+  });
+  const ck = eBack(p(t, 38.25, .45)); mark('slam', 38.25);
+  // 마지막에 가운데 원이 커지며 엔딩(빨강)으로
+  const grow = eExpoIO(p(t, 43.5, .5));
+  circle(cx, cy, lerp(120 * ck, Math.hypot(W, H), grow), P.red);
+  text(C.network.center, cx, cy + 2, { size: 52, color: P.white, weight: 900, align: 'center', alpha: ck * (1 - grow) });
+  const capk = eExpo(p(t, 42.25, .5));
+  text(C.network.caption, cx, 1000 + (1 - capk) * 20, { size: 32, color: P.muted, weight: 700, align: 'center', alpha: capk * o * (1 - grow) });
+}
+// 44–52 : 엔딩
+function s8(t) {
+  bg(P.red);
+  for (let i = 0; i < 6; i++) { const k = eExpoIO(p(t, 44.2 + i * .06, 1)); rect(W - W * k, 180 + i * 144, W * k, 1, P.white, .1); }
+  reveal(C.ending.brand, W / 2, 430, t, 44.25, { size: 230, color: P.white, weight: 900, align: 'center', spacing: -4, dur: .7 });
+  mark('slam', 44.25);
+  reveal(C.ending.en, W / 2, 590, t, 44.75, { size: 40, color: P.white, family: EN, weight: 800, align: 'center', spacing: 22 });
+  const lk = eExpoIO(p(t, 45.25, .6)); rect(W / 2 - 160 * lk, 650, 320 * lk, 4, P.white);
+  reveal(C.ending.slogan, W / 2, 735, t, 45.5, { size: 50, color: P.white, family: EN, weight: 700, align: 'center' });
+  reveal(C.ending.sub, W / 2, 810, t, 46.0, { size: 36, color: rgba(P.white, .85), weight: 500, align: 'center' });
+  mark('tick', 45.5); mark('tick', 46.0);
+  const uk = eBack(p(t, 46.75, .4)); mark('tick', 46.75);
+  if (uk > 0) { const w = measure(C.ending.url, 30, EN, 700, 4) + 56; ctx.save(); ctx.translate(W / 2, 935); ctx.scale(uk, uk); rrect(-w / 2, -30, w, 60, 30, P.white); text(C.ending.url, 0, 2, { size: 30, color: P.red, family: EN, weight: 700, align: 'center', spacing: 4 }); ctx.restore(); }
+  const f = p(t, 50.5, 1.5); if (f > 0) rect(0, 0, W, H, '#000', eIO(f));
+}
+function hud(t, dark) {
+  const a = eOut(p(t, 4.2, .4)) * outK(t, 43.8, .3), fg = dark ? P.white : P.ink;
+  text('JEI GROUP', W - 160, 70, { size: 20, color: fg, family: EN, weight: 800, align: 'right', spacing: 6, alpha: a * .6 });
+  rect(W - 160 - 300, H - 56, 300, 3, fg, a * .15);
+  rect(W - 160 - 300, H - 56, 300 * clamp((t - 4) / 40), 3, P.red, a);
+}
+
+function draw(t) {
+  ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalAlpha = 1;
+  const hits = [[4.75, .6], [44.25, 1]];          // 큰 순간에만 짧은 줌 펀치
+  let punch = 0; hits.forEach(([h, g]) => { const k = p(t, h, .3); if (k > 0 && k < 1) punch += (1 - eOut(k)) * .02 * g; });
+  ctx.translate(W / 2, H / 2); ctx.scale(1 + punch, 1 + punch); ctx.translate(-W / 2, -H / 2);
+  if (t < 4) s0(t);
+  else if (t < 8) { s1(t); hud(t, false); }
+  else if (t < 38) { division(t, Math.min(4, Math.floor((t - 8) / 6))); hud(t, false); }
+  else if (t < 44) { s7(t); hud(t, false); }
+  else s8(t);
+}
+
+// ---------- preview player ----------
+const seekEl = document.getElementById('seek'), timeEl = document.getElementById('time'), playEl = document.getElementById('play');
+let playing = false, t0 = 0, tCur = 0;
+const audio = new Audio('audio/mix.wav'); audio.preload = 'auto';
+function show(t) { tCur = t; draw(t); seekEl.value = t; timeEl.textContent = t.toFixed(2) + 's'; }
+function loop(now) {
+  if (!playing) return;
+  const t = (now - t0) / 1000;
+  if (t >= DURATION) { playing = false; playEl.textContent = '▶ 재생'; audio.pause(); show(DURATION); return; }
+  show(t); requestAnimationFrame(loop);
+}
+playEl.onclick = () => {
+  playing = !playing; playEl.textContent = playing ? '❚❚ 정지' : '▶ 재생';
+  if (playing) { if (tCur >= DURATION) tCur = 0; t0 = performance.now() - tCur * 1000; try { audio.currentTime = tCur; audio.play().catch(() => {}); } catch (e) {} requestAnimationFrame(loop); }
+  else audio.pause();
+};
+seekEl.oninput = () => { show(+seekEl.value); if (playing) { t0 = performance.now() - tCur * 1000; try { audio.currentTime = tCur; } catch (e) {} } };
+
+window.draw = draw;
+window.collectEvents = () => { EV.clear(); for (let f = 0; f <= DURATION * 30; f++) draw(f / 30); return [...EV.values()].sort((a, b) => a.t - b.t); };
+window.DURATION = DURATION;
+// ---------- 영상 편집기 연결 (../editor/PROTOCOL.md) ----------
+function merge(base, over) {
+  if (Array.isArray(base)) return Array.isArray(over) ? over.map((v, i) => base[i] !== undefined ? merge(base[i], v) : v) : base;
+  if (base && typeof base === 'object') { const o = {}; for (const k in base) o[k] = over && k in over ? merge(base[k], over[k]) : base[k]; return o; }
+  return over === undefined || over === null ? base : over;
+}
+function apply(content) { C = window.CONTENT = merge(DEFAULT_CONTENT, content); readColors(); }
+window.VIDEO = { schema: window.SCHEMA, defaults: DEFAULT_CONTENT, get content() { return C; }, apply, canvas: cv };
+window.ready = Promise.all([document.fonts.load(`900 100px 'Noto Sans KR'`, '가'), document.fonts.load(`800 100px 'Inter'`, 'A')]).then(r => {
+  if (r.some(fs => !fs.length)) throw new Error('폰트를 불러오지 못했습니다 (fonts/ 폴더 확인)');
+}).then(() => document.fonts.ready).then(() => { if (location.search.includes('render')) document.body.classList.add('render'); show(0); return true; });
+</script>
+</body>
+</html>

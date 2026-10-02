@@ -1,0 +1,327 @@
+[
+ {
+  "type": "tick",
+  "t": 0.5,
+  "info": 0
+ },
+ {
+  "type": "tick",
+  "t": 1,
+  "info": 0
+ },
+ {
+  "type": "tick",
+  "t": 2.5,
+  "info": 0
+ },
+ {
+  "type": "wipe",
+  "t": 3.5,
+  "info": 0
+ },
+ {
+  "type": "slam",
+  "t": 4.75,
+  "info": 0
+ },
+ {
+  "type": "tick",
+  "t": 5.5,
+  "info": 0
+ },
+ {
+  "type": "tick",
+  "t": 5.75,
+  "info": 1
+ },
+ {
+  "type": "tick",
+  "t": 6,
+  "info": 2
+ },
+ {
+  "type": "tick",
+  "t": 6.25,
+  "info": 3
+ },
+ {
+  "type": "tick",
+  "t": 6.5,
+  "info": 4
+ },
+ {
+  "type": "tick",
+  "t": 6.75,
+  "info": 5
+ },
+ {
+  "type": "tick",
+  "t": 7,
+  "info": 6
+ },
+ {
+  "type": "wipe",
+  "t": 7.5,
+  "info": 0
+ },
+ {
+  "type": "slam",
+  "t": 8.25,
+  "info": 0
+ },
+ {
+  "type": "card",
+  "t": 8.75,
+  "info": 0
+ },
+ {
+  "type": "chip",
+  "t": 9.75,
+  "info": 0
+ },
+ {
+  "type": "chip",
+  "t": 10,
+  "info": 1
+ },
+ {
+  "type": "chip",
+  "t": 10.25,
+  "info": 2
+ },
+ {
+  "type": "chip",
+  "t": 10.5,
+  "info": 3
+ },
+ {
+  "type": "wipe",
+  "t": 13.5,
+  "info": 0
+ },
+ {
+  "type": "slam",
+  "t": 14.25,
+  "info": 1
+ },
+ {
+  "type": "card",
+  "t": 14.75,
+  "info": 0
+ },
+ {
+  "type": "card",
+  "t": 15.75,
+  "info": 1
+ },
+ {
+  "type": "card",
+  "t": 16.75,
+  "info": 2
+ },
+ {
+  "type": "wipe",
+  "t": 19.5,
+  "info": 0
+ },
+ {
+  "type": "slam",
+  "t": 20.25,
+  "info": 2
+ },
+ {
+  "type": "card",
+  "t": 20.75,
+  "info": 0
+ },
+ {
+  "type": "card",
+  "t": 21.75,
+  "info": 1
+ },
+ {
+  "type": "card",
+  "t": 22.75,
+  "info": 2
+ },
+ {
+  "type": "wipe",
+  "t": 25.5,
+  "info": 0
+ },
+ {
+  "type": "slam",
+  "t": 26.25,
+  "info": 3
+ },
+ {
+  "type": "card",
+  "t": 26.75,
+  "info": 0
+ },
+ {
+  "type": "card",
+  "t": 27.75,
+  "info": 1
+ },
+ {
+  "type": "card",
+  "t": 28.75,
+  "info": 2
+ },
+ {
+  "type": "wipe",
+  "t": 31.5,
+  "info": 0
+ },
+ {
+  "type": "slam",
+  "t": 32.25,
+  "info": 4
+ },
+ {
+  "type": "card",
+  "t": 32.75,
+  "info": 0
+ },
+ {
+  "type": "card",
+  "t": 33.5,
+  "info": 1
+ },
+ {
+  "type": "card",
+  "t": 34.25,
+  "info": 2
+ },
+ {
+  "type": "card",
+  "t": 35,
+  "info": 3
+ },
+ {
+  "type": "wipe",
+  "t": 37.5,
+  "info": 0
+ },
+ {
+  "type": "slam",
+  "t": 38.25,
+  "info": 0
+ },
+ {
+  "type": "node",
+  "t": 38.75,
+  "info": 100
+ },
+ {
+  "type": "node",
+  "t": 39,
+  "info": 101
+ },
+ {
+  "type": "node",
+  "t": 39.25,
+  "info": 102
+ },
+ {
+  "type": "node",
+  "t": 39.5,
+  "info": 103
+ },
+ {
+  "type": "node",
+  "t": 39.75,
+  "info": 104
+ },
+ {
+  "type": "node",
+  "t": 40,
+  "info": 1
+ },
+ {
+  "type": "node",
+  "t": 40.125,
+  "info": 2
+ },
+ {
+  "type": "node",
+  "t": 40.25,
+  "info": 3
+ },
+ {
+  "type": "node",
+  "t": 40.375,
+  "info": 4
+ },
+ {
+  "type": "node",
+  "t": 40.5,
+  "info": 5
+ },
+ {
+  "type": "node",
+  "t": 40.625,
+  "info": 6
+ },
+ {
+  "type": "node",
+  "t": 40.75,
+  "info": 7
+ },
+ {
+  "type": "node",
+  "t": 40.875,
+  "info": 8
+ },
+ {
+  "type": "node",
+  "t": 41,
+  "info": 9
+ },
+ {
+  "type": "node",
+  "t": 41.125,
+  "info": 10
+ },
+ {
+  "type": "node",
+  "t": 41.25,
+  "info": 11
+ },
+ {
+  "type": "node",
+  "t": 41.375,
+  "info": 12
+ },
+ {
+  "type": "node",
+  "t": 41.5,
+  "info": 13
+ },
+ {
+  "type": "node",
+  "t": 41.625,
+  "info": 14
+ },
+ {
+  "type": "slam",
+  "t": 44.25,
+  "info": 0
+ },
+ {
+  "type": "tick",
+  "t": 45.5,
+  "info": 0
+ },
+ {
+  "type": "tick",
+  "t": 46,
+  "info": 0
+ },
+ {
+  "type": "tick",
+  "t": 46.75,
+  "info": 0
+ }
+]
