@@ -59,6 +59,9 @@ NARRATION = [
 
 # ---------------------------------------------------------------- TTS
 def load_tts():
+    if os.environ.get('TTS_ENGINE') == 'jei':      # 회사 PC 에서 사내 TTS 로 만든 음성 (../tools/voicebank.py, ../tools/jei_tts.py)
+        sys.path.insert(0, os.path.join(HERE, '..', '..', 'tools')); import voicebank
+        return voicebank.load(os.path.join(HERE, '..'), SR, trim, lang='ko')
     import sherpa_onnx as s
     d = os.environ.get('TTS_MODEL_DIR')
     if not d or not os.path.isdir(d):

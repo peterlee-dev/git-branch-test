@@ -1,0 +1,7 @@
+{
+ "url": "https://사내-서버-주소/editor/sound/tts",
+ "headers": { "Authorization": "Bearer 여기에-토큰" },
+ "type": "text",
+ "voice": 10,
+ "modeldivision": { "ko": "한국어-모델-값", "en": "영어-모델-값" }
+}
