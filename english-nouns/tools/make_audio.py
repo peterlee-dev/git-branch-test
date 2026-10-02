@@ -102,6 +102,9 @@ PAIR_IDS = {'a1', 'a2', 'a3', 'b1', 'b2', 'b3', 'b4', 'c1', 'c2', 'c3', 'c5', 'c
 
 # ---------------------------------------------------------------- TTS
 def load_tts():
+    if os.environ.get('TTS_ENGINE') == 'jei':      # 회사 PC 에서 사내 TTS 로 만든 음성 (../tools/voicebank.py, ../tools/jei_tts.py)
+        sys.path.insert(0, os.path.join(HERE, '..', '..', 'tools')); import voicebank
+        return voicebank.load(os.path.join(HERE, '..'), SR, trim, lang='en')
     import sherpa_onnx as s
     d = os.environ.get('TTS_MODEL_DIR')
     if not d or not os.path.isdir(d):

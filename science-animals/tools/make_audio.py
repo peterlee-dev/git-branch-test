@@ -80,6 +80,9 @@ QWEN_SPEAKER = 'Sohee'      # Qwen3-TTS CustomVoice 의 한국어 여성 목소�
 QWEN_INSTRUCT = '초등학생에게 과학을 설명하듯 다정하고 밝은 목소리로, 또박또박 천천히 말해 주세요.'
 
 def load_tts():
+    if os.environ.get('TTS_ENGINE') == 'jei':      # 회사 PC 에서 사내 TTS 로 만든 음성 (../tools/voicebank.py, ../tools/jei_tts.py)
+        sys.path.insert(0, os.path.join(HERE, '..', '..', 'tools')); import voicebank
+        return voicebank.load(os.path.join(HERE, '..'), SR, trim, lang='ko')
     # 기본: Qwen3-TTS 1.7B CustomVoice (Apache 2.0). TTS_ENGINE=supertonic 이면 예전 Supertonic 3
     if os.environ.get('TTS_ENGINE', 'qwen') == 'qwen':
         return load_qwen()

@@ -1,0 +1,271 @@
+{
+ "video": "english-nouns",
+ "lang": "en",
+ "lines": [
+  {
+   "key": "8cce8644a40ef904",
+   "text": "Hi, friends! Let's learn about nouns.",
+   "lang": "en"
+  },
+  {
+   "key": "1e040bf7413b1920",
+   "text": "Today we will learn how to talk about one thing, and more than one.",
+   "lang": "en"
+  },
+  {
+   "key": "4da498feba8b160b",
+   "text": "A noun names a person, a place, or a thing.",
+   "lang": "en"
+  },
+  {
+   "key": "774d9bbf932173e0",
+   "text": "A teacher is a person.",
+   "lang": "en"
+  },
+  {
+   "key": "e8129ead3b1c7143",
+   "text": "A school is a place.",
+   "lang": "en"
+  },
+  {
+   "key": "29d80e3516d3b475",
+   "text": "A desk is a thing.",
+   "lang": "en"
+  },
+  {
+   "key": "5f2f25d49a0998fe",
+   "text": "Let's find the nouns in this sentence.",
+   "lang": "en"
+  },
+  {
+   "key": "a77b3af9c6735412",
+   "text": "The green truck drove to the gas station.",
+   "lang": "en"
+  },
+  {
+   "key": "1800ec32bfc5dec2",
+   "text": "Truck and gas station are nouns!",
+   "lang": "en"
+  },
+  {
+   "key": "27b4cbe0e21ff6fd",
+   "text": "A noun that names one is a singular noun.",
+   "lang": "en"
+  },
+  {
+   "key": "88ee5b612c105a56",
+   "text": "A noun that names more than one is a plural noun.",
+   "lang": "en"
+  },
+  {
+   "key": "b2cea1dcdda8e9a8",
+   "text": "Rule one. To make most nouns plural, just add S.",
+   "lang": "en"
+  },
+  {
+   "key": "09cb0902583898fd",
+   "text": "Dog, dogs.",
+   "lang": "en"
+  },
+  {
+   "key": "f51149190cd7be01",
+   "text": "Playground, playgrounds.",
+   "lang": "en"
+  },
+  {
+   "key": "77cec4abd0ecebce",
+   "text": "Baseball, baseballs.",
+   "lang": "en"
+  },
+  {
+   "key": "dfba5db4476b57f4",
+   "text": "Rule two. If a noun ends in C H, S, X, or S H, add E S.",
+   "lang": "en"
+  },
+  {
+   "key": "e9516ecd690d4c90",
+   "text": "Church, churches.",
+   "lang": "en"
+  },
+  {
+   "key": "3479437a0e1270b6",
+   "text": "Bus, buses.",
+   "lang": "en"
+  },
+  {
+   "key": "0b4b72a95e9714a2",
+   "text": "Fox, foxes.",
+   "lang": "en"
+  },
+  {
+   "key": "6ca77f73bebbdae7",
+   "text": "Dish, dishes.",
+   "lang": "en"
+  },
+  {
+   "key": "b2c7f48235dc0107",
+   "text": "Rule three. If a noun ends in Y, change the Y to I, and add E S.",
+   "lang": "en"
+  },
+  {
+   "key": "1979b06dc9b0a2ca",
+   "text": "Baby, babies.",
+   "lang": "en"
+  },
+  {
+   "key": "197d3381d6be09fd",
+   "text": "Bunny, bunnies.",
+   "lang": "en"
+  },
+  {
+   "key": "243ede014e990260",
+   "text": "City, cities.",
+   "lang": "en"
+  },
+  {
+   "key": "15602d4370479962",
+   "text": "But some words just add S.",
+   "lang": "en"
+  },
+  {
+   "key": "b9feb4e108acb437",
+   "text": "Boy, boys.",
+   "lang": "en"
+  },
+  {
+   "key": "123d53ce45d25e0b",
+   "text": "Toy, toys.",
+   "lang": "en"
+  },
+  {
+   "key": "b7ef7dcee8be72d8",
+   "text": "Rule four. For most nouns that end in F or F E, change the F to V, and add E S.",
+   "lang": "en"
+  },
+  {
+   "key": "2c5b55c0ab3fd8b9",
+   "text": "Leaf, leaves.",
+   "lang": "en"
+  },
+  {
+   "key": "89048cb7a76ea4c9",
+   "text": "Knife, knives.",
+   "lang": "en"
+  },
+  {
+   "key": "6fe276a9a4e8c456",
+   "text": "Wolf, wolves.",
+   "lang": "en"
+  },
+  {
+   "key": "f8813be33830a917",
+   "text": "Some nouns change their spelling when they mean more than one.",
+   "lang": "en"
+  },
+  {
+   "key": "a9871c8927daf33b",
+   "text": "One mouse ate the cheese. But three mice ate the cheese!",
+   "lang": "en"
+  },
+  {
+   "key": "32f338a10ddc711c",
+   "text": "Man, men.",
+   "lang": "en"
+  },
+  {
+   "key": "58789ddb44327c74",
+   "text": "Woman, women.",
+   "lang": "en"
+  },
+  {
+   "key": "0fdd9d0f8d941ef9",
+   "text": "Child, children.",
+   "lang": "en"
+  },
+  {
+   "key": "1d1a99d96ff341a8",
+   "text": "Tooth, teeth.",
+   "lang": "en"
+  },
+  {
+   "key": "9d412170698bc405",
+   "text": "Foot, feet.",
+   "lang": "en"
+  },
+  {
+   "key": "42f667f2c94cf563",
+   "text": "Person, people.",
+   "lang": "en"
+  },
+  {
+   "key": "a43c6de8d1431a18",
+   "text": "And some nouns stay the same for one, or more than one.",
+   "lang": "en"
+  },
+  {
+   "key": "1791df55125299ff",
+   "text": "One fish, many fish.",
+   "lang": "en"
+  },
+  {
+   "key": "128aeef72643d798",
+   "text": "One deer, two deer.",
+   "lang": "en"
+  },
+  {
+   "key": "2f32d867b87c7b6d",
+   "text": "One moose, four moose.",
+   "lang": "en"
+  },
+  {
+   "key": "da8cad3bc4ab2d03",
+   "text": "One sheep, ten sheep.",
+   "lang": "en"
+  },
+  {
+   "key": "35c23b63e448a684",
+   "text": "Quiz time! Say the plural out loud.",
+   "lang": "en"
+  },
+  {
+   "key": "b7ffd59739f496d7",
+   "text": "Puppy.",
+   "lang": "en"
+  },
+  {
+   "key": "379f874e5924672b",
+   "text": "Puppies!",
+   "lang": "en"
+  },
+  {
+   "key": "0758e98207e3ed47",
+   "text": "Box.",
+   "lang": "en"
+  },
+  {
+   "key": "85318c2e4c8f0650",
+   "text": "Boxes!",
+   "lang": "en"
+  },
+  {
+   "key": "f0929220109497f7",
+   "text": "Foot.",
+   "lang": "en"
+  },
+  {
+   "key": "43953f75263b618a",
+   "text": "Feet!",
+   "lang": "en"
+  },
+  {
+   "key": "54d563310d85f11e",
+   "text": "Great job! Now you can make plural nouns.",
+   "lang": "en"
+  },
+  {
+   "key": "0e32a3a9e738e8cb",
+   "text": "Keep reading, and look for nouns all around you!",
+   "lang": "en"
+  }
+ ]
+}

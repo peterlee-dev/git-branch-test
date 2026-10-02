@@ -1,0 +1,4 @@
+# 사내 TTS 설정(주소·토큰)과 시험 음성은 올리지 않음
+tools/jei_tts.local.json
+tools/jei_tts_test.mp3
+__pycache__/
