@@ -13,7 +13,7 @@
 
 만든 음성은 <영상>/voice/<문장키>.mp3, 어떤 설정으로 만들었는지는 <영상>/voice/index.json 에 남음 → git 커밋·푸시하면 영상 조립 쪽에서 씀
 """
-import os, sys, json, base64, hashlib, argparse, time, subprocess
+import os, sys, re, json, base64, hashlib, argparse, time, subprocess
 from xml.sax.saxutils import escape as xml_escape
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -43,10 +43,19 @@ def tts(c, text, lang, voice=None):
     if not md: sys.exit(f'modeldivision 에 "{lang}" 값이 없어요 (jei_tts.local.json 의 modeldivision.{lang}).')
     v = voice if voice is not None else c.get('voice')
     typ = c.get('type', 'text')
-    if typ == 'ssml':   # 목소리 번호는 voice 필드가 아니라 SSML 안에 들어감 (rate·volume·pitch·break 는 설정 파일 'ssml' 로 바꿈)
-        s = {'rate': 1, 'volume': 1, 'pitch': 0, 'break': 1, **(c.get('ssml') or {})}
-        speech = (f'<speak><voice name="{v}"><prosody rate="{s["rate"]}" volume="{s["volume"]}" pitch="{s["pitch"]}">'
-                  f'{xml_escape(text)}</prosody><break time="{s["break"]}"></break></voice></speak>')
+    if typ == 'ssml':   # 목소리 번호는 voice 필드가 아니라 SSML 안에 들어감 (rate·volume·pitch·break·comma 는 설정 파일 'ssml' 로 바꿈)
+        s = {'rate': 1, 'volume': 1, 'pitch': 0, 'break': 1, 'comma': 0.4, 'mark': 0.6, **(c.get('ssml') or {})}
+        # <break> 는 prosody 안에 두면 뒷말이 잘려서, 쉼표(,)·'//' 마다 prosody 를 나누고 그 사이에 둠 (time 은 초 단위)
+        pr = lambda t: f'<prosody rate="{s["rate"]}" volume="{s["volume"]}" pitch="{s["pitch"]}">{xml_escape(t)}</prosody>'
+        br = lambda sec: f'<break time="{sec}"></break>'
+        parts = re.split(r'(,\s+|\s*//\s*)', text.strip())     # [글, 구분자, 글, ...]
+        inner = ''
+        for i in range(0, len(parts), 2):
+            seg, sep = parts[i], parts[i + 1] if i + 1 < len(parts) else None
+            if sep is not None and sep.strip() == ',': seg += ','
+            if seg.strip(): inner += pr(seg)
+            if sep is not None: inner += br(s['mark'] if '//' in sep else s['comma'])
+        speech = f'<speak><voice name="{v}">{inner}{br(s["break"])}</voice></speak>'
         sent = {'type': 'ssml', 'speech': speech, 'modeldivision': md}
     else:
         sent = {'type': typ, 'speech': text, 'modeldivision': md}
