@@ -104,7 +104,10 @@ def main():
         elif k == 'chip': place(fx, t, sfx_tick(1400 + i * 120), .4)
         elif k == 'tick': place(fx, t, sfx_tick(1500 + (int(i) % 7) * 80), .35)
         elif k == 'node': place(fx, t, sfx_tick(1700 + (int(i) % 8) * 60), .22)
+        elif k == 'spark': place(fx, t, sfx_tick(2200 + (int(i) % 5) * 150), .1)
     place(fx, 44.25, sfx_sparkle(), .7)
+    place(music, 38.1, kick(), 1.0); place(fx, 38.1, sfx_sparkle(), .5)          # 지식맵 점화
+    for q in range(12): place(fx, 40.5 + q * .2, sfx_ding(1046.5 * 2 ** ((q % 6) / 12), .5), .12)   # 지식맵이 번지는 반짝임
     tt = np.arange(len(music)) / SR
     mix = music * .55 + fx * .5
     mix *= np.minimum(1, tt / .05) * np.clip((DURATION - tt) / 1.8, 0, 1)

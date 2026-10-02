@@ -107,168 +107,276 @@ function icon(kind, cx, cy, s, c = P.white) {
 const DCOL = () => [P.d1, P.d2, P.d3, P.d4, P.d5];
 
 // ============================================================
-// 장면
+// 장면 — 어두운 공간에 빛나는 구체와 빛줄기로 그룹을 그림 (부문 = 구체, 계열사 = 이어지는 별)
 // ============================================================
-// 0–4 : 비전 — A Better Life Through Better Education
+function rng(seed) { return () => (seed = (seed * 16807) % 2147483647) / 2147483647; }
+// 은은한 배경: 어둠 + 색 번짐 + 천천히 흐르는 점과 가까운 점끼리 잇는 선
+function night(t, glow = null, gx = W / 2, gy = H / 2, ga = .35) {
+  bg(P.night);
+  if (glow) { const g = ctx.createRadialGradient(gx, gy, 0, gx, gy, 900); g.addColorStop(0, rgba(glow, ga)); g.addColorStop(1, rgba(glow, 0)); ctx.fillStyle = g; ctx.fillRect(-200, -200, W + 400, H + 400); }
+  const r = rng(77), pts = [];
+  for (let i = 0; i < 70; i++) {
+    const x = ((r() * W + t * (8 + r() * 14)) % (W + 200)) - 100, y = r() * H + Math.sin(t * .3 + i) * 14, z = .3 + r() * .7;
+    pts.push([x, y, z]);
+  }
+  ctx.save(); ctx.lineWidth = 1;
+  for (let i = 0; i < pts.length; i++) for (let j = i + 1; j < pts.length; j++) {
+    const dx = pts[i][0] - pts[j][0], dy = pts[i][1] - pts[j][1], d = Math.hypot(dx, dy);
+    if (d < 170) { ctx.strokeStyle = rgba(P.white, (1 - d / 170) * .09); ctx.beginPath(); ctx.moveTo(pts[i][0], pts[i][1]); ctx.lineTo(pts[j][0], pts[j][1]); ctx.stroke(); }
+  }
+  ctx.restore();
+  pts.forEach(([x, y, z]) => circle(x, y, 1.2 + z * 1.6, P.white, .15 + z * .35));
+  // 가장자리 어둡게
+  const v = ctx.createRadialGradient(W / 2, H / 2, H * .35, W / 2, H / 2, H * 1.05); v.addColorStop(0, 'rgba(0,0,0,0)'); v.addColorStop(1, 'rgba(0,0,0,.6)');
+  ctx.fillStyle = v; ctx.fillRect(-200, -200, W + 400, H + 400);
+}
+function glowDot(x, y, r, c, a = 1) {
+  if (r <= 0 || a <= 0) return;
+  const g = ctx.createRadialGradient(x, y, 0, x, y, r * 4); g.addColorStop(0, rgba(c, .55 * a)); g.addColorStop(1, rgba(c, 0));
+  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, r * 4, 0, Math.PI * 2); ctx.fill();
+  circle(x, y, r, c, a); circle(x, y, r * .45, P.white, a * .9);
+}
+function orb(x, y, r, c, a = 1) {
+  if (r <= 0 || a <= 0) return;
+  const g = ctx.createRadialGradient(x, y, r * .2, x, y, r * 3.2); g.addColorStop(0, rgba(c, .5 * a)); g.addColorStop(.35, rgba(c, .18 * a)); g.addColorStop(1, rgba(c, 0));
+  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, r * 3.2, 0, Math.PI * 2); ctx.fill();
+  const b = ctx.createRadialGradient(x - r * .35, y - r * .4, r * .1, x, y, r); b.addColorStop(0, rgba(P.white, .55 * a)); b.addColorStop(.35, rgba(c, a)); b.addColorStop(1, rgba(c, .85 * a));
+  ctx.fillStyle = b; ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+  ctx.save(); ctx.globalAlpha = a * .5; ctx.strokeStyle = P.white; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.stroke(); ctx.restore();
+}
+// 빛줄기: a→b 로 k 만큼 뻗고, 끝에 밝은 머리
+function beam(ax, ay, bx, by, k, c, w = 3, a = 1, head = true) {
+  if (k <= 0 || a <= 0) return;
+  const x = lerp(ax, bx, k), y = lerp(ay, by, k);
+  ctx.save(); ctx.globalAlpha = a; ctx.lineCap = 'round';
+  const g = ctx.createLinearGradient(ax, ay, x, y); g.addColorStop(0, rgba(c, .15)); g.addColorStop(1, rgba(c, .95));
+  ctx.strokeStyle = g; ctx.lineWidth = w; ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(x, y); ctx.stroke(); ctx.restore();
+  if (head && k < 1) glowDot(x, y, w * 1.6, P.white, a);
+}
+// 빛살 (카메라가 빨려 들어갈 때)
+function streaks(cx, cy, k, c) {
+  if (k <= 0) return;
+  const r = rng(5);
+  ctx.save(); ctx.lineCap = 'round';
+  for (let i = 0; i < 60; i++) {
+    const an = r() * Math.PI * 2, d0 = 80 + r() * 500, len = (200 + r() * 700) * k;
+    ctx.strokeStyle = rgba(i % 3 ? P.white : c, .5 * k * (1 - k * .6)); ctx.lineWidth = 1 + r() * 2.5;
+    ctx.beginPath(); ctx.moveTo(cx + Math.cos(an) * d0, cy + Math.sin(an) * d0); ctx.lineTo(cx + Math.cos(an) * (d0 + len), cy + Math.sin(an) * (d0 + len)); ctx.stroke();
+  }
+  ctx.restore();
+}
+// 장면 카메라: 시작은 살짝 멀리서 다가오고, 끝은 (fx, fy) 로 빨려 들어감
+function camera(t, S, E, fx, fy, fn) {
+  const zin = lerp(.84, 1, eExpo(p(t, S, 1.1))), zo = eIn(p(t, E - .55, .55));
+  const z = zin * (1 + zo * 2.6), drift = (t - S) * 5;
+  ctx.save();
+  ctx.translate(fx, fy); ctx.scale(z, z); ctx.translate(-fx - drift, -fy);
+  fn();
+  ctx.restore();
+  streaks(fx, fy, zo, P.white);
+  const fade = Math.max(1 - eOut(p(t, S, .35)), eIn(p(t, E - .3, .3)));      // 어둠에서 열리고 어둠으로 닫힘
+  if (fade > 0) rect(-200, -200, W + 400, H + 400, P.night, fade);
+}
+function wrapTo(str, size, weight, max) { return Math.min(size, size * max / Math.max(1, measure(str, size, KR, weight))); }
+
+// 0–4 : 비전
 function s0(t) {
-  bg(P.ink);
-  // 가는 격자선이 그어짐
-  for (let i = 0; i < 6; i++) { const k = eExpoIO(p(t, .1 + i * .08, 1)); rect(0, 180 + i * 144, W * k, 1, P.white, .07); }
+  night(t, P.red, W / 2, 330, .18 * eOut(p(t, .5, 1)));
   const mk = eBack(p(t, .5, .5));
-  if (mk > 0) { ctx.save(); ctx.translate(W / 2, 330); ctx.rotate((1 - mk) * Math.PI / 2); rect(-34 * mk, -34 * mk, 68 * mk, 68 * mk, P.red); ctx.restore(); }
+  if (mk > 0) { ctx.save(); ctx.translate(W / 2, 330); ctx.rotate((1 - mk) * Math.PI / 2 + t * .15); rect(-34 * mk, -34 * mk, 68 * mk, 68 * mk, P.red); ctx.restore(); }
   mark('tick', .5);
   reveal(C.intro.en, W / 2, 500, t, 1.0, { size: 74, color: P.white, family: EN, weight: 800, align: 'center', spacing: -1, dur: .8 });
   reveal(C.intro.ko, W / 2, 610, t, 1.75, { size: 46, color: rgba(P.white, .75), weight: 500, align: 'center' });
   reveal(C.intro.brand, W / 2, 770, t, 2.5, { size: 64, color: P.white, weight: 900, align: 'center', spacing: 6 });
   mark('tick', 1.0); mark('tick', 2.5);
   const lk = eExpoIO(p(t, 2.75, .6)); rect(W / 2 - 120 * lk, 830, 240 * lk, 4, P.red);
-  wipeUp(t, 3.5, P.paper);
+  mark('wipe', 3.5);
+  const f = eIn(p(t, 3.6, .4)); if (f > 0) rect(-200, -200, W + 400, H + 400, P.night, f);
 }
-function wipeUp(t, s, c) { mark('wipe', s); const k = eExpoIO(p(t, s, .5)); if (k > 0) rect(0, H * (1 - k), W, H * k, c); }
-// 4–8 : 종합교육문화기업 + 사업 분야 7개
+// 4–8 : 어린이부터 성인까지, 종합교육문화기업 + 빛나는 분야 낱말 7개
 function s1(t) {
-  bg(P.paper);
-  const o = outK(t, 7.9);
-  rrect(160, 190, measure(C.overview.since, 26, EN, 800, 6) + 48, 52, 26, P.ink, eOut(p(t, 4.1, .3)) * o);
-  text(C.overview.since, 184, 217, { size: 26, color: P.white, family: EN, weight: 800, spacing: 6, alpha: eOut(p(t, 4.1, .3)) * o });
-  reveal(C.overview.title, 160, 360, t, 4.25, { size: 84, color: P.ink, weight: 700, end: 7.9 });
-  reveal(C.overview.title2, 160, 490, t, 4.75, { size: 132, color: P.red, weight: 900, spacing: -3, end: 7.9 });
-  mark('slam', 4.75);
-  const F = C.overview.fields.slice(0, 7), cols = DCOL(), tw = 210, gap = 26;
-  F.forEach((f, i) => {
-    const s = 5.5 + i * .25; mark('tick', s, i);
-    const k = eBack(p(t, s, .35)) * o; if (k <= 0) return;
-    const x = 160 + i * (tw + gap) + tw / 2, y = 760;
-    ctx.save(); ctx.translate(x, y); ctx.scale(k, k);
-    rrect(-tw / 2, -70, tw, 140, 22, [P.d1, P.d1, P.d2, P.d2, P.d3, P.d3, P.d4][i] || cols[i % 5]);
-    text(f, 0, 2, { size: 52, color: P.white, weight: 900, align: 'center' });
-    ctx.restore();
-  });
-  sweepIn(t, 7.5, DCOL()[0]);
-}
-// 전환: 다음 부문 색이 오른쪽에서 화면을 덮음 → 다음 장면에서 왼쪽 판으로 줄어듦
-function sweepIn(t, s, c) { mark('wipe', s); const k = eExpoIO(p(t, s, .5)); if (k > 0) rect(W * (1 - k), 0, W * k, H, c); }
-const PANEL = 640;
-// 8–38 : 사업 부문 5개 (부문마다 6초)
-function division(t, di) {
-  const D = C.divisions[di] || { no: '', name: '', items: [] }, S = 8 + di * 6, col = DCOL()[di];
-  bg(P.paper);
-  const pw = lerp(W, PANEL, eExpoIO(p(t, S, .55)));
-  rect(0, 0, pw, H, col);
-  const lo = outK(t, S + 5.9, .2);
-  // 왼쪽 판: 번호 · 부문 이름
-  const nk = eExpo(p(t, S + .25, .5));
-  ctx.save(); ctx.beginPath(); ctx.rect(0, 0, pw, H); ctx.clip();
-  text(D.no, 120, 400 + (1 - nk) * 160, { size: 260, color: P.white, family: EN, weight: 900, spacing: -12, alpha: nk * lo });
-  const nsz = Math.min(66, 66 * (PANEL - 260) / Math.max(1, measure(D.name, 66, KR, 900)));      // 긴 부문 이름은 판 안에 맞게 줄임
-  reveal(D.name, 128, 620, t, S + .5, { size: nsz, color: P.white, weight: 900 });
-  text('재능그룹 사업 부문', 130, 700, { size: 26, color: rgba(P.white, .7), weight: 500, alpha: eOut(p(t, S + .75, .4)) * lo });
-  text(`${D.items.length}개 계열사`, 130, 950, { size: 26, color: rgba(P.white, .7), family: KR, weight: 700, alpha: eOut(p(t, S + .75, .4)) * lo });
-  ctx.restore();
-  mark('slam', S + .25, di);
-  // 오른쪽: 계열사 카드
-  const items = D.items.slice(0, 4), n = items.length;
-  const x0 = 760, cw = 1030;
-  const ch = n === 1 ? 330 : n === 4 ? 165 : 200, gap = n === 4 ? 24 : 32;
-  const total = n * ch + (n - 1) * gap, y0 = n === 1 ? 300 : (H - total) / 2;
-  const step = n >= 4 ? .75 : 1.0;
-  items.forEach((it, i) => {
-    const s = S + .75 + i * step; mark('card', s, i);
-    const k = eExpo(p(t, s, .45)), ko = eIn(p(t, S + 5.6, .3));
-    if (k <= 0) return;
-    const x = x0 + (1 - k) * 140 - ko * 60, y = y0 + i * (ch + gap), a = clamp(k * 1.4) * (1 - ko);
-    shadowCard(x, y, cw, ch, 26, a);
-    const tile = ch - 44;
-    rrect(x + 22, y + 22, tile, tile, 20, col, a);
-    ctx.save(); ctx.globalAlpha = a; icon(it.icon, x + 22 + tile / 2, y + 22 + tile / 2, tile * .9); ctx.restore();
-    const tx = x + 22 + tile + 36;
-    text(it.name, tx, y + ch * (n === 1 ? .36 : .38), { size: n === 1 ? 72 : n === 4 ? 44 : 50, color: P.ink, weight: 900, alpha: a });
-    text(it.desc, tx, y + ch * (n === 1 ? .62 : .7), { size: n === 1 ? 32 : n === 4 ? 26 : 28, color: P.muted, weight: 500, alpha: a });
-  });
-  // 재능교육처럼 계열사가 하나면 대표 브랜드를 칩으로
-  if (n === 1 && items[0].chips) {
-    let cx = x0;
-    items[0].chips.slice(0, 5).forEach((c, i) => {
-      const s = S + 1.75 + i * .25; mark('chip', s, i);
-      const k = eBack(p(t, s, .35)) * (1 - eIn(p(t, S + 5.6, .3))); if (k <= 0) { cx += measure(c, 34, KR, 700) + 70; return; }
-      const w = measure(c, 34, KR, 700) + 52;
-      ctx.save(); ctx.translate(cx + w / 2, 760); ctx.scale(k, k);
-      rrect(-w / 2, -36, w, 72, 36, P.white, 1, rgba(col, .5), 3);
-      text(c, 0, 2, { size: 34, color: col, weight: 700, align: 'center' });
-      ctx.restore();
-      cx += w + 18;
+  camera(t, 4, 8, W / 2, 700, () => {
+    night(t, P.red, W / 2, 500, .2);
+    text(C.overview.since, W / 2, 210, { size: 24, color: rgba(P.white, .7), family: EN, weight: 800, align: 'center', spacing: 12, alpha: eOut(p(t, 4.1, .4)) });
+    reveal(C.overview.title, W / 2, 330, t, 4.25, { size: 68, color: rgba(P.white, .9), weight: 500, align: 'center' });
+    reveal(C.overview.title2, W / 2, 470, t, 4.75, { size: 150, color: P.white, weight: 900, align: 'center', spacing: -3 });
+    mark('slam', 4.75);
+    // 글자 위로 빛이 한 번 쓸고 지나감
+    const sw = p(t, 5.0, .9);
+    if (sw > 0 && sw < 1) { const w = measure(C.overview.title2, 150, KR, 900, -3), x = W / 2 - w / 2 + sw * w; const g = ctx.createLinearGradient(x - 120, 0, x + 120, 0); g.addColorStop(0, rgba(P.red, 0)); g.addColorStop(.5, rgba(P.red, .55)); g.addColorStop(1, rgba(P.red, 0)); ctx.fillStyle = g; ctx.fillRect(x - 120, 380, 240, 180); }
+    const F = C.overview.fields.slice(0, 7), cols = [P.d1, P.d1, P.d2, P.d2, P.d3, P.d3, P.d4];
+    F.forEach((f, i) => {
+      const s = 5.5 + i * .25; mark('tick', s, i);
+      const k = eExpo(p(t, s, .5)); if (k <= 0) return;
+      const u = (i - 3) / 3, x = W / 2 + u * 700, y = 720 + u * u * 70 + Math.sin(t * 1.4 + i) * 6;
+      glowDot(x, y - 70, 6, cols[i], k);
+      text(f, x, y + (1 - k) * 30, { size: 56, color: P.white, weight: 900, align: 'center', alpha: k });
+      if (i < 6) { const nx = W / 2 + ((i + 1 - 3) / 3) * 700, ny = 720 + ((i - 2) / 3) ** 2 * 70; beam(x, y - 70, nx, ny - 70, eExpoIO(p(t, s + .25, .4)) * (i < 6 ? 1 : 0), cols[i], 2, .6, false); }
     });
-  }
-  if (di < 4) sweepIn(t, S + 5.5, DCOL()[di + 1]);
-  else wipeUp(t, S + 5.5, P.paper);
+  });
 }
-// 38–44 : 계열사 연결도
-function s7(t) {
-  bg(P.paper);
-  const cx = W / 2, cy = 520, cols = DCOL(), o = outK(t, 43.9, .2);
+// 8–38 : 사업 부문 5개 — 부문마다 구체 하나, 계열사는 빛줄기로 이어지는 별
+const ORB = { x: 600, y: 470 };
+const DICON = ['book', 'tv', 'print', 'concert', 'cap'];
+function division(t, di) {
+  const D = C.divisions[di] || { name: '', items: [] }, S = 8 + di * 6, E = S + 6, col = DCOL()[di];
+  // 계열사가 하나면(재능교육) 그 계열사 + 대표 브랜드를 별로
+  let sats = D.items.slice(0, 5).map(it => ({ name: it.name, desc: it.desc }));
+  if (sats.length === 1 && D.items[0].chips) sats = sats.concat(D.items[0].chips.slice(0, 4).map(c => ({ name: c, desc: '' })));
+  const n = sats.length, spread = n >= 5 ? 50 : n === 4 ? 50 : 42;
+  camera(t, S, E, ORB.x, ORB.y, () => {
+    night(t, col, ORB.x, ORB.y, .3);
+    const ok = eBack(p(t, S + .1, .7)); mark('slam', S + .1, di);
+    const R = 130 * ok, pulse = 1 + Math.sin(t * Math.PI * 2 / BEAT) * .012;
+    // 궤도 고리
+    ctx.save(); ctx.globalAlpha = .25 * ok; ctx.strokeStyle = P.white; ctx.lineWidth = 1.5; ctx.setLineDash([3, 10]);
+    ctx.beginPath(); ctx.ellipse(ORB.x, ORB.y, 520, 380, 0, -Math.PI * .45, Math.PI * .45); ctx.stroke(); ctx.restore();
+    sats.forEach((sa, i) => {
+      const s = S + 1.0 + i * (n >= 4 ? .75 : 1.0); mark('card', s, i);
+      const a = (n === 1 ? 0 : -spread + i * (2 * spread / (n - 1))) * Math.PI / 180 + Math.sin(t * .4) * .02;
+      const nx = ORB.x + Math.cos(a) * 520, ny = ORB.y + Math.sin(a) * 380 + Math.sin(t * .9 + i) * 6;
+      const k = eExpoIO(p(t, s, .5)), nk = eBack(p(t, s + .35, .4));
+      beam(ORB.x + Math.cos(a) * R, ORB.y + Math.sin(a) * R, nx, ny, k, col, 3, .9);
+      // 빛줄기를 따라 박자마다 흐르는 빛
+      if (k >= 1) { const q = ((t - s) / BEAT) % 1; glowDot(lerp(ORB.x, nx, q), lerp(ORB.y, ny, q), 3, P.white, .7 * (1 - q)); }
+      const rp = p(t, s + .35, .8); if (rp > 0 && rp < 1) { ctx.save(); ctx.globalAlpha = 1 - rp; ctx.strokeStyle = col; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(nx, ny, 14 + rp * 60, 0, Math.PI * 2); ctx.stroke(); ctx.restore(); }
+      glowDot(nx, ny, 13 * nk, col);
+      const tk = eExpo(p(t, s + .45, .6)); if (tk <= 0) return;
+      const tx = nx + 44, maxW = W - 90 - tx;
+      ctx.save(); ctx.beginPath(); ctx.rect(tx - 10, ny - 70, maxW + 20, 140); ctx.clip();
+      const ox = (1 - tk) * -60;
+      const nsz = wrapTo(sa.name, 50, 900, maxW);
+      text(sa.name, tx + ox, ny - (sa.desc ? 18 : 0), { size: nsz, color: P.white, weight: 900, alpha: tk });
+      if (sa.desc) text(sa.desc, tx + ox, ny + 30, { size: wrapTo(sa.desc, 27, 500, maxW), color: rgba(P.white, .72), weight: 500, alpha: tk });
+      ctx.restore();
+    });
+    orb(ORB.x, ORB.y, R * pulse, col, 1);
+    if (ok > 0) { ctx.save(); ctx.globalAlpha = clamp(ok); icon(DICON[di], ORB.x, ORB.y, 120 * ok); ctx.restore(); }
+    // 부문 이름 (영문은 자간이 좁혀지며 나타남)
+    const ek = eExpo(p(t, S + .35, 1.0));
+    text(D.en || '', ORB.x, ORB.y + 245, { size: 22, color: rgba(P.white, .65), family: EN, weight: 800, align: 'center', spacing: lerp(26, 9, ek), alpha: ek });
+    reveal(D.name, ORB.x, ORB.y + 320, t, S + .45, { size: wrapTo(D.name, 72, 900, 560), color: P.white, weight: 900, align: 'center' });
+  });
+  mark('wipe', E - .5);
+}
+// 38–44 : 지식맵 — 가운데에서 부문 → 계열사 → 키워드로 빛의 지도가 번져 나감
+let MAPC = null, MAPFOR = null;
+function mapLayout() {
+  if (MAPFOR === C) return MAPC;                       // 문구가 바뀔 때만 다시 계산
+  const cx = W / 2, cy = H / 2, r = rng(2024), nodes = [], links = [], boxes = [];
   const ang = i => -Math.PI / 2 + i * Math.PI * 2 / 5;
-  let j = 0;
+  const hit = bx => bx[0] < 40 || bx[1] < 30 || bx[0] + bx[2] > W - 40 || bx[1] + bx[3] > 930 ||
+    boxes.some(o => bx[0] < o[0] + o[2] + 8 && bx[0] + bx[2] + 8 > o[0] && bx[1] < o[1] + o[3] + 6 && bx[1] + bx[3] + 6 > o[1]);
+  const labelBox = (x, y, str, size, weight, right) => { const w = measure(str, size, KR, weight); return [right ? x + 14 : x - 14 - w, y - size * .6, w, size * 1.2]; };
+  const hub = { x: cx, y: cy, s: 38.1, c: P.red, r: 30 }; nodes.push(hub); boxes.push([cx - 115, cy - 115, 230, 230]);
+  const affs = [];
   C.divisions.forEach((D, i) => {
-    const a = ang(i), dx = cx + Math.cos(a) * 270, dy = cy + Math.sin(a) * 240;
+    const a = ang(i), col = DCOL()[i];
+    const dn = { x: cx + Math.cos(a) * 300, y: cy + Math.sin(a) * 250, s: 38.5 + i * .18, c: col, r: 16, label: D.name, big: true };
+    nodes.push(dn); links.push([hub, dn, dn.s - .3, 4]);
+    const w = measure(D.name, 30, KR, 900) + 40; boxes.push([dn.x - w / 2, dn.y - 58, w, 52]);
     const items = D.items.slice(0, 4);
     items.forEach((it, m) => {
-      const s = 40.0 + (j++) * .125; mark('node', s, j);
-      const spread = (m - (items.length - 1) / 2) * .34, aa = a + spread;
-      const ix = cx + Math.cos(aa) * 560, iy = cy + Math.sin(aa) * 380;
-      const k = eBack(p(t, s, .3)) * o; if (k <= 0) return;
-      ctx.save(); ctx.globalAlpha = .45 * o; ctx.strokeStyle = cols[i]; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(dx, dy); ctx.lineTo(lerp(dx, ix, k), lerp(dy, iy, k)); ctx.stroke(); ctx.restore();
-      circle(ix, iy, 12 * k, cols[i]);
-      const right = Math.cos(aa) >= -.05;
-      text(it.name, ix + (right ? 24 : -24), iy, { size: 28, color: P.ink, weight: 700, align: right ? 'left' : 'right', alpha: k });
+      const aa = a + (m - (items.length - 1) / 2) * .36;
+      const an = { x: cx + Math.cos(aa) * 600, y: cy + Math.sin(aa) * 360, s: 0, c: col, r: 9, label: it.name, aa, it, dn };
+      affs.push(an);
+      const right = an.x >= cx - 5; boxes.push(labelBox(an.x + (right ? 8 : -8), an.y, it.name, 27, 700, right));
     });
   });
-  C.divisions.forEach((D, i) => {
-    const a = ang(i), dx = cx + Math.cos(a) * 270, dy = cy + Math.sin(a) * 240;
-    const s = 38.75 + i * .25; mark('node', s, 100 + i);
-    const k = eBack(p(t, s, .35)) * o; if (k <= 0) return;
-    ctx.save(); ctx.globalAlpha = .6 * o; ctx.strokeStyle = cols[i]; ctx.lineWidth = 5; ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(lerp(cx, dx, k), lerp(cy, dy, k)); ctx.stroke(); ctx.restore();
-    const w = measure(D.name, 30, KR, 900) + 44;
-    ctx.save(); ctx.translate(dx, dy); ctx.scale(k, k); rrect(-w / 2, -32, w, 64, 32, cols[i]); text(D.name, 0, 2, { size: 30, color: P.white, weight: 900, align: 'center' }); ctx.restore();
+  affs.forEach((an, j) => {
+    an.s = 39.4 + j * .1; nodes.push(an); links.push([an.dn, an, an.s - .25, 2.2]);
+    const tags = an.it.tags || [];
+    for (let q = 0; q < 6; q++) {                       // 계열사마다 작은 별 6개, 앞쪽 별에는 그 계열사 키워드
+      let x, y;
+      if (q < tags.length) {                            // 키워드는 다른 글자와 겹치지 않는 자리를 찾아 놓음
+        let placed = false;
+        for (const d of [150, 200, 250, 110, 300]) { for (const o of [0, .4, -.4, .8, -.8, 1.2, -1.2, 1.6, -1.6]) {
+          const ba = an.aa + o; x = an.x + Math.cos(ba) * d; y = an.y + Math.sin(ba) * d * .75;
+          const bx = labelBox(x, y, tags[q], 20, 500, x >= cx - 5);
+          if (!hit(bx)) { boxes.push(bx); placed = true; break; }
+        } if (placed) break; }
+        if (!placed) { x = null; }
+      }
+      if (x == null || q >= tags.length) { const ba = an.aa + (r() - .5) * 1.1, bd = 90 + r() * 200; x = an.x + Math.cos(ba) * bd; y = an.y + Math.sin(ba) * bd * .7; }
+      const mn = { x, y, s: 40.5 + (j + q * 15) * .012 + r() * .3, c: an.c, r: 3 + r() * 2.5 };
+      if (q < tags.length && boxes.length && x != null) { mn.label = tags[q]; mn.small = true; }
+      nodes.push(mn); links.push([an, mn, mn.s - .2, 1.2]);
+    }
   });
-  const ck = eBack(p(t, 38.25, .45)); mark('slam', 38.25);
-  // 마지막에 가운데 원이 커지며 엔딩(빨강)으로
-  const grow = eExpoIO(p(t, 43.5, .5));
-  circle(cx, cy, lerp(120 * ck, Math.hypot(W, H), grow), P.red);
-  text(C.network.center, cx, cy + 2, { size: 52, color: P.white, weight: 900, align: 'center', alpha: ck * (1 - grow) });
-  const capk = eExpo(p(t, 42.25, .5));
-  text(C.network.caption, cx, 1000 + (1 - capk) * 20, { size: 32, color: P.muted, weight: 700, align: 'center', alpha: capk * o * (1 - grow) });
+  const pool = nodes.filter(nd => nd.r <= 9);
+  for (let i = 0; i < 46; i++) { const a = pool[Math.floor(r() * pool.length)], b = pool[Math.floor(r() * pool.length)]; if (a !== b) links.push([a, b, 41.3 + r() * 1.6, .8, true]); }
+  MAPFOR = C; MAPC = { cx, cy, nodes, links };
+  return MAPC;
+}
+function s7(t) {
+  const M = mapLayout();
+  night(t, P.red, M.cx, M.cy, .12 + .1 * eOut(p(t, 38.1, 1)));
+  const zoom = lerp(1.7, .9, eIO(p(t, 38, 5.2))), rot = lerp(-.05, .04, eIO(p(t, 38, 6)));
+  const conv = eIn(p(t, 43.35, .55));                 // 마지막에 모두 가운데로 모임
+  const P2 = nd => ({ x: lerp(nd.x, M.cx, conv), y: lerp(nd.y, M.cy, conv) });
+  ctx.save(); ctx.translate(M.cx, M.cy); ctx.rotate(rot); ctx.scale(zoom, zoom); ctx.translate(-M.cx, -M.cy);
+  ctx.globalCompositeOperation = 'lighter';
+  M.links.forEach(([a, b, s, w, cross]) => {
+    const k = eExpoIO(p(t, s, cross ? .8 : .45)); if (k <= 0) return;
+    const A = P2(a), B = P2(b);
+    beam(A.x, A.y, B.x, B.y, k, cross ? P.white : b.c, w, cross ? .18 : .7, !cross);
+  });
+  M.nodes.forEach((nd, i) => {
+    const k = eBack(p(t, nd.s, .35)); if (k <= 0) return;
+    if (nd.r >= 9) mark('node', Math.round(nd.s * 8) / 8, i); else if (i % 7 === 0) mark('spark', Math.round(nd.s * 8) / 8, i);
+    const tw = nd.r < 9 ? .65 + .35 * Math.sin(t * 6 + i) : 1;
+    const Q = P2(nd); glowDot(Q.x, Q.y, nd.r * k * (nd === M.nodes[0] ? 0 : 1), nd.c, tw);
+  });
+  ctx.globalCompositeOperation = 'source-over';
+  M.nodes.forEach(nd => {
+    if (!nd.label) return;
+    const k = eExpo(p(t, nd.s + .15, .5)) * (1 - conv); if (k <= 0) return;
+    const right = nd.x >= M.cx - 5;
+    if (nd.big) { const w = measure(nd.label, 30, KR, 900) + 40; rrect(nd.x - w / 2, nd.y - 58, w, 52, 26, rgba(nd.c, .85), k); text(nd.label, nd.x, nd.y - 31, { size: 30, color: P.white, weight: 900, align: 'center', alpha: k }); }
+    else if (nd.small) text(nd.label, nd.x + (right ? 14 : -14), nd.y, { size: 20, color: rgba(P.white, .55), weight: 500, align: right ? 'left' : 'right', alpha: k });
+    else text(nd.label, nd.x + (right ? 22 : -22), nd.y, { size: 27, color: P.white, weight: 700, align: right ? 'left' : 'right', alpha: k });
+  });
+  // 가운데 구체
+  const hk = eBack(p(t, 38.1, .6)); mark('slam', 38.1);
+  orb(M.cx, M.cy, 110 * hk * (1 + conv * .3), P.red, 1);
+  text(C.network.center, M.cx, M.cy + 2, { size: 48, color: P.white, weight: 900, align: 'center', alpha: hk * (1 - conv) });
+  ctx.restore();
+  const capk = eExpo(p(t, 42.25, .5)) * (1 - conv);
+  if (capk > 0) { const g = ctx.createLinearGradient(0, 930, 0, 1080); g.addColorStop(0, rgba(P.night, 0)); g.addColorStop(1, rgba(P.night, .9 * capk)); ctx.fillStyle = g; ctx.fillRect(0, 930, W, 150); }
+  text(C.network.caption, W / 2, 1010 + (1 - capk) * 20, { size: 30, color: rgba(P.white, .75), weight: 700, align: 'center', alpha: capk });
+  const fl = Math.max(1 - eOut(p(t, 38.1, .5)) , 0) * (t >= 38.1 ? .5 : 0); if (fl > 0) rect(-200, -200, W + 400, H + 400, P.white, fl);
+  const fade0 = 1 - eOut(p(t, 38, .3)); if (fade0 > 0) rect(-200, -200, W + 400, H + 400, P.night, fade0);
+  const end = eIn(p(t, 43.75, .25)); if (end > 0) rect(-200, -200, W + 400, H + 400, P.white, end);
 }
 // 44–52 : 엔딩
 function s8(t) {
   bg(P.red);
-  for (let i = 0; i < 6; i++) { const k = eExpoIO(p(t, 44.2 + i * .06, 1)); rect(W - W * k, 180 + i * 144, W * k, 1, P.white, .1); }
+  const g = ctx.createRadialGradient(W / 2, 480, 50, W / 2, 480, 1100); g.addColorStop(0, 'rgba(255,255,255,.18)'); g.addColorStop(1, 'rgba(0,0,0,.25)'); ctx.fillStyle = g; ctx.fillRect(-200, -200, W + 400, H + 400);
+  const fl = 1 - eOut(p(t, 44, .6)); if (fl > 0) rect(-200, -200, W + 400, H + 400, P.white, fl);
+  const r = rng(9);
+  for (let i = 0; i < 50; i++) { const an = r() * Math.PI * 2, sp = 200 + r() * 900, k = eOut(p(t, 44, 2.5)); circle(W / 2 + Math.cos(an) * sp * k, 480 + Math.sin(an) * sp * k * .7, 1.5 + r() * 3, P.white, (1 - k) * .8); }
   reveal(C.ending.brand, W / 2, 430, t, 44.25, { size: 230, color: P.white, weight: 900, align: 'center', spacing: -4, dur: .7 });
   mark('slam', 44.25);
-  reveal(C.ending.en, W / 2, 590, t, 44.75, { size: 40, color: P.white, family: EN, weight: 800, align: 'center', spacing: 22 });
+  const ek = eExpo(p(t, 44.75, 1.2));
+  text(C.ending.en, W / 2, 590, { size: 40, color: P.white, family: EN, weight: 800, align: 'center', spacing: lerp(60, 22, ek), alpha: ek });
   const lk = eExpoIO(p(t, 45.25, .6)); rect(W / 2 - 160 * lk, 650, 320 * lk, 4, P.white);
   reveal(C.ending.slogan, W / 2, 735, t, 45.5, { size: 50, color: P.white, family: EN, weight: 700, align: 'center' });
   reveal(C.ending.sub, W / 2, 810, t, 46.0, { size: 36, color: rgba(P.white, .85), weight: 500, align: 'center' });
   mark('tick', 45.5); mark('tick', 46.0);
   const uk = eBack(p(t, 46.75, .4)); mark('tick', 46.75);
   if (uk > 0) { const w = measure(C.ending.url, 30, EN, 700, 4) + 56; ctx.save(); ctx.translate(W / 2, 935); ctx.scale(uk, uk); rrect(-w / 2, -30, w, 60, 30, P.white); text(C.ending.url, 0, 2, { size: 30, color: P.red, family: EN, weight: 700, align: 'center', spacing: 4 }); ctx.restore(); }
-  const f = p(t, 50.5, 1.5); if (f > 0) rect(0, 0, W, H, '#000', eIO(f));
-}
-function hud(t, dark) {
-  const a = eOut(p(t, 4.2, .4)) * outK(t, 43.8, .3), fg = dark ? P.white : P.ink;
-  text('JEI GROUP', W - 160, 70, { size: 20, color: fg, family: EN, weight: 800, align: 'right', spacing: 6, alpha: a * .6 });
-  rect(W - 160 - 300, H - 56, 300, 3, fg, a * .15);
-  rect(W - 160 - 300, H - 56, 300 * clamp((t - 4) / 40), 3, P.red, a);
+  const f = p(t, 50.5, 1.5); if (f > 0) rect(-200, -200, W + 400, H + 400, '#000', eIO(f));
 }
 
 function draw(t) {
-  ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalAlpha = 1;
-  const hits = [[4.75, .6], [44.25, 1]];          // 큰 순간에만 짧은 줌 펀치
+  ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
+  const hits = [[4.75, .6], [44.25, 1]];
   let punch = 0; hits.forEach(([h, g]) => { const k = p(t, h, .3); if (k > 0 && k < 1) punch += (1 - eOut(k)) * .02 * g; });
   ctx.translate(W / 2, H / 2); ctx.scale(1 + punch, 1 + punch); ctx.translate(-W / 2, -H / 2);
   if (t < 4) s0(t);
-  else if (t < 8) { s1(t); hud(t, false); }
-  else if (t < 38) { division(t, Math.min(4, Math.floor((t - 8) / 6))); hud(t, false); }
-  else if (t < 44) { s7(t); hud(t, false); }
+  else if (t < 8) s1(t);
+  else if (t < 38) division(t, Math.min(4, Math.floor((t - 8) / 6)));
+  else if (t < 44) s7(t);
   else s8(t);
 }
 
