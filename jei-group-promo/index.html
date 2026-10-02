@@ -17,12 +17,13 @@
 </style>
 </head>
 <body>
+<script src="song.js"></script>
 <script src="content.js"></script>
 <script src="schema.js"></script>
 <canvas id="c" width="1920" height="1080"></canvas>
 <div class="bar">
   <button id="play">▶ 재생</button>
-  <input id="seek" type="range" min="0" max="52" step="0.01" value="0">
+  <input id="seek" type="range" min="0" max="48" step="0.01" value="0">
   <span id="time">0.00s</span>
 </div>
 <script>
@@ -31,7 +32,13 @@
 // 120BPM (한 박 0.5초, 한 마디 2초). 장면 전환은 마디 첫 박: 4 · 8 · 14 · 20 · 26 · 32 · 38 · 44초
 // draw(t) 는 시간 t(초)만으로 화면을 그리는 순수 함수 → 프레임 단위 렌더 가능
 // ------------------------------------------------------------
-const W = 1920, H = 1080, BEAT = .5, DURATION = 52;
+const W = 1920, H = 1080, BEAT = .5, GRID_DURATION = 48;
+// 배경음 CELEBRATION 을 처음부터 씀. 영상은 120BPM 격자(초)로 짜고 곡의 실제 박 길이에 맞게 늘이거나 줄임
+// 곡 흐름: 0~2 아주 조용 · 2~18 도입부 · 18 베이스 들어옴 · 32~34 숨 고르기 · 34 드롭 (격자 초)
+const SONG = window.SONG || { beat: .5, start: 0 };
+const TK = SONG.beat / BEAT;
+const DURATION = GRID_DURATION * TK;
+let SH = 0;                                            // 지식맵·엔딩은 예전 시각(38~52)으로 짜 둔 것을 4초 당겨 씀
 const cv = document.getElementById('c'), ctx = cv.getContext('2d');
 const DEFAULT_CONTENT = JSON.parse(JSON.stringify(window.CONTENT));
 let C = window.CONTENT, P;
@@ -52,7 +59,7 @@ const eExpoIO = x => x <= 0 ? 0 : x >= 1 ? 1 : x < .5 ? Math.pow(2, 20 * x - 10)
 const eBack = x => { const c1 = 1.9, c3 = c1 + 1; return x <= 0 ? 0 : 1 + c3 * Math.pow(x - 1, 3) + c1 * Math.pow(x - 1, 2); };
 const outK = (t, e, d = .3) => 1 - eIn(p(t, e - d, d));
 const EV = new Map();
-function mark(type, s, info = 0) { const k = type + ':' + s.toFixed(3); if (!EV.has(k)) EV.set(k, { type, t: +s.toFixed(3), info }); }
+function mark(type, s, info = 0) { s -= SH; const k = type + ':' + s.toFixed(3); if (!EV.has(k)) EV.set(k, { type, t: +s.toFixed(3), info }); }
 
 // ---------- 그리기 도구 ----------
 function bg(c) { ctx.fillStyle = c; ctx.fillRect(-200, -200, W + 400, H + 400); }
@@ -218,8 +225,10 @@ function s1(t) {
 // 8–38 : 사업 부문 5개 — 부문마다 구체 하나, 계열사는 빛줄기로 이어지는 별
 const ORB = { x: 600, y: 470 };
 const DICON = ['book', 'tv', 'print', 'concert', 'cap'];
+// 부문마다 시작·길이 (격자 초). 18초 베이스가 들어오는 순간에 03 이 시작
+const DS = [8, 14, 18, 22, 26], DL = [6, 4, 4, 4, 6];
 function division(t, di) {
-  const D = C.divisions[di] || { name: '', items: [] }, S = 8 + di * 6, E = S + 6, col = DCOL()[di];
+  const D = C.divisions[di] || { name: '', items: [] }, S = DS[di], E = S + DL[di], col = DCOL()[di];
   // 계열사가 하나면(재능교육) 그 계열사 + 대표 브랜드를 별로
   let sats = D.items.slice(0, 5).map(it => ({ name: it.name, desc: it.desc }));
   if (sats.length === 1 && D.items[0].chips) sats = sats.concat(D.items[0].chips.slice(0, 4).map(c => ({ name: c, desc: '' })));
@@ -232,7 +241,7 @@ function division(t, di) {
     ctx.save(); ctx.globalAlpha = .25 * ok; ctx.strokeStyle = P.white; ctx.lineWidth = 1.5; ctx.setLineDash([3, 10]);
     ctx.beginPath(); ctx.ellipse(ORB.x, ORB.y, 520, 380, 0, -Math.PI * .45, Math.PI * .45); ctx.stroke(); ctx.restore();
     sats.forEach((sa, i) => {
-      const s = S + 1.0 + i * (n >= 4 ? .75 : 1.0); mark('card', s, i);
+      const s = S + (E - S <= 4 ? .75 : 1.0) + i * (n >= 4 ? .75 : E - S <= 4 ? .6 : 1.0); mark('card', s, i);
       const a = (n === 1 ? 0 : -spread + i * (2 * spread / (n - 1))) * Math.PI / 180 + Math.sin(t * .4) * .02;
       const nx = ORB.x + Math.cos(a) * 520, ny = ORB.y + Math.sin(a) * 380 + Math.sin(t * .9 + i) * 6;
       const k = eExpoIO(p(t, s, .5)), nk = eBack(p(t, s + .35, .4));
@@ -368,16 +377,32 @@ function s8(t) {
   const f = p(t, 50.5, 1.5); if (f > 0) rect(-200, -200, W + 400, H + 400, '#000', eIO(f));
 }
 
-function draw(t) {
+function draw(realT) {
+  const t = realT / TK;
   ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
-  const hits = [[4.75, .6], [44.25, 1]];
+  const hits = [[4.75, .6], [34.1, 1.2], [40.25, 1]];
   let punch = 0; hits.forEach(([h, g]) => { const k = p(t, h, .3); if (k > 0 && k < 1) punch += (1 - eOut(k)) * .02 * g; });
   ctx.translate(W / 2, H / 2); ctx.scale(1 + punch, 1 + punch); ctx.translate(-W / 2, -H / 2);
   if (t < 4) s0(t);
   else if (t < 8) s1(t);
-  else if (t < 38) division(t, Math.min(4, Math.floor((t - 8) / 6)));
-  else if (t < 44) s7(t);
-  else s8(t);
+  else if (t < 32) { let di = 0; while (di < 4 && t >= DS[di + 1]) di++; division(t, di); }
+  else if (t < 34) gather(t);
+  else { SH = 4; if (t < 40) s7(t + 4); else s8(t + 4); SH = 0; }
+}
+// 32–34 : 곡이 숨을 고르는 2초 — 다섯 빛이 가운데로 빨려 들어감 → 34 드롭에서 지식맵이 켜짐
+function gather(t) {
+  night(t, P.red, W / 2, H / 2, .08 + .2 * p(t, 32, 2));
+  const k = eIn(p(t, 32, 1.9)), cols = DCOL();
+  for (let i = 0; i < 5; i++) {
+    const a = -Math.PI / 2 + i * Math.PI * 2 / 5 + k * 1.2, d = lerp(620, 0, k);
+    const x = W / 2 + Math.cos(a) * d, y = H / 2 + Math.sin(a) * d * .75;
+    glowDot(x, y, lerp(16, 6, k), cols[i], eOut(p(t, 32 + i * .12, .3)));
+    beam(W / 2 + Math.cos(a) * (d + 260), H / 2 + Math.sin(a) * (d + 260) * .75, x, y, 1, cols[i], 2, .35 * (1 - k), false);
+  }
+  mark('tick', 32); [32.25, 32.5, 32.75, 33.0].forEach((s, i) => mark('tick', s, i));
+  streaks(W / 2, H / 2, p(t, 33.2, .8), P.white);
+  glowDot(W / 2, H / 2, 4 + 26 * eIn(p(t, 33.0, 1)), P.red, eOut(p(t, 32.5, .5)));
+  const fl = eIn(p(t, 33.8, .2)); if (fl > 0) rect(-200, -200, W + 400, H + 400, P.white, fl * .8);
 }
 
 // ---------- preview player ----------
@@ -399,7 +424,7 @@ playEl.onclick = () => {
 seekEl.oninput = () => { show(+seekEl.value); if (playing) { t0 = performance.now() - tCur * 1000; try { audio.currentTime = tCur; } catch (e) {} } };
 
 window.draw = draw;
-window.collectEvents = () => { EV.clear(); for (let f = 0; f <= DURATION * 30; f++) draw(f / 30); return [...EV.values()].sort((a, b) => a.t - b.t); };
+window.collectEvents = () => { EV.clear(); for (let f = 0; f <= DURATION * 30; f++) draw(f / 30); return [...EV.values()].map(e => ({ ...e, grid: e.t, t: +(e.t * TK).toFixed(4) })).sort((a, b) => a.t - b.t); };
 window.DURATION = DURATION;
 // ---------- 영상 편집기 연결 (../editor/PROTOCOL.md) ----------
 function merge(base, over) {

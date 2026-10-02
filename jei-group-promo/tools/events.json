@@ -1,337 +1,434 @@
 [
  {
   "type": "tick",
-  "t": 0.5,
-  "info": 0
+  "t": 0.4919,
+  "info": 0,
+  "grid": 0.5
  },
  {
   "type": "tick",
-  "t": 1,
-  "info": 0
+  "t": 0.9838,
+  "info": 0,
+  "grid": 1
  },
  {
   "type": "tick",
-  "t": 2.5,
-  "info": 0
+  "t": 2.4594,
+  "info": 0,
+  "grid": 2.5
  },
  {
   "type": "wipe",
-  "t": 3.5,
-  "info": 0
+  "t": 3.4431,
+  "info": 0,
+  "grid": 3.5
  },
  {
   "type": "slam",
-  "t": 4.75,
-  "info": 0
+  "t": 4.6728,
+  "info": 0,
+  "grid": 4.75
  },
  {
   "type": "tick",
-  "t": 5.5,
-  "info": 0
+  "t": 5.4106,
+  "info": 0,
+  "grid": 5.5
  },
  {
   "type": "tick",
-  "t": 5.75,
-  "info": 1
+  "t": 5.6566,
+  "info": 1,
+  "grid": 5.75
  },
  {
   "type": "tick",
-  "t": 6,
-  "info": 2
+  "t": 5.9025,
+  "info": 2,
+  "grid": 6
  },
  {
   "type": "tick",
-  "t": 6.25,
-  "info": 3
+  "t": 6.1484,
+  "info": 3,
+  "grid": 6.25
  },
  {
   "type": "tick",
-  "t": 6.5,
-  "info": 4
+  "t": 6.3944,
+  "info": 4,
+  "grid": 6.5
  },
  {
   "type": "tick",
-  "t": 6.75,
-  "info": 5
+  "t": 6.6403,
+  "info": 5,
+  "grid": 6.75
  },
  {
   "type": "tick",
-  "t": 7,
-  "info": 6
+  "t": 6.8863,
+  "info": 6,
+  "grid": 7
  },
  {
   "type": "slam",
-  "t": 8.1,
-  "info": 0
+  "t": 7.9684,
+  "info": 0,
+  "grid": 8.1
  },
  {
   "type": "card",
-  "t": 9,
-  "info": 0
+  "t": 8.8537,
+  "info": 0,
+  "grid": 9
  },
  {
   "type": "card",
-  "t": 9.75,
-  "info": 1
+  "t": 9.5916,
+  "info": 1,
+  "grid": 9.75
  },
  {
   "type": "card",
-  "t": 10.5,
-  "info": 2
+  "t": 10.3294,
+  "info": 2,
+  "grid": 10.5
  },
  {
   "type": "card",
-  "t": 11.25,
-  "info": 3
+  "t": 11.0672,
+  "info": 3,
+  "grid": 11.25
  },
  {
   "type": "card",
-  "t": 12,
-  "info": 4
+  "t": 11.805,
+  "info": 4,
+  "grid": 12
  },
  {
   "type": "wipe",
-  "t": 13.5,
-  "info": 0
+  "t": 13.2806,
+  "info": 0,
+  "grid": 13.5
  },
  {
   "type": "slam",
-  "t": 14.1,
-  "info": 1
+  "t": 13.8709,
+  "info": 1,
+  "grid": 14.1
  },
  {
   "type": "card",
-  "t": 15,
-  "info": 0
+  "t": 14.5103,
+  "info": 0,
+  "grid": 14.75
  },
  {
   "type": "card",
-  "t": 16,
-  "info": 1
+  "t": 15.1006,
+  "info": 1,
+  "grid": 15.35
  },
  {
   "type": "card",
-  "t": 17,
-  "info": 2
+  "t": 15.6908,
+  "info": 2,
+  "grid": 15.95
  },
  {
   "type": "wipe",
-  "t": 19.5,
-  "info": 0
+  "t": 17.2156,
+  "info": 0,
+  "grid": 17.5
  },
  {
   "type": "slam",
-  "t": 20.1,
-  "info": 2
+  "t": 17.8059,
+  "info": 2,
+  "grid": 18.1
  },
  {
   "type": "card",
-  "t": 21,
-  "info": 0
+  "t": 18.4453,
+  "info": 0,
+  "grid": 18.75
  },
  {
   "type": "card",
-  "t": 22,
-  "info": 1
+  "t": 19.0356,
+  "info": 1,
+  "grid": 19.35
  },
  {
   "type": "card",
-  "t": 23,
-  "info": 2
+  "t": 19.6258,
+  "info": 2,
+  "grid": 19.95
  },
  {
   "type": "wipe",
-  "t": 25.5,
-  "info": 0
+  "t": 21.1506,
+  "info": 0,
+  "grid": 21.5
  },
  {
   "type": "slam",
-  "t": 26.1,
-  "info": 3
+  "t": 21.7409,
+  "info": 3,
+  "grid": 22.1
  },
  {
   "type": "card",
-  "t": 27,
-  "info": 0
+  "t": 22.3803,
+  "info": 0,
+  "grid": 22.75
  },
  {
   "type": "card",
-  "t": 28,
-  "info": 1
+  "t": 22.9706,
+  "info": 1,
+  "grid": 23.35
  },
  {
   "type": "card",
-  "t": 29,
-  "info": 2
+  "t": 23.5608,
+  "info": 2,
+  "grid": 23.95
  },
  {
   "type": "wipe",
-  "t": 31.5,
-  "info": 0
+  "t": 25.0856,
+  "info": 0,
+  "grid": 25.5
  },
  {
   "type": "slam",
-  "t": 32.1,
-  "info": 4
+  "t": 25.6759,
+  "info": 4,
+  "grid": 26.1
  },
  {
   "type": "card",
-  "t": 33,
-  "info": 0
+  "t": 26.5613,
+  "info": 0,
+  "grid": 27
  },
  {
   "type": "card",
-  "t": 33.75,
-  "info": 1
+  "t": 27.2991,
+  "info": 1,
+  "grid": 27.75
  },
  {
   "type": "card",
-  "t": 34.5,
-  "info": 2
+  "t": 28.0369,
+  "info": 2,
+  "grid": 28.5
  },
  {
   "type": "card",
-  "t": 35.25,
-  "info": 3
+  "t": 28.7747,
+  "info": 3,
+  "grid": 29.25
  },
  {
   "type": "wipe",
-  "t": 37.5,
-  "info": 0
+  "t": 30.9881,
+  "info": 0,
+  "grid": 31.5
+ },
+ {
+  "type": "tick",
+  "t": 31.48,
+  "info": 0,
+  "grid": 32
+ },
+ {
+  "type": "tick",
+  "t": 31.7259,
+  "info": 0,
+  "grid": 32.25
+ },
+ {
+  "type": "tick",
+  "t": 31.9719,
+  "info": 1,
+  "grid": 32.5
+ },
+ {
+  "type": "tick",
+  "t": 32.2178,
+  "info": 2,
+  "grid": 32.75
+ },
+ {
+  "type": "tick",
+  "t": 32.4637,
+  "info": 3,
+  "grid": 33
  },
  {
   "type": "slam",
-  "t": 38.1,
-  "info": 0
+  "t": 33.5459,
+  "info": 0,
+  "grid": 34.1
  },
  {
   "type": "node",
-  "t": 38.125,
-  "info": 0
+  "t": 33.5705,
+  "info": 0,
+  "grid": 34.125
  },
  {
   "type": "node",
-  "t": 38.5,
-  "info": 1
+  "t": 33.9394,
+  "info": 1,
+  "grid": 34.5
  },
  {
   "type": "node",
-  "t": 38.625,
-  "info": 2
+  "t": 34.0623,
+  "info": 2,
+  "grid": 34.625
  },
  {
   "type": "node",
-  "t": 38.875,
-  "info": 3
+  "t": 34.3083,
+  "info": 3,
+  "grid": 34.875
  },
  {
   "type": "node",
-  "t": 39,
-  "info": 4
+  "t": 34.4312,
+  "info": 4,
+  "grid": 35
  },
  {
   "type": "node",
-  "t": 39.25,
-  "info": 5
+  "t": 34.6772,
+  "info": 5,
+  "grid": 35.25
  },
  {
   "type": "node",
-  "t": 39.375,
-  "info": 6
+  "t": 34.8002,
+  "info": 6,
+  "grid": 35.375
  },
  {
   "type": "node",
-  "t": 39.5,
-  "info": 13
+  "t": 34.9231,
+  "info": 13,
+  "grid": 35.5
  },
  {
   "type": "node",
-  "t": 39.625,
-  "info": 20
+  "t": 35.0461,
+  "info": 20,
+  "grid": 35.625
  },
  {
   "type": "node",
-  "t": 39.75,
-  "info": 27
+  "t": 35.1691,
+  "info": 27,
+  "grid": 35.75
  },
  {
   "type": "node",
-  "t": 39.875,
-  "info": 41
+  "t": 35.292,
+  "info": 41,
+  "grid": 35.875
  },
  {
   "type": "node",
-  "t": 40,
-  "info": 48
+  "t": 35.415,
+  "info": 48,
+  "grid": 36
  },
  {
   "type": "node",
-  "t": 40.125,
-  "info": 55
+  "t": 35.538,
+  "info": 55,
+  "grid": 36.125
  },
  {
   "type": "node",
-  "t": 40.25,
-  "info": 62
+  "t": 35.6609,
+  "info": 62,
+  "grid": 36.25
  },
  {
   "type": "node",
-  "t": 40.375,
-  "info": 76
+  "t": 35.7839,
+  "info": 76,
+  "grid": 36.375
  },
  {
   "type": "spark",
-  "t": 40.5,
-  "info": 7
+  "t": 35.9069,
+  "info": 7,
+  "grid": 36.5
  },
  {
   "type": "node",
-  "t": 40.5,
-  "info": 83
+  "t": 35.9069,
+  "info": 83,
+  "grid": 36.5
  },
  {
   "type": "spark",
-  "t": 40.625,
-  "info": 42
+  "t": 36.0298,
+  "info": 42,
+  "grid": 36.625
  },
  {
   "type": "node",
-  "t": 40.625,
-  "info": 90
+  "t": 36.0298,
+  "info": 90,
+  "grid": 36.625
  },
  {
   "type": "spark",
-  "t": 40.75,
-  "info": 70
+  "t": 36.1528,
+  "info": 35,
+  "grid": 36.75
  },
  {
   "type": "node",
-  "t": 40.75,
-  "info": 97
+  "t": 36.1528,
+  "info": 97,
+  "grid": 36.75
  },
  {
   "type": "spark",
-  "t": 40.875,
-  "info": 77
+  "t": 36.2758,
+  "info": 77,
+  "grid": 36.875
  },
  {
   "type": "slam",
-  "t": 44.25,
-  "info": 0
+  "t": 39.5959,
+  "info": 0,
+  "grid": 40.25
  },
  {
   "type": "tick",
-  "t": 45.5,
-  "info": 0
+  "t": 40.8256,
+  "info": 0,
+  "grid": 41.5
  },
  {
   "type": "tick",
-  "t": 46,
-  "info": 0
+  "t": 41.3175,
+  "info": 0,
+  "grid": 42
  },
  {
   "type": "tick",
-  "t": 46.75,
-  "info": 0
+  "t": 42.0553,
+  "info": 0,
+  "grid": 42.75
  }
 ]
