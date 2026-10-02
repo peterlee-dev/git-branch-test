@@ -41,7 +41,7 @@ window.CONTENT = {
    { "icon": "flower", "name": "수국작가촌", "desc": "그룹의 문화·생활 공간", "tags": [] }
   ] },
   { "no": "05", "en": "TRAINING · SCHOOLS", "name": "연수 · 학교법인", "items": [
-   { "icon": "tree", "name": "재능셀프러닝", "desc": "평생교육 프로그램 · 약 3만 평의 재능교육연수원", "tags": ["평생교육", "연수원"] },
+   { "icon": "tree", "name": "재능셀프러닝", "desc": "약 3만 평의 재능교육연수원", "tags": ["평생교육", "연수원"] },
    { "icon": "cap", "name": "재능대학교", "desc": "1970년 설립, 인천 · 부속유치원 운영", "tags": ["부속유치원"] },
    { "icon": "school", "name": "재능고등학교", "desc": "전국 최초 스마트시티 분야 특성화고", "tags": ["특성화고", "스마트시티"] },
    { "icon": "school", "name": "재능중학교", "desc": "1965년 개교", "tags": [] }
