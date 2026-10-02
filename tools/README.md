@@ -12,11 +12,11 @@
    git checkout claude/jaenung-promo-video-n91oud
    ```
 2. `tools/jei_tts.example.json`을 `tools/jei_tts.local.json`으로 복사해서 채워요. 이 파일은 저장소에 올라가지 않아요 (토큰은 여기에만)
-   - `url`: `https://<사내 서버>/editor/sound/tts`
-   - `headers`: 인증이 필요하면 헤더 (예: `{"Authorization": "Bearer ..."}`), 필요 없으면 `{}`
-   - `type`: 입력 타입의 텍스트 값 (API 문서의 Enum 중 텍스트 쪽)
-   - `voice`: 음성 번호 (예: 10)
-   - `modeldivision`: 모델 언어 값. 한국어 영상은 `ko`, 영어 영상은 `en` 자리의 값을 써요
+   - `url`: `https://sol2-api.esls.io/editor/sound/tts` (API 문서: https://sol2-api.esls.io/docs)
+   - `headers`: `{"Authorization": "Bearer <토큰>"}` (bearerAuth 필수)
+   - `type`: `text` (SSML을 쓰려면 `ssml`)
+   - `voice`: 음성 번호 (예: 10, 텍스트 입력일 때 필수)
+   - `modeldivision`: 한국어 영상은 `ko` 자리에 `KR`, 영어 영상은 `en` 자리에 `EN`
 3. 한 문장으로 설정을 확인해요 → `tools/jei_tts_test.mp3`를 들어 보세요
    ```bash
    python3 tools/jei_tts.py --test "안녕, 친구들! 오늘은 동물 관찰 일기를 함께 써 볼 거예요."

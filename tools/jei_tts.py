@@ -13,7 +13,8 @@
 
 만든 음성은 <영상>/voice/<문장키>.mp3, 어떤 설정으로 만들었는지는 <영상>/voice/index.json 에 남음 → git 커밋·푸시하면 영상 조립 쪽에서 씀
 """
-import os, sys, json, base64, hashlib, argparse, time, urllib.request, urllib.error
+import os, sys, json, base64, hashlib, argparse, time, subprocess
+from xml.sax.saxutils import escape as xml_escape
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
@@ -40,24 +41,39 @@ def config():
 def tts(c, text, lang, voice=None):
     md = c['modeldivision'].get(lang)
     if not md: sys.exit(f'modeldivision 에 "{lang}" 값이 없어요 (jei_tts.local.json 의 modeldivision.{lang}).')
-    body = {'type': c.get('type', 'text'), 'speech': text, 'modeldivision': md}
     v = voice if voice is not None else c.get('voice')
-    if v is not None: body['voice'] = v
-    req = urllib.request.Request(c['url'], data=json.dumps(body, ensure_ascii=False).encode('utf-8'), method='POST',
-                                 headers={'Content-Type': 'application/json', **(c.get('headers') or {})})
+    typ = c.get('type', 'text')
+    if typ == 'ssml':   # 목소리 번호는 voice 필드가 아니라 SSML 안에 들어감 (rate·volume·pitch·break 는 설정 파일 'ssml' 로 바꿈)
+        s = {'rate': 1, 'volume': 1, 'pitch': 0, 'break': 1, **(c.get('ssml') or {})}
+        speech = (f'<speak><voice name="{v}"><prosody rate="{s["rate"]}" volume="{s["volume"]}" pitch="{s["pitch"]}">'
+                  f'{xml_escape(text)}</prosody><break time="{s["break"]}"></break></voice></speak>')
+        sent = {'type': 'ssml', 'speech': speech, 'modeldivision': md}
+    else:
+        sent = {'type': typ, 'speech': text, 'modeldivision': md}
+        if v is not None: sent['voice'] = v
+    body = {**sent, 'voice': v}   # 기록용 (index.json)
+    # 파이썬 urllib 대신 curl 을 씀: 이 서버는 중간 인증서를 안 보내 줘서 파이썬은 인증서 검증에 실패함 (curl 은 통과)
+    # 헤더(토큰)는 명령줄이 아니라 stdin 설정(-K -)으로 넘겨서 프로세스 목록에 안 보이게 함
+    esc = lambda s: str(s).replace('\\', '\\\\').replace('"', '\\"')
+    headers = {'Content-Type': 'application/json', **(c.get('headers') or {})}
+    conf = ''.join(f'header = "{esc(k)}: {esc(v)}"\n' for k, v in headers.items())
+    payload = json.dumps(sent, ensure_ascii=False)
     for attempt in range(4):
-        try:
-            with urllib.request.urlopen(req, timeout=60) as r:
-                data = json.load(r)
-            audio = data['audio']                                  # "data:audio/mp3;base64,...."
-            b64 = audio.split(',', 1)[1] if audio.startswith('data:') else audio
-            return base64.b64decode(b64), body
-        except urllib.error.HTTPError as e:
-            msg = e.read().decode('utf-8', 'replace')[:300]
-            if e.code < 500: sys.exit(f'TTS 요청 실패 {e.code}: {msg}')
-            err = f'{e.code} {msg}'
-        except (urllib.error.URLError, TimeoutError, KeyError, ValueError) as e:
-            err = repr(e)
+        p = subprocess.run(['curl', '-sS', '-m', '60', '-X', 'POST', '-K', '-', '--data-binary', payload,
+                            '-w', '\n%{http_code}', c['url']], input=conf, capture_output=True, text=True, encoding='utf-8')
+        if p.returncode != 0:
+            err = p.stderr.strip()[:300]
+        else:
+            resp, _, code = p.stdout.rpartition('\n'); code = int(code)
+            if code == 200:
+                try:
+                    audio = json.loads(resp)['audio']                  # "data:audio/mp3;base64,...."
+                    b64 = audio.split(',', 1)[1] if audio.startswith('data:') else audio
+                    return base64.b64decode(b64), body
+                except (KeyError, ValueError) as e:
+                    err = f'응답을 읽지 못했어요: {resp[:200]!r}'
+            elif code < 500: sys.exit(f'TTS 요청 실패 {code}: {resp[:300]}')
+            else: err = f'{code} {resp[:300]}'
         time.sleep(2 ** attempt)
     sys.exit(f'TTS 요청이 계속 실패했어요: {err}')
 
