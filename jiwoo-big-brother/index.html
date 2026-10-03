@@ -1,0 +1,461 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>지우의 형아 되기</title>
+<style>
+  @font-face { font-family: 'Jua'; src: url('fonts/Jua-Regular.ttf') format('truetype'); font-display: block; }
+  @font-face { font-family: 'Noto Sans KR'; src: url('fonts/NotoSansKR.ttf') format('truetype'); font-weight: 100 900; font-display: block; }
+  html, body { margin: 0; background: #111; }
+  body { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 12px; font-family: 'Noto Sans KR', sans-serif; color: #ddd; }
+  canvas { width: min(100%, 1280px); aspect-ratio: 16 / 9; display: block; background: #000; }
+  .bar { display: flex; gap: 12px; align-items: center; width: min(100%, 1280px); }
+  .bar input { flex: 1; }
+  body.render { padding: 0; gap: 0; }
+  body.render canvas { width: 1920px; height: 1080px; }
+  body.render .bar { display: none; }
+</style>
+</head>
+<body>
+<script src="timeline.js"></script>
+<script src="content.js"></script>
+<script src="schema.js"></script>
+<canvas id="c" width="1920" height="1080"></canvas>
+<div class="bar">
+  <button id="play">▶ 재생</button>
+  <input id="seek" type="range" min="0" max="180" step="0.01" value="0">
+  <span id="time">0.00s</span>
+</div>
+<script>
+// ------------------------------------------------------------
+// 지우의 형아 되기 — 아기만 챙기는 엄마 아빠 → 요정이 지우를 아기로 → 아기는 힘든 게 많아 → 다시 형아로, 동생을 돌봐 줌
+// 대사 시각은 timeline.js (tools/make_audio.py 가 대사 음성 길이로 만듦). 입 모양은 대사 소리 크기(env)를 따라감
+// draw(t) 는 시간 t(초)만으로 화면을 그리는 순수 함수 → 프레임 단위 렌더 가능
+// ------------------------------------------------------------
+const W = 1920, H = 1080, TL = window.TL, DURATION = TL.duration;
+const cv = document.getElementById('c'), ctx = cv.getContext('2d');
+const DEFAULT_CONTENT = JSON.parse(JSON.stringify(window.CONTENT));
+let C = window.CONTENT, K = C.colors;
+const JUA = "'Jua', 'Noto Sans KR', sans-serif", KR = "'Noto Sans KR', sans-serif";
+function rgba(hex, a) { const n = parseInt(hex.slice(1), 16); return `rgba(${n >> 16 & 255},${n >> 8 & 255},${n & 255},${a})`; }
+
+// ---------- 기본 도구 ----------
+const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
+const lerp = (a, b, k) => a + (b - a) * k;
+const p = (t, s, d) => clamp((t - s) / d);
+const eOut = x => 1 - Math.pow(1 - x, 3), eIn = x => x * x * x, eIO = x => x < .5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
+const eBack = x => { const c1 = 1.8, c3 = c1 + 1; return x <= 0 ? 0 : 1 + c3 * Math.pow(x - 1, 3) + c1 * Math.pow(x - 1, 2); };
+function rng(seed) { return () => (seed = (seed * 16807) % 2147483647) / 2147483647; }
+const L = id => TL.lines[id] || { start: 0, end: 0, env: [] };
+const S = id => TL.scenes.find(s => s.id === id) || { start: 0, end: 0 };
+// 키프레임: [[시각, 값], ...] 사이를 부드럽게
+function kf(t, keys) {
+  if (t <= keys[0][0]) return keys[0][1];
+  for (let i = 1; i < keys.length; i++) if (t < keys[i][0]) { const [t0, v0] = keys[i - 1], [t1, v1] = keys[i]; return lerp(v0, v1, eIO((t - t0) / Math.max(.001, t1 - t0))); }
+  return keys[keys.length - 1][1];
+}
+function bg(c) { ctx.fillStyle = c; ctx.fillRect(-400, -400, W + 800, H + 800); }
+function rect(x, y, w, h, c, a = 1) { if (a <= 0) return; ctx.save(); ctx.globalAlpha *= a; ctx.fillStyle = c; ctx.fillRect(x, y, w, h); ctx.restore(); }
+function rr(x, y, w, h, r, c, a = 1, stroke = null, lw = 4) { if (a <= 0) return; ctx.save(); ctx.globalAlpha *= a; ctx.beginPath(); ctx.roundRect(x, y, w, h, r); if (c) { ctx.fillStyle = c; ctx.fill(); } if (stroke) { ctx.lineWidth = lw; ctx.strokeStyle = stroke; ctx.stroke(); } ctx.restore(); }
+function circ(x, y, r, c, a = 1, g = ctx) { if (r <= 0 || a <= 0) return; g.save(); g.globalAlpha *= a; g.fillStyle = c; g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.fill(); g.restore(); }
+function ell(g, x, y, rx, ry, c, rot = 0) { g.fillStyle = c; g.beginPath(); g.ellipse(x, y, Math.max(.1, rx), Math.max(.1, ry), rot, 0, Math.PI * 2); g.fill(); }
+function text(str, x, y, { size = 40, color = '#fff', family = JUA, weight = 400, align = 'center', alpha = 1, stroke = null, lw = 0 } = {}) {
+  if (alpha <= 0 || !str) return; ctx.save(); ctx.globalAlpha *= alpha; ctx.font = `${weight} ${size}px ${family}`; ctx.textAlign = align; ctx.textBaseline = 'middle';
+  if (stroke) { ctx.lineJoin = 'round'; ctx.lineWidth = lw; ctx.strokeStyle = stroke; ctx.strokeText(str, x, y); } ctx.fillStyle = color; ctx.fillText(str, x, y); ctx.restore();
+}
+function star(x, y, r, c, rot = 0, a = 1) { if (r <= 0 || a <= 0) return; ctx.save(); ctx.globalAlpha *= a; ctx.translate(x, y); ctx.rotate(rot); ctx.fillStyle = c; ctx.beginPath(); for (let i = 0; i < 10; i++) { const rr2 = i % 2 ? r * .45 : r, an = i / 10 * Math.PI * 2 - Math.PI / 2; ctx.lineTo(Math.cos(an) * rr2, Math.sin(an) * rr2); } ctx.closePath(); ctx.fill(); ctx.restore(); }
+function heart(x, y, r, c, a = 1) { if (a <= 0) return; ctx.save(); ctx.globalAlpha *= a; ctx.translate(x, y); ctx.fillStyle = c; ctx.beginPath(); ctx.moveTo(0, r * .35); ctx.bezierCurveTo(-r * 1.2, -r * .5, -r * .4, -r * 1.25, 0, -r * .45); ctx.bezierCurveTo(r * .4, -r * 1.25, r * 1.2, -r * .5, 0, r * .35); ctx.fill(); ctx.restore(); }
+
+// ---------- 입 모양: 그 사람이 지금 말하는 대사의 소리 크기 ----------
+function talking(t, who) {
+  for (const id of TL.order) { const l = TL.lines[id]; if (l.who !== who && !(who === 'jiwoo' && l.who === 'jiwoo')) continue;
+    if (t >= l.start && t < l.end) { const e = l.env[Math.floor((t - l.start) * 30)] || 0; return e; } }
+  return 0;
+}
+function speakingNow(t, who) { return TL.order.some(id => { const l = TL.lines[id]; return l.who === who && t >= l.start - .05 && t < l.end + .1; }); }
+function blink(t, seed) { const per = 3.1 + (seed % 5) * .37, ph = (t + seed * .77) % per; return ph < .12 ? 1 - Math.abs(ph - .06) / .06 : 0; }
+
+// ---------- 캐릭터 (오프스크린에 그리고 흰 스티커 테두리를 둘러 붙임) ----------
+const OC = {}; function oc(key) { if (!OC[key]) { const c = document.createElement('canvas'); c.width = 760; c.height = 1040; OC[key] = c; } return OC[key]; }
+const CS = 1.3;                                     // 캐릭터 전체 크기
+const SK = '#FFD9C2', CHEEK = '#FF9E96', HAIR = '#2B2522', LINE = '#3A2E2A';
+// o: { x, y(발 위치), s, face(1 오른쪽/-1 왼쪽), tilt, bob, armL, armR(어깨에서 내린 각, 라디안, +는 앞으로), walk(걸음 위상), mouth(0~1), blink, mood, pose, t }
+function drawChar(kind, o) {
+  const c = oc(kind + (o.slot || '')), g = c.getContext('2d');
+  g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, c.width, c.height);
+  g.translate(380, 990); g.scale(o.face || 1, 1);
+  if (kind === 'baby' || kind === 'babyj') babyBody(g, kind, o); else if (kind === 'fairy') fairyBody(g, o); else personBody(g, kind, o);
+  // 흰 테두리: 실루엣을 하얗게 8방향으로 찍은 뒤 원래 그림
+  const s = (o.s || 1) * CS, dx = o.x - 380 * s, dy = o.y - 990 * s;
+  ctx.save(); ctx.globalAlpha *= (o.alpha == null ? 1 : o.alpha);
+  if (!o.noOutline) { ctx.filter = 'brightness(0) invert(1)'; for (let i = 0; i < 8; i++) { const a = i / 8 * Math.PI * 2; ctx.drawImage(c, dx + Math.cos(a) * 9, dy + Math.sin(a) * 9, c.width * s, c.height * s); } ctx.filter = 'none'; }
+  ctx.drawImage(c, dx, dy, c.width * s, c.height * s);
+  ctx.restore();
+}
+function limb(g, x, y, len, ang, w, col, end, endR) {
+  g.save(); g.translate(x, y); g.rotate(-ang); g.lineCap = 'round'; g.strokeStyle = col; g.lineWidth = w; g.beginPath(); g.moveTo(0, 0); g.lineTo(0, len); g.stroke();
+  if (end) ell(g, 0, len + endR * .4, endR, endR * (end === 'shoe' ? .62 : 1), end === 'shoe' ? '#3F5AA8' : SK); g.restore();
+}
+function face(g, hx, hy, r, o, kind) {
+  const mood = o.mood || 'happy', m = clamp(o.mouth || 0), bl = o.blink || 0, t = o.t || 0;
+  // 눈
+  const ex = r * .36, ey = hy + r * .05, er = r * (mood === 'surprised' ? .2 : .16);
+  if (mood === 'laugh' || mood === 'joy') { g.strokeStyle = LINE; g.lineWidth = r * .07; g.lineCap = 'round'; [-1, 1].forEach(sd => { g.beginPath(); g.arc(hx + sd * ex, ey + er * .4, er * .9, Math.PI * 1.1, Math.PI * 1.9); g.stroke(); }); }
+  else [-1, 1].forEach(sd => {
+    const ry = er * 1.25 * (1 - bl * .92);
+    ell(g, hx + sd * ex, ey, er, ry, '#2A211E');
+    if (bl < .5) { circ(hx + sd * ex + er * .35, ey - ry * .4, er * .38, '#fff', 1, g); circ(hx + sd * ex - er * .3, ey + ry * .35, er * .16, '#fff', 1, g); }
+  });
+  // 눈썹
+  g.strokeStyle = kind === 'mom' ? '#4A2E23' : HAIR; g.lineWidth = r * .06; g.lineCap = 'round';
+  [-1, 1].forEach(sd => { const bx = hx + sd * ex, by = ey - er * 2.1; const tilt = mood === 'sad' || mood === 'cry' ? sd * -.35 : mood === 'angry' ? sd * .35 : 0;
+    g.beginPath(); g.moveTo(bx - er * .9, by + (mood === 'surprised' ? -er * .5 : 0) - tilt * er); g.lineTo(bx + er * .9, by + (mood === 'surprised' ? -er * .5 : 0) + tilt * er); g.stroke(); });
+  // 볼
+  g.globalAlpha = .55; ell(g, hx - r * .58, hy + r * .38, r * .17, r * .1, CHEEK); ell(g, hx + r * .58, hy + r * .38, r * .17, r * .1, CHEEK); g.globalAlpha = 1;
+  // 입
+  const my = hy + r * .5;
+  const open = Math.max(m, mood === 'cry' ? .55 + Math.sin(t * 18) * .15 : mood === 'laugh' ? .5 : mood === 'surprised' ? .3 : 0);
+  if (open > .07) {
+    const mw = r * (.22 + open * .12), mh = r * (.06 + open * .26);
+    g.fillStyle = '#7A2B2B'; g.beginPath(); g.ellipse(hx, my + mh * .3, mw, mh, 0, 0, Math.PI * 2); g.fill();
+    g.fillStyle = '#F07C7C'; g.beginPath(); g.ellipse(hx, my + mh * .8, mw * .6, mh * .4, 0, 0, Math.PI * 2); g.fill();
+  } else { g.strokeStyle = '#7A2B2B'; g.lineWidth = r * .06; g.beginPath();
+    if (mood === 'sad' || mood === 'cry') g.arc(hx, my + r * .16, r * .16, Math.PI * 1.2, Math.PI * 1.8); else if (mood === 'pout') { g.moveTo(hx - r * .1, my); g.lineTo(hx + r * .1, my); } else g.arc(hx, my - r * .05, r * .17, Math.PI * .15, Math.PI * .85); g.stroke(); }
+  // 눈물
+  if (mood === 'cry' || o.tears) for (let i = 0; i < 2; i++) { const q = ((t * 1.3 + i * .5) % 1); [-1, 1].forEach(sd => { g.globalAlpha = 1 - q; ell(g, hx + sd * (ex + er * .4), ey + er + q * r * .9, r * .06, r * .09, '#7CC6FF'); }); g.globalAlpha = 1; }
+}
+function personBody(g, kind, o) {
+  const kid = kind === 'jiwoo', sc = kid ? 1 : 1.32, bob = o.bob || 0, w = o.walk || 0;
+  const legLen = kid ? 72 : 120, torsoH = kid ? 118 : 170, torsoW = kid ? 112 : 132, headR = kid ? 82 : 72;
+  const hipY = -legLen - 18 + bob, shY = hipY - torsoH + 18, headY = shY - headR * .95;
+  const shirt = kid ? (o.pajama ? '#9DD3F5' : K.jiwooShirt) : kind === 'mom' ? K.momTop : K.dadShirt;
+  const pants = kid ? (o.pajama ? '#9DD3F5' : K.jiwooPants) : kind === 'mom' ? '#5B4C8A' : '#4B5563';
+  // 다리 (걸음)
+  const sw = Math.sin(w) * .45;
+  limb(g, -torsoW * .22, hipY - 6, legLen, sw, kid ? 34 : 38, pants, 'shoe', kid ? 24 : 28);
+  limb(g, torsoW * .22, hipY - 6, legLen, -sw, kid ? 34 : 38, pants, 'shoe', kid ? 24 : 28);
+  // 뒤쪽 팔
+  limb(g, -torsoW * .45, shY + 14, kid ? 82 : 118, (o.armL || 0) - sw * .5, kid ? 28 : 30, shirt, 'hand', kid ? 15 : 16);
+  // 몸통
+  g.fillStyle = shirt; g.beginPath(); g.roundRect(-torsoW / 2, shY, torsoW, torsoH, kid ? 34 : 40); g.fill();
+  if (kid && !o.pajama) { g.fillStyle = 'rgba(255,255,255,.25)'; g.beginPath(); g.roundRect(-torsoW / 2, shY + torsoH * .5, torsoW, 10, 4); g.fill(); }
+  if (kind === 'dad') { g.fillStyle = '#E79A3C'; g.fillRect(-torsoW / 2, shY + 50, torsoW, 14); g.fillRect(-torsoW / 2, shY + 90, torsoW, 14); }
+  // 머리 (기울기)
+  g.save(); g.translate(0, shY + 6); g.rotate(o.tilt || 0); g.translate(0, -(shY + 6));
+  if (kind === 'mom') { g.fillStyle = '#4A2E23'; g.beginPath(); g.ellipse(0, headY + 10, headR * 1.28, headR * 1.3, 0, 0, Math.PI * 2); g.fill(); }
+  ell(g, -headR * .98, headY + 8, headR * .18, headR * .24, SK); ell(g, headR * .98, headY + 8, headR * .18, headR * .24, SK);
+  ell(g, 0, headY, headR, headR * 1.02, SK);
+  // 머리카락
+  g.fillStyle = kind === 'mom' ? '#4A2E23' : HAIR; g.beginPath();
+  if (kid) { g.ellipse(0, headY - headR * .35, headR * 1.04, headR * .78, 0, Math.PI, Math.PI * 2); g.fill(); g.beginPath(); g.moveTo(-headR, headY - headR * .3); g.quadraticCurveTo(-headR * .2, headY - headR * .05, headR * .2, headY - headR * .5); g.quadraticCurveTo(headR * .6, headY - headR * .15, headR, headY - headR * .3); g.lineTo(headR, headY - headR * .6); g.lineTo(-headR, headY - headR * .6); g.fill(); }
+  else if (kind === 'mom') { g.ellipse(0, headY - headR * .38, headR * 1.05, headR * .8, 0, Math.PI, Math.PI * 2); g.fill(); g.beginPath(); g.moveTo(-headR, headY - headR * .2); g.quadraticCurveTo(0, headY - headR * .1, headR * .4, headY - headR * .7); g.lineTo(-headR, headY - headR * .7); g.fill(); }
+  else { g.ellipse(0, headY - headR * .5, headR * 1.02, headR * .6, 0, Math.PI, Math.PI * 2); g.fill(); g.fillRect(-headR, headY - headR * .55, headR * 2, headR * .2); }
+  face(g, 0, headY, headR, o, kind);
+  if (kind === 'dad') { g.strokeStyle = '#3A2E2A'; g.lineWidth = 5; [-1, 1].forEach(sd => { g.beginPath(); g.roundRect(sd * headR * .36 - 20, headY - 14, 40, 34, 10); g.stroke(); }); g.beginPath(); g.moveTo(-headR * .36 + 20, headY); g.lineTo(headR * .36 - 20, headY); g.stroke(); }
+  g.restore();
+  // 들고 있는 것 (앞쪽 팔 끝)
+  const aR = (o.armR || 0) + sw * .5, al = kid ? 82 : 118;
+  if (o.hold) { const hx = torsoW * .45 + Math.sin(aR) * (al + 12), hy = shY + 14 + Math.cos(aR) * (al + 12); prop(g, o.hold, hx, hy); }
+  limb(g, torsoW * .45, shY + 14, al, aR, kid ? 28 : 30, shirt, 'hand', kid ? 15 : 16);
+}
+function prop(g, kind, x, y) {
+  if (kind === 'block') { [['#F25F5C', 0], ['#FFE066', -38], ['#70C1B3', -76]].forEach(([c, dy]) => { g.fillStyle = c; g.beginPath(); g.roundRect(x - 20, y - 20 + dy, 40, 38, 6); g.fill(); }); }
+  else if (kind === 'bottle') { g.fillStyle = '#FFFFFF'; g.beginPath(); g.roundRect(x - 13, y - 50, 26, 56, 8); g.fill(); g.fillStyle = '#FFE9C7'; g.fillRect(x - 11, y - 20, 22, 24); g.fillStyle = '#F7A8B8'; g.beginPath(); g.ellipse(x, y - 56, 9, 12, 0, 0, Math.PI * 2); g.fill(); }
+  else if (kind === 'diaper') { g.fillStyle = '#FFFFFF'; g.beginPath(); g.roundRect(x - 38, y - 26, 76, 46, 18); g.fill(); g.fillStyle = '#A7D8F5'; g.fillRect(x - 30, y - 22, 14, 10); g.fillRect(x + 16, y - 22, 14, 10); }
+  else if (kind === 'rattle') { g.strokeStyle = '#F6A93B'; g.lineWidth = 8; g.beginPath(); g.moveTo(x, y); g.lineTo(x, y - 46); g.stroke(); ell(g, x, y - 66, 26, 26, '#FF7FAE'); ell(g, x - 8, y - 74, 7, 7, '#fff'); }
+  else if (kind === 'wand') { g.strokeStyle = '#FFE38A'; g.lineWidth = 6; g.beginPath(); g.moveTo(x, y); g.lineTo(x + 30, y - 60); g.stroke(); g.save(); g.translate(x + 34, y - 68); g.fillStyle = '#FFE14D'; g.beginPath(); for (let i = 0; i < 10; i++) { const r2 = i % 2 ? 9 : 22, an = i / 10 * Math.PI * 2 - Math.PI / 2; g.lineTo(Math.cos(an) * r2, Math.sin(an) * r2); } g.closePath(); g.fill(); g.restore(); }
+}
+// 아기: pose 'sit' 앉기 · 'crawl' 기기 · 'held' 안긴 모습(작게)
+function babyBody(g, kind, o) {
+  const suit = kind === 'babyj' ? K.babyjOnesie : K.babyOnesie, r = 78, bob = o.bob || 0, w = o.walk || 0, t = o.t || 0;
+  if (o.pose === 'crawl') {
+    const sw = Math.sin(w) * .5;
+    limb(g, -70, -95 + bob, 52, sw + .3, 30, suit, 'hand', 16); limb(g, 60, -95 + bob, 56, -sw - .2, 30, suit, 'hand', 16);
+    ell(g, -10, -110 + bob, 105, 62, suit); dots(g, -10, -110 + bob, 90, 50);
+    limb(g, -60, -92 + bob, 56, -sw + .3, 30, suit, 'hand', 16); limb(g, 70, -92 + bob, 52, sw - .2, 30, suit, 'hand', 16);
+    babyHead(g, 95, -175 + bob, r, kind, o);
+  } else {
+    // 앉은 아기: 다리 앞으로, 팔은 armL/armR
+    ell(g, 0, -95 + bob, 92, 88, suit); dots(g, 0, -95 + bob, 80, 70);
+    limb(g, -45, -40 + bob, 42, 1.25, 34, suit, 'hand', 18); limb(g, 45, -40 + bob, 42, -1.25 + 2.5, 34, suit, 'hand', 18);
+    limb(g, -78, -140 + bob, 62, (o.armL || .3), 28, suit, 'hand', 16); limb(g, 78, -140 + bob, 62, (o.armR || .3), 28, suit, 'hand', 16);
+    if (o.hold) prop(g, o.hold, 78 + Math.sin(o.armR || .3) * 70, -140 + bob + Math.cos(o.armR || .3) * 70);
+    babyHead(g, 0, -245 + bob, r, kind, o);
+  }
+}
+function dots(g, x, y, rx, ry) { const r = rng(4); g.fillStyle = 'rgba(255,255,255,.55)'; for (let i = 0; i < 16; i++) { const a = r() * Math.PI * 2, d = Math.sqrt(r()); g.beginPath(); g.arc(x + Math.cos(a) * rx * d * .9, y + Math.sin(a) * ry * d * .9, 4, 0, Math.PI * 2); g.fill(); } }
+function babyHead(g, x, y, r, kind, o) {
+  ell(g, x - r * .97, y + 8, r * .16, r * .22, SK); ell(g, x + r * .97, y + 8, r * .16, r * .22, SK);
+  ell(g, x, y, r, r * .98, SK);
+  g.fillStyle = kind === 'babyj' ? HAIR : '#7A5236';
+  if (kind === 'babyj') { g.beginPath(); g.ellipse(x, y - r * .55, r * .85, r * .45, 0, Math.PI, Math.PI * 2); g.fill(); }
+  else { g.beginPath(); g.moveTo(x - 10, y - r * .95); g.quadraticCurveTo(x + 30, y - r * 1.35, x + 18, y - r * .8); g.quadraticCurveTo(x + 4, y - r * 1.05, x - 10, y - r * .95); g.fill(); g.beginPath(); g.ellipse(x, y - r * .7, r * .55, r * .25, 0, Math.PI, Math.PI * 2); g.fill(); }
+  face(g, x, y + r * .08, r * .92, o, 'baby');
+}
+function fairyBody(g, o) {
+  const t = o.t || 0, flap = Math.sin(t * 28) * .35;
+  g.save(); g.globalAlpha = .7;
+  [-1, 1].forEach(sd => { g.save(); g.translate(sd * 30, -190); g.rotate(sd * (.5 + flap)); ell(g, sd * 55, -20, 62, 34, '#BDEBFF', sd * .3); ell(g, sd * 40, 30, 40, 22, '#D9C7FF', -sd * .4); g.restore(); });
+  g.restore();
+  // 드레스
+  g.fillStyle = K.fairy; g.beginPath(); g.moveTo(-26, -230); g.lineTo(26, -230); g.lineTo(70, -110); g.quadraticCurveTo(0, -95, -70, -110); g.closePath(); g.fill();
+  limb(g, -24, -112, 40, .1, 18, SK); limb(g, 24, -112, 40, -.1, 18, SK);
+  limb(g, -30, -220, 60, (o.armL || .4), 18, SK, 'hand', 11);
+  const aR = o.armR || .6; prop(g, 'wand', 30 + Math.sin(aR) * 64, -220 + Math.cos(aR) * 64);
+  limb(g, 30, -220, 60, aR, 18, SK, 'hand', 11);
+  // 머리
+  g.fillStyle = '#FFD36E'; g.beginPath(); g.ellipse(0, -300, 70, 68, 0, 0, Math.PI * 2); g.fill();
+  ell(g, 0, -292, 56, 56, SK);
+  g.fillStyle = '#FFD36E'; g.beginPath(); g.ellipse(0, -322, 60, 34, 0, Math.PI, Math.PI * 2); g.fill();
+  g.save(); g.translate(0, -366); g.fillStyle = '#FFE14D'; g.beginPath(); for (let i = 0; i < 10; i++) { const r2 = i % 2 ? 8 : 18, an = i / 10 * Math.PI * 2 - Math.PI / 2; g.lineTo(Math.cos(an) * r2, Math.sin(an) * r2); } g.closePath(); g.fill(); g.restore();
+  face(g, 0, -290, 56, o, 'fairy');
+}
+
+// ---------- 배경 ----------
+function livingRoom(t, night = false) {
+  bg(night ? K.night : K.wall);
+  for (let x = -400; x < W + 400; x += 90) rect(x, -400, 42, 1100, night ? K.nightStripe : K.wallStripe);
+  // 창문
+  rr(300, 130, 340, 300, 18, '#FFFFFF'); rr(318, 148, 304, 264, 10, night ? '#2B3A7A' : '#BDE6FF');
+  if (night) { circ(540, 220, 46, '#FFF3B0'); circ(520, 205, 40, '#2B3A7A'); [[360, 200], [420, 340], [580, 360], [470, 180]].forEach(([x, y], i) => star(x, y, 9, '#FFF3B0', 0, .6 + .4 * Math.sin(t * 3 + i))); }
+  else { circ(420, 330, 70, '#7CC36B'); circ(480, 300, 60, '#8FD17B'); rect(440, 340, 20, 70, '#9A6B45'); circ(560, 210, 22, '#FFFFFF', .9); circ(585, 205, 28, '#FFFFFF', .9); }
+  rect(468, 148, 6, 264, '#FFFFFF');
+  // 바닥 + 러그
+  rect(-400, 700, W + 800, 800, night ? '#3A3270' : K.floor);
+  ctx.save(); ctx.translate(960, 900); ctx.scale(1, .32); [[620, K.rug1], [470, K.rug2], [320, K.rug3], [170, K.rug1]].forEach(([r, c]) => circ(0, 0, r, night ? rgba(c, .35) : c)); ctx.restore();
+  // 서랍장
+  rr(1240, 470, 300, 250, 16, night ? '#4E6A9A' : '#7FC7E8'); [520, 590, 660].forEach(y => { rect(1260, y - 26, 260, 4, 'rgba(0,0,0,.08)'); circ(1390, y, 12, '#5B7FD0'); });
+  // 문
+  rr(1690, 220, 200, 500, 10, night ? '#8A7A50' : '#F7D58A'); circ(1720, 470, 12, '#999');
+}
+function crib(x, y, s = 1, front = true) {
+  ctx.save(); ctx.translate(x, y); ctx.scale(s, s);
+  if (!front) { rr(-230, -260, 460, 40, 16, '#6FB7B0'); rr(-230, -260, 30, 270, 10, '#6FB7B0'); rr(200, -260, 30, 270, 10, '#6FB7B0'); rr(-210, -60, 420, 60, 10, '#FFFFFF'); }
+  else { for (let i = 0; i < 9; i++) rr(-190 + i * 45, -220, 14, 200, 6, '#8ED1C9'); rr(-230, -40, 460, 40, 14, '#6FB7B0'); rr(-230, -225, 460, 26, 12, '#6FB7B0'); }
+  ctx.restore();
+}
+function blocks(x, y, n = 6) { const cols = ['#F25F5C', '#FFE066', '#70C1B3', '#5B8DEF', '#B388EB', '#FF9F43']; for (let i = 0; i < n; i++) { const bx = x + (i % 3) * 52 - (i >= 3 ? -26 : 0), by = y - Math.floor(i / 3) * 50; rr(bx, by - 46, 48, 46, 8, cols[i % 6]); } }
+function ball(x, y) { circ(x, y, 46, '#FF6B6B'); ctx.save(); ctx.beginPath(); ctx.arc(x, y, 46, 0, Math.PI * 2); ctx.clip(); rect(x - 50, y - 12, 100, 24, '#FFE066'); rect(x - 12, y - 50, 24, 100, '#4FA3E8'); ctx.restore(); }
+function bed(x, y) { rr(x - 280, y - 120, 560, 120, 20, '#F7B6C2'); rr(x - 300, y - 220, 40, 220, 14, '#C98B6B'); rr(x + 260, y - 160, 40, 160, 14, '#C98B6B'); rr(x - 250, y - 160, 140, 60, 26, '#FFFFFF'); }
+function dreamSpace(t) {
+  const g = ctx.createLinearGradient(0, 0, 0, H); g.addColorStop(0, '#2A2161'); g.addColorStop(1, '#6B4EA8'); ctx.fillStyle = g; ctx.fillRect(-400, -400, W + 800, H + 800);
+  const r = rng(9); for (let i = 0; i < 80; i++) star(r() * W, r() * H, 3 + r() * 7, '#FFF3B0', t * .5 + i, .3 + .5 * Math.abs(Math.sin(t * 2 + i)));
+  [[300, 860, 1], [1500, 900, 1.3], [900, 980, 1.6]].forEach(([x, y, s]) => { ctx.save(); ctx.translate(x + Math.sin(t * .3) * 30, y); ctx.scale(s, s); ctx.globalAlpha = .5; circ(-60, 0, 60, '#fff'); circ(0, -25, 75, '#fff'); circ(70, 0, 55, '#fff'); ctx.restore(); });
+}
+function sparkles(t, x, y, k, rad = 220, n = 22) { if (k <= 0) return; const r = rng(17); for (let i = 0; i < n; i++) { const a = r() * Math.PI * 2 + t * (1 + r()), d = rad * (.3 + r() * .7); star(x + Math.cos(a) * d, y + Math.sin(a) * d * .8, 6 + r() * 12, i % 3 ? '#FFF3B0' : '#FFB3E6', t * 3 + i, k * (.5 + .5 * Math.sin(t * 8 + i))); } }
+function thought(x, y, k, draw) { if (k <= 0) return; ctx.save(); ctx.globalAlpha *= k; circ(x - 140, y + 150, 14, '#fff'); circ(x - 100, y + 110, 22, '#fff'); ctx.beginPath(); ctx.ellipse(x, y, 150 * eBack(k), 110 * eBack(k), 0, 0, Math.PI * 2); ctx.fillStyle = '#fff'; ctx.fill(); draw(); ctx.restore(); }
+
+// ---------- 카메라: 말하는 사람 쪽으로 천천히 ----------
+function withCam(cx, cy, z, fn) { ctx.save(); ctx.translate(W / 2, H / 2); ctx.scale(z, z); ctx.translate(-cx, -cy); fn(); ctx.restore(); }
+function focus(t, keys) { return { x: kf(t, keys.map(k => [k[0], k[1]])), y: kf(t, keys.map(k => [k[0], k[2]])), z: kf(t, keys.map(k => [k[0], k[3]])) }; }
+
+// ============================================================
+// 장면
+// ============================================================
+// 1. 바쁜 엄마 아빠
+function sHome(t) {
+  const st = (id, d = 0) => L(id).start + d, en = (id, d = 0) => L(id).end + d;
+  const cam = focus(t, [[0, 960, 560, 1], [st('j1'), 960, 560, 1], [st('j1', .6), 900, 600, 1.08], [st('j2', .2), 1150, 600, 1.08], [st('j3'), 1000, 640, 1.18], [en('j4'), 960, 600, 1.12]]);
+  withCam(cam.x, cam.y, cam.z, () => {
+    livingRoom(t);
+    blocks(1440, 930, 6);
+    // 지우: 블록 놀이 → 엄마에게 → 아빠에게 → 가운데서 시무룩
+    const jx = kf(t, [[0, 1400], [st('j1'), 1400], [st('j1', 1.2), 860], [st('j2'), 860], [st('j2', 1.2), 1180], [st('j3'), 1180], [st('j3', 1), 980]]);
+    const moving = [[st('j1'), st('j1', 1.2)], [st('j2'), st('j2', 1.2)], [st('j3'), st('j3', 1)]].some(([a, b]) => t > a && t < b);
+    const jface = t < st('j2') ? -1 : t < st('j3') ? 1 : -1;
+    const sad = t > st('j3') - .1;
+    const dream = p(t, st('j4'), .5);
+    // 엄마: 아기 안고 우유
+    const mt = talking(t, 'mom');
+    drawChar('mom', { x: 520, y: 900, s: .95, face: 1, t, mouth: mt, blink: blink(t, 2), bob: Math.sin(t * 2) * 3, tilt: speakingNow(t, 'mom') ? .08 : -.05, armR: 1.6, armL: .9, hold: 'bottle', mood: 'happy' });
+    drawChar('baby', { x: 520 + 150, y: 900 - 190, s: .55, face: 1, t, pose: 'sit', blink: blink(t, 5), armL: .6, armR: .8, mood: 'happy', slot: 'h' });   // 엄마 품
+    // 아빠: 기저귀
+    const dt = talking(t, 'dad');
+    drawChar('dad', { x: 1620, y: 910, s: .95, face: -1, t, mouth: dt, blink: blink(t, 3), bob: Math.sin(t * 2 + 1) * 3, armR: speakingNow(t, 'dad') ? 1.2 + Math.sin(t * 5) * .2 : .9, armL: .2, hold: 'diaper', mood: 'happy', tilt: speakingNow(t, 'dad') ? -.08 : 0 });
+    drawChar('jiwoo', { x: jx, y: 960, s: .9, face: jface, t, mouth: talking(t, 'jiwoo'), blink: blink(t, 1), walk: moving ? t * 12 : 0, bob: moving ? -Math.abs(Math.sin(t * 12)) * 10 : Math.sin(t * 2.4) * 3,
+      armR: sad ? .05 : speakingNow(t, 'jiwoo') ? 1.8 + Math.sin(t * 6) * .3 : .5, armL: sad ? .05 : .3, hold: sad ? null : 'block', mood: t > st('j4') ? 'joy' : sad ? 'sad' : 'happy', tilt: sad && t < st('j4') ? .12 : 0 });
+    thought(jx + 260, 360, dream * (1 - p(t, en('j4', .8), .4)), () => { drawChar('babyj', { x: jx + 260, y: 440, s: .55, t, pose: 'sit', mood: 'joy', armL: 2.4, armR: 2.4, noOutline: true, slot: 'th' }); });
+  });
+}
+// 2. 꿈별 요정
+function sNight(t) {
+  const st = (id, d = 0) => L(id).start + d, en = (id, d = 0) => L(id).end + d, s0 = S('night').start;
+  const cam = focus(t, [[s0, 960, 560, 1], [st('f1'), 1000, 520, 1.08], [st('j5'), 900, 560, 1.1], [st('f3'), 960, 540, 1.04], [en('f3'), 820, 600, 1.4]]);
+  withCam(cam.x, cam.y, cam.z, () => {
+    livingRoom(t, true);
+    bed(760, 930);
+    const light = p(t, st('n3', 1), 1.2);
+    if (light > 0) { const g = ctx.createRadialGradient(1300, 400, 10, 1300, 400, 500); g.addColorStop(0, `rgba(255,240,170,${.5 * light})`); g.addColorStop(1, 'rgba(255,240,170,0)'); ctx.fillStyle = g; ctx.fillRect(0, 0, W, H); }
+    const jump = t > st('j5') && t < en('j5') ? -Math.abs(Math.sin((t - st('j5')) * 9)) * 40 : 0;
+    drawChar('jiwoo', { x: 820, y: 850 + jump, s: .85, face: 1, t, pajama: true, mouth: talking(t, 'jiwoo'), blink: blink(t, 1), mood: t > st('j5') ? (t > en('f3') ? 'surprised' : 'joy') : light > .3 ? 'surprised' : 'happy', armR: t > st('j5') && t < en('j5') ? 2.6 : .4, armL: t > st('j5') && t < en('j5') ? 2.6 : .2, bob: Math.sin(t * 2) * 2 });
+    // 요정이 날아 들어옴
+    const fk = p(t, st('n3', 1.4), 1.6);
+    const fx = lerp(2100, 1230, eOut(fk)) + Math.sin(t * 1.3) * 30, fy = lerp(200, 520, eOut(fk)) + Math.sin(t * 2.6) * 18;
+    if (fk > 0) {
+      sparkles(t, fx, fy - 150, fk, 160, 14);
+      const cast = t > st('f3') && t < en('f3', .6);
+      drawChar('fairy', { x: fx, y: fy, s: .9, face: -1, t, mouth: talking(t, 'fairy'), blink: blink(t, 4), mood: 'joy', armR: cast ? 2.2 + Math.sin(t * 14) * .5 : .7 + Math.sin(t * 2) * .2, armL: .5 });
+    }
+    // 마법: 지우 둘레로 별이 휘몰아침
+    const mg = p(t, en('f3', -.6), 1.4);
+    if (mg > 0) sparkles(t, 820, 620, Math.sin(mg * Math.PI), 260 * (1 - mg * .5), 40);
+  });
+  const fl = p(t, en('f3', .3), .6) * (1 - p(t, S('baby').start, .01)); if (fl > 0) rect(0, 0, W, H, '#FFFFFF', eIn(fl));
+}
+// 3. 아기가 된 지우
+function sBaby(t) {
+  const st = (id, d = 0) => L(id).start + d, en = (id, d = 0) => L(id).end + d, s0 = S('baby').start;
+  const cam = focus(t, [[s0, 820, 640, 1.25], [st('n4', 1.5), 900, 620, 1.12], [st('m2'), 800, 620, 1.05], [st('j9'), 1000, 640, 1.05], [st('j10'), 1250, 700, 1.2], [st('d2'), 1200, 620, 1.05], [st('n7'), 960, 600, 1], [st('j12'), 760, 620, 1.2]]);
+  withCam(cam.x, cam.y, cam.z, () => {
+    livingRoom(t);
+    blocks(1520, 940, 6);
+    ball(1700, 960);
+    const wf = 1 - p(t, s0, .8); if (wf > 0) rect(0, 0, W, H, '#FFFFFF', wf);
+    // 아기 지우 위치: 바닥에 앉음 → 기어감 → 넘어짐 → 아빠가 안아 침대로
+    const crawlA = st('n6'), crawlB = en('j10', -.2), fall = en('j10', -.1);
+    let bx = kf(t, [[0, 760], [crawlA, 760], [crawlB, 1300]]), by = 930, pose = t > crawlA && t < fall + 1.6 ? 'crawl' : 'sit';
+    const tip = p(t, fall, .25) * (1 - p(t, st('d2', .4), .5));
+    const lifted = p(t, st('d2', .5), 1.2);
+    const toCrib = p(t, st('n7'), 1.5);
+    if (lifted > 0) { bx = lerp(1300, 1240, lifted); by = lerp(930, 640, eOut(lifted)); pose = 'sit'; }
+    if (toCrib > 0) { bx = lerp(1240, 560, eIO(toCrib)); by = lerp(640, 830, eIO(toCrib)); }
+    const inCrib = toCrib >= 1 || t > st('j12') - .2;
+    const cry = (t > st('b1') && t < en('b1', .3)) || (t > st('b2') && t < en('j11', .2)) || t > st('j12');
+    const mood = cry ? 'cry' : t > st('j7') && t < st('b1') ? 'joy' : t > st('j8') && t < en('j8') ? 'pout' : t > st('j9') && t < crawlA + .3 ? 'surprised' : t > st('j6') - .2 && t < en('j6') ? 'joy' : 'happy';
+    if (inCrib) crib(560, 900, 1, false);
+    // 엄마: 우유 들고 다가옴
+    const mx = kf(t, [[0, -300], [st('b1', .2), -300], [st('m2'), 520], [en('j8', .5), 520], [st('j9', .4), -300]]);
+    if (mx > -250) drawChar('mom', { x: mx, y: 930, s: .95, face: 1, t, mouth: talking(t, 'mom'), blink: blink(t, 2), walk: Math.abs(mx - 520) > 5 ? t * 10 : 0, bob: Math.sin(t * 2) * 3, armR: t > st('m2') ? 1.5 : .3, hold: 'bottle', mood: 'happy', tilt: .08 });
+    // 아빠: 넘어진 지우를 안아 올림
+    const dx = kf(t, [[0, 2300], [en('j10'), 2300], [st('d2', .3), 1450], [st('n7'), 1450], [st('n7', 1.5), 800], [en('n7', .2), 800], [st('j12', 1), 2300]]);
+    if (dx < 2200) drawChar('dad', { x: dx, y: 930, s: .95, face: -1, t, mouth: talking(t, 'dad'), blink: blink(t, 3), walk: (t > en('j10') && t < st('d2', .3)) || (t > st('n7') && t < st('n7', 1.5)) || t > st('j12', .1) ? t * 10 : 0, armR: lifted > 0 && toCrib < 1 ? 1.9 : .4, armL: lifted > 0 && toCrib < 1 ? 1.7 : .2, mood: 'happy', bob: Math.sin(t * 2) * 3 });
+    ctx.save(); ctx.translate(bx, by); ctx.rotate(tip * .6); ctx.translate(-bx, -by);
+    const kick = t > st('j11') && t < en('j11') ? Math.sin(t * 16) * .6 : 0;
+    drawChar('babyj', { x: bx, y: by, s: .75, face: t > crawlA - .5 && t < fall + 2 ? 1 : 1, t, pose, walk: t > crawlA && t < crawlB ? t * 7 : 0, bob: pose === 'crawl' && t < crawlB ? -Math.abs(Math.sin(t * 7)) * 8 : Math.sin(t * 2.4) * 3, mouth: talking(t, 'jiwoo') * .3 + talking(t, 'babyj'), blink: blink(t, 1), mood,
+      armL: t > st('j6') && t < en('j6') ? 2.6 + Math.sin(t * 9) * .3 : t > st('j7') && t < en('j7') ? 2.2 : .4 + kick, armR: t > st('j6') && t < en('j6') ? 2.6 - Math.sin(t * 9) * .3 : t > st('j9') && t < crawlA ? 2.0 : .4 - kick, hold: t > st('m2', 1) && t < st('j9') ? 'bottle' : null });
+    ctx.restore();
+    if (inCrib) crib(560, 900, 1, true);
+    // 넘어질 때 별 + 콩
+    const ft = p(t, fall, 1.2); if (ft > 0 && ft < 1) { for (let i = 0; i < 4; i++) { const a = t * 4 + i * Math.PI / 2; star(1330 + Math.cos(a) * 80, 640 + Math.sin(a) * 26, 14, '#FFE066', t * 4, 1 - ft); } text('콩!', 1420, 600, { size: 70, color: '#FF6B6B', stroke: '#fff', lw: 10, alpha: 1 - ft }); }
+    // 속마음 표시: 지우 대사는 생각 거품 모양 아이콘
+    if (speakingNow(t, 'jiwoo')) { const k = 1; circ(bx + 120, by - 300, 10, '#fff', .9); circ(bx + 150, by - 340, 16, '#fff', .9); }
+    // 과자 생각
+    const snack = p(t, st('j7'), .4) * (1 - p(t, st('b1'), .3)) + p(t, st('j8'), .4) * (1 - p(t, en('j8', .3), .3));
+    thought(bx + 250, by - 420, snack, () => { const x = bx + 250, y = by - 420; rr(x - 60, y - 40, 120, 80, 14, '#F4C77B'); for (let i = 0; i < 6; i++) circ(x - 40 + (i % 3) * 40, y - 15 + Math.floor(i / 3) * 30, 6, '#9A6B45'); });
+    const play = p(t, en('j11', -1), .4) * (1 - p(t, en('j11', .4), .3));
+    thought(bx + 280, by - 420, play, () => { ball(bx + 230, by - 420); blocks(bx + 270, by - 380, 3); });
+  });
+}
+// 4. 요정과 다시
+function sBack(t) {
+  const st = (id, d = 0) => L(id).start + d, en = (id, d = 0) => L(id).end + d, s0 = S('back').start;
+  const cam = focus(t, [[s0, 960, 560, 1.1], [st('j13'), 760, 600, 1.15], [st('f5'), 960, 560, 1.05], [en('f5'), 760, 640, 1.4]]);
+  withCam(cam.x, cam.y, cam.z, () => {
+    dreamSpace(t);
+    const fk = eOut(p(t, s0, 1.2));
+    drawChar('babyj', { x: 760, y: 820 + Math.sin(t * 1.5) * 8, s: .8, t, pose: 'sit', mouth: talking(t, 'jiwoo'), blink: blink(t, 1), mood: t < st('j13') ? 'cry' : t < st('f5') ? 'sad' : 'surprised', tears: t < en('j13'), armL: t > st('j14') && t < en('j14') ? 1.7 : .3, armR: t > st('j14') && t < en('j14') ? 1.7 : .3 });
+    const fx = lerp(1700, 1240, fk) + Math.sin(t * 1.2) * 26, fy = 560 + Math.sin(t * 2.4) * 18;
+    sparkles(t, fx, fy - 150, fk, 160, 14);
+    const cast = t > st('f5', 1) && t < en('f5', .6);
+    drawChar('fairy', { x: fx, y: fy, s: .9, face: -1, t, mouth: talking(t, 'fairy'), blink: blink(t, 4), mood: 'joy', armR: cast ? 2.2 + Math.sin(t * 14) * .5 : .7, armL: .5, tilt: .1 });
+    const mg = p(t, en('f5', -.6), 1.4); if (mg > 0) sparkles(t, 760, 620, Math.sin(mg * Math.PI), 280, 44);
+  });
+  const fl = p(t, en('f5', .3), .6); if (fl > 0) rect(0, 0, W, H, '#FFFFFF', eIn(fl));
+}
+// 5. 형아가 된 지우
+function sHome2(t) {
+  const st = (id, d = 0) => L(id).start + d, en = (id, d = 0) => L(id).end + d, s0 = S('home2').start;
+  const cam = focus(t, [[s0, 900, 600, 1.15], [st('b3'), 700, 600, 1.12], [st('j15', 1), 760, 620, 1.15], [st('b4'), 640, 640, 1.25], [st('m3'), 960, 580, 1.02], [st('j17'), 760, 600, 1.12]]);
+  withCam(cam.x, cam.y, cam.z, () => {
+    livingRoom(t);
+    blocks(1520, 940, 6);
+    const wf = 1 - p(t, s0, .8); if (wf > 0) rect(0, 0, W, H, '#FFFFFF', wf);
+    crib(560, 900, 1, false);
+    const babyMood = t > st('b4') ? 'laugh' : t > st('b3') - .2 && t < st('j16', .5) ? 'cry' : 'happy';
+    const bounce = t > st('b4') && t < en('m3') ? -Math.abs(Math.sin((t - st('b4')) * 8)) * 18 : 0;
+    drawChar('baby', { x: 560, y: 830 + bounce, s: .72, t, pose: 'sit', mouth: talking(t, 'baby'), blink: blink(t, 6), mood: babyMood, armL: babyMood === 'laugh' ? 2.4 : .5, armR: babyMood === 'laugh' ? 2.4 : .5 });
+    crib(560, 900, 1, true);
+    // 지우: 눈 뜸 → 동생에게 → 까꿍 → 안아 줌
+    const jx = kf(t, [[0, 1250], [st('j15', .6), 1250], [en('j15'), 900], [st('j17', .4), 900], [st('j17', 1.4), 800]]);
+    const peek = t > st('j16') && t < en('j16', .2);
+    const peekCover = peek && Math.sin((t - st('j16')) * 6) > 0;
+    const hug = t > st('j17', 1.2);
+    const walking = (t > st('j15', .6) && t < en('j15')) || (t > st('j17', .4) && t < st('j17', 1.4));
+    drawChar('jiwoo', { x: jx, y: 960, s: .9, face: -1, t, mouth: talking(t, 'jiwoo'), blink: peekCover ? 1 : blink(t, 1), walk: walking ? t * 12 : 0, bob: walking ? -Math.abs(Math.sin(t * 12)) * 10 : Math.sin(t * 2.4) * 3,
+      mood: t < st('b3') ? 'surprised' : t < st('j15') + .5 ? 'surprised' : t > st('b4') ? 'joy' : 'happy',
+      armR: peek ? (peekCover ? 2.9 : 2.1) : hug ? 1.6 : t > st('j15') && t < en('j15') ? 1.2 : .4, armL: peek ? (peekCover ? 2.9 : 2.1) : hug ? 1.6 : .3, hold: t > st('j16', -.4) && t < en('j16') ? 'rattle' : null });
+    // 엄마 아빠 등장
+    const mx = kf(t, [[0, -300], [st('b4', .4), -300], [st('m3'), 300]]), dx = kf(t, [[0, 2300], [en('m3', -.5), 2300], [st('d3'), 1400]]);
+    if (mx > -250) drawChar('mom', { x: mx, y: 940, s: .95, face: 1, t, mouth: talking(t, 'mom'), blink: blink(t, 2), walk: t < st('m3') ? t * 10 : 0, armR: t > st('m3') ? 1.4 + Math.sin(t * 4) * .2 : .4, armL: .3, mood: 'joy', bob: Math.sin(t * 2) * 3 });
+    if (dx < 2200) drawChar('dad', { x: dx, y: 940, s: .95, face: -1, t, mouth: talking(t, 'dad'), blink: blink(t, 3), walk: t < st('d3') ? t * 10 : 0, armR: t > st('d3') ? 2.4 : .4, armL: .2, mood: 'joy', bob: Math.sin(t * 2) * 3 });
+    // 하트
+    const hk = p(t, st('j17', 1), .5); if (hk > 0) { const r = rng(3); for (let i = 0; i < 10; i++) { const q = ((t - st('j17')) * .4 + r()) % 1; heart(700 + (r() - .5) * 300, 700 - q * 400, 18 + r() * 14, i % 2 ? '#FF6B8A' : '#FF9FB5', hk * (1 - q)); } }
+  });
+}
+// 6. 끝
+function sEnd(t) {
+  const s0 = S('end').start, st = id => L(id).start;
+  withCam(960, 560, lerp(1.12, 1, eOut(p(t, s0, 3))), () => {
+    livingRoom(t);
+    const g = ctx.createRadialGradient(960, 600, 100, 960, 600, 900); g.addColorStop(0, 'rgba(255,240,200,.35)'); g.addColorStop(1, 'rgba(255,240,200,0)'); ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+    drawChar('mom', { x: 620, y: 960, s: .95, face: 1, t, blink: blink(t, 2), mood: 'joy', armR: 1.2, armL: .3, bob: Math.sin(t * 2) * 3 });
+    drawChar('dad', { x: 1300, y: 960, s: .95, face: -1, t, blink: blink(t, 3), mood: 'joy', armR: 1.2, armL: .3, bob: Math.sin(t * 2 + 1) * 3 });
+    drawChar('jiwoo', { x: 900, y: 980, s: .9, face: 1, t, blink: blink(t, 1), mood: 'joy', armR: 1.5, armL: .3, bob: Math.sin(t * 2.4) * 3 });
+    drawChar('baby', { x: 1060, y: 900, s: .6, t, pose: 'sit', blink: blink(t, 6), mood: 'laugh', armL: 2.2, armR: 2.2, bob: -Math.abs(Math.sin(t * 3)) * 8 });
+    const r = rng(8); for (let i = 0; i < 16; i++) { const q = ((t - s0) * .25 + r()) % 1; heart(200 + r() * 1520, 900 - q * 800, 14 + r() * 16, i % 2 ? '#FF6B8A' : '#FFB3C7', .8 * (1 - q)); }
+  });
+  const k = eBack(p(t, st('n9') + .4, .7));
+  if (k > 0) { ctx.save(); ctx.translate(960, 230); ctx.scale(k, k); text(C.title.main, 0, 0, { size: 120, color: '#FF7A59', stroke: '#fff', lw: 18 }); ctx.restore(); }
+  const f = p(t, DURATION - 1.2, 1.2); if (f > 0) rect(0, 0, W, H, '#000', eIO(f));
+}
+// ---------- 자막 ----------
+const NAMECOL = { jiwoo: '#4FA3E8', babyj: '#4FA3E8', mom: '#E8607A', dad: '#E3A33C', fairy: '#C77DFF', baby: '#9B6BC4', narr: '#8C7F78' };
+function subtitle(t) {
+  const id = TL.order.find(i => { const l = TL.lines[i]; return t >= l.start - .1 && t < l.end + .35; }); if (!id) return;
+  const l = TL.lines[id], str = (C.subs && C.subs[id]) || l.text, a = Math.min(eOut(p(t, l.start - .1, .2)), 1 - p(t, l.end + .15, .2));
+  ctx.save(); ctx.font = `400 46px ${JUA}`; const w = Math.min(1500, ctx.measureText(str).width + 80); ctx.restore();
+  const y = 975, inner = l.who === 'jiwoo' && l.scene === 'baby';
+  rr(960 - w / 2, y - 44, w, 88, 44, rgba(K.subBox, .92), a);
+  if (l.name) { const nm = inner ? '아기 지우 (속마음)' : l.name; ctx.save(); ctx.font = `400 30px ${JUA}`; const nw = ctx.measureText(nm).width + 40; ctx.restore(); rr(960 - w / 2 + 20, y - 72, nw, 46, 23, NAMECOL[l.who] || '#888', a); text(nm, 960 - w / 2 + 20 + nw / 2, y - 48, { size: 30, color: '#fff', alpha: a }); }
+  text(str, 960, y + 2, { size: Math.min(46, 46 * 1420 / Math.max(1, w - 80)), color: l.who === 'narr' ? '#5A4E48' : K.ink, alpha: a });
+}
+function titleCard(t) {
+  const a = 1 - p(t, 1.3, .5); if (a <= 0) return;
+  rect(0, 0, W, H, 'rgba(255,248,236,.55)', a);
+  const k = eBack(p(t, .1, .6)); ctx.save(); ctx.translate(960, 470); ctx.scale(k, k);
+  text(C.title.sub, 0, -110, { size: 44, color: '#8C7F78', alpha: a }); text(C.title.main, 0, 10, { size: 150, color: '#FF7A59', stroke: '#fff', lw: 22, alpha: a }); ctx.restore();
+}
+function draw(t) {
+  ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalAlpha = 1;
+  const sc = TL.scenes.find(s => t >= s.start && t < s.end) || TL.scenes[TL.scenes.length - 1];
+  ({ home: sHome, night: sNight, baby: sBaby, back: sBack, home2: sHome2, end: sEnd })[sc.id](t);
+  // 장면 사이 짧은 페이드 (마법 장면 뒤는 흰 화면에서 열림)
+  const fi = 1 - p(t, sc.start, .45); if (fi > 0 && sc.id !== 'baby' && sc.id !== 'home2' && sc.id !== 'home') rect(0, 0, W, H, '#000', fi * .9);
+  const fo = p(t, sc.end - .4, .4); if (fo > 0 && !['night', 'back', 'end'].includes(sc.id)) rect(0, 0, W, H, '#000', fo * .9);
+  subtitle(t); titleCard(t);
+}
+
+// ---------- preview player ----------
+const seekEl = document.getElementById('seek'), timeEl = document.getElementById('time'), playEl = document.getElementById('play');
+seekEl.max = DURATION.toFixed(2);
+let playing = false, t0 = 0, tCur = 0;
+const audio = new Audio('audio/mix.wav'); audio.preload = 'auto';
+function show(t) { tCur = t; draw(t); seekEl.value = t; timeEl.textContent = t.toFixed(2) + 's'; }
+function loop(now) { if (!playing) return; const t = (now - t0) / 1000; if (t >= DURATION) { playing = false; playEl.textContent = '▶ 재생'; audio.pause(); show(DURATION); return; } show(t); requestAnimationFrame(loop); }
+playEl.onclick = () => { playing = !playing; playEl.textContent = playing ? '❚❚ 정지' : '▶ 재생'; if (playing) { if (tCur >= DURATION) tCur = 0; t0 = performance.now() - tCur * 1000; try { audio.currentTime = tCur; audio.play().catch(() => {}); } catch (e) {} requestAnimationFrame(loop); } else audio.pause(); };
+seekEl.oninput = () => { show(+seekEl.value); if (playing) { t0 = performance.now() - tCur * 1000; try { audio.currentTime = tCur; } catch (e) {} } };
+
+window.draw = draw; window.DURATION = DURATION;
+function merge(base, over) {
+  if (Array.isArray(base)) return Array.isArray(over) ? over.map((v, i) => base[i] !== undefined ? merge(base[i], v) : v) : base;
+  if (base && typeof base === 'object') { const o = {}; for (const k in base) o[k] = over && k in over ? merge(base[k], over[k]) : base[k]; return o; }
+  return over === undefined || over === null ? base : over;
+}
+function apply(content) { C = window.CONTENT = merge(DEFAULT_CONTENT, content); K = C.colors; }
+window.VIDEO = { schema: window.SCHEMA, defaults: DEFAULT_CONTENT, get content() { return C; }, apply, canvas: cv };
+window.ready = Promise.all([document.fonts.load(`400 100px 'Jua'`, '가'), document.fonts.load(`700 100px 'Noto Sans KR'`, '가')]).then(r => {
+  if (r.some(fs => !fs.length)) throw new Error('폰트를 불러오지 못했습니다 (fonts/ 폴더 확인)');
+}).then(() => document.fonts.ready).then(() => { if (location.search.includes('render')) document.body.classList.add('render'); show(0); return true; });
+</script>
+</body>
+</html>
