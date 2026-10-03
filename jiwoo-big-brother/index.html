@@ -280,10 +280,10 @@ function sHome(t) {
 // 2. 꿈별 요정
 function sNight(t) {
   const st = (id, d = 0) => L(id).start + d, en = (id, d = 0) => L(id).end + d, s0 = S('night').start;
-  const cam = focus(t, [[s0, 960, 560, 1], [st('f1'), 1000, 520, 1.08], [st('j5'), 900, 560, 1.1], [st('f3'), 960, 540, 1.04], [en('f3'), 820, 600, 1.4]]);
+  const cam = focus(t, [[s0, 960, 560, 1], [st('f1'), 1000, 520, 1.08], [st('j5'), 900, 560, 1.1], [st('f3'), 960, 540, 1.04], [en('f3', -.4), 960, 540, 1.04], [en('f3', .5), 820, 600, 1.4]]);
   withCam(cam.x, cam.y, cam.z, () => {
     livingRoom(t, true);
-    bed(760, 930);
+    bed(400, 930);
     const light = p(t, st('n3', 1), 1.2);
     if (light > 0) { const g = ctx.createRadialGradient(1300, 400, 10, 1300, 400, 500); g.addColorStop(0, `rgba(255,240,170,${.5 * light})`); g.addColorStop(1, 'rgba(255,240,170,0)'); ctx.fillStyle = g; ctx.fillRect(0, 0, W, H); }
     const jump = t > st('j5') && t < en('j5') ? -Math.abs(Math.sin((t - st('j5')) * 9)) * 40 : 0;
@@ -349,7 +349,7 @@ function sBaby(t) {
 // 4. 요정과 다시
 function sBack(t) {
   const st = (id, d = 0) => L(id).start + d, en = (id, d = 0) => L(id).end + d, s0 = S('back').start;
-  const cam = focus(t, [[s0, 960, 560, 1.1], [st('j13'), 760, 600, 1.15], [st('f5'), 960, 560, 1.05], [en('f5'), 760, 640, 1.4]]);
+  const cam = focus(t, [[s0, 960, 560, 1.1], [st('j13'), 760, 600, 1.15], [st('f5'), 960, 560, 1.05], [en('f5', -.4), 960, 560, 1.05], [en('f5', .5), 760, 640, 1.4]]);
   withCam(cam.x, cam.y, cam.z, () => {
     dreamSpace(t);
     const fk = eOut(p(t, s0, 1.2));
