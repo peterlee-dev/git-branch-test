@@ -127,7 +127,30 @@ def line_path(sp, tx):
     vk = 'baby' if sp in ('baby', 'babyj') else sp
     return os.path.join(CACHE, h(vk, VOICES[vk][0], tx) + '.wav')
 
+# 아기 울음은 TTS 가 잘 못 만들어서 직접 합성 (높은 음 + 떨림 + "애" 모음 공명)
+CRIES = {'응애! 응애!': [(.0, .55), (.75, .6)], '응애, 응애!': [(.0, .5), (.7, .6)], '으앙!': [(.0, .8)]}
+def cry_wave(parts, seed=1):
+    r = np.random.RandomState(seed); out = np.zeros(int((parts[-1][0] + parts[-1][1] + .2) * SR))
+    for st, d in parts:
+        tt = t_(d); k = tt / d
+        f0 = 430 + 120 * np.sin(np.pi * k) + 18 * np.sin(2 * np.pi * 7 * tt) + r.randn() * 10   # 올라갔다 내려오는 울음 음높이 + 떨림
+        ph = 2 * np.pi * np.cumsum(f0) / SR
+        x = sum(np.sin(ph * h) / h ** .9 for h in range(1, 14))
+        # "응" (코 막힌 낮은 소리) → "애" (밝은 모음): 앞 25%는 어둡게
+        bright = np.clip((k - .2) / .15, 0, 1)
+        y = np.zeros_like(x); y2 = np.zeros_like(x)
+        for F, bw, gain, arr in [(950, 120, 1.0, y), (1750, 160, .7, y2)]:       # 공명 (2극 필터)
+            rr = np.exp(-np.pi * bw / SR); c1 = 2 * rr * np.cos(2 * np.pi * F / SR); c2 = -rr * rr
+            a1 = a2 = 0.0
+            for i in range(len(x)): v = x[i] + c1 * a1 + c2 * a2; a2, a1 = a1, v; arr[i] = v * gain
+        voc = (y + y2) * (.15 + .85 * bright) + x * .4 * (1 - bright)
+        env = np.minimum(1, tt / .04) * np.clip((d - tt) / .12, 0, 1) * (.5 + .5 * bright)
+        seg = voc * env; seg /= (np.abs(seg).max() + 1e-9)
+        o = int(st * SR); out[o:o + len(seg)] += seg * .8
+    return out.astype(np.float32)
+
 def load_line(sp, tx):
+    if sp in ('baby', 'babyj') and tx in CRIES: return cry_wave(CRIES[tx], 3 if sp == 'baby' else 1)
     x, sr = sf.read(line_path(sp, tx), dtype='float32')
     if x.ndim > 1: x = x.mean(1)
     return trim(resample(x, sr))
