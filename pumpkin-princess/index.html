@@ -139,11 +139,11 @@ function fruitBody(g, kind, o) {
   // 공주 치마 (몸통 아래 프릴)
   if (princess && !sit) { const sc = o.veil ? '#FFFFFF' : '#FF9FC3'; g.fillStyle = sc; g.beginPath(); g.moveTo(-rx * .75, cy + ry * .55); for (let i = 0; i <= 8; i++) { const xx = -rx * .95 + i * rx * 1.9 / 8; g.quadraticCurveTo(xx - rx * .12, cy + ry * 1.18, xx, cy + ry * 1.05); } g.lineTo(rx * .75, cy + ry * .55); g.closePath(); g.fill(); inkPath(g, sc); }
   // 다리
-  if (!sit) { const sw = Math.sin(w) * .4, ll = -(cy0 + ry * .78) - 16; [-1, 1].forEach(sd => limb(g, sd * rx * .32, cy + ry * .78, ll, sd * sw, 17, lc, 1, 'shoe', 20, shoe)); }
+  if (!sit) { const sw = o.front ? 0 : Math.sin(w) * .4, ll = -(cy0 + ry * .78) - 16; [-1, 1].forEach(sd => limb(g, sd * rx * .32, cy + ry * .78, ll - (o.front && w ? Math.max(0, Math.sin(w + (sd > 0 ? Math.PI : 0))) * 22 : 0), sd * sw, 17, lc, 1, 'shoe', 20, shoe)); }
   // 팔 (몸 뒤에서 나옴)
   const armLen = kind === 'banana' ? 72 : 86, ax = kind === 'banana' ? rx * .75 : rx * .9, ay = cy + (kind === 'banana' ? 10 : ry * .05);
   limb(g, -ax, ay, armLen, (o.armL == null ? .35 : o.armL) - (o.walk ? Math.sin(w) * .3 : 0), 15, lc, -1, 'hand', 15);
-  limb(g, ax, ay, armLen, (o.armR == null ? .35 : o.armR) + (o.walk ? Math.sin(w) * .3 : 0), 15, lc, 1, 'hand', 15);
+  limb(g, ax, ay, armLen, (o.armR == null ? .35 : o.armR) + (o.walk && !o.steadyR ? Math.sin(w) * .3 : 0), 15, lc, 1, 'hand', 15);
   // 두리안 가시 (몸 뒤)
   if (kind === 'durian') { g.fillStyle = '#A8AE3A'; for (let i = 0; i < 26; i++) { const a = i / 26 * Math.PI * 2, ca = Math.cos(a), sa = Math.sin(a); g.beginPath(); g.moveTo(ca * rx * .9 - sa * 16, cy + sa * ry * .9 + ca * 16); g.lineTo(ca * (rx + 30), cy + sa * (ry + 30)); g.lineTo(ca * rx * .9 + sa * 16, cy + sa * ry * .9 - ca * 16); g.closePath(); g.fill(); inkPath(g, '#A8AE3A'); } }
   // 몸통
@@ -351,9 +351,13 @@ function umbrella(x, y, r, open, t) {
 }
 // 캐릭터 오른손의 화면 위치 (drawChar 와 같은 계산)
 function charHand(kind, o) {
-  const [cy0, rx, ry] = BODY[kind], ax = kind === 'banana' ? rx * .75 : rx * .9, ay = cy0 + (o.bob || 0) + (kind === 'banana' ? 10 : ry * .05), len = kind === 'banana' ? 72 : 86, a = o.armR == null ? .35 : o.armR;
-  const lx = ax + Math.sin(a) * (len + 6), ly = ay + Math.cos(a) * (len + 6), s = (o.s || 1) * CS, f = o.face || 1;
-  return [o.x + lx * f * s, o.y + ly * s];
+  const [cy0, rx, ry] = BODY[kind], ax = kind === 'banana' ? rx * .75 : rx * .9, ay = cy0 + (o.bob || 0) + (kind === 'banana' ? 10 : ry * .05), len = kind === 'banana' ? 72 : 86;
+  const a = (o.armR == null ? .35 : o.armR) + (o.walk && !o.steadyR ? Math.sin(o.walk) * .3 : 0);
+  let lx = ax + Math.sin(a) * (len + 5), ly = ay + Math.cos(a) * (len + 5);
+  const sq = o.squash || 0; lx *= 1 + sq * .5; ly *= 1 - sq;
+  const tl = o.tilt || 0, rx2 = lx * Math.cos(tl) - ly * Math.sin(tl), ry2 = lx * Math.sin(tl) + ly * Math.cos(tl);
+  const s = (o.s || 1) * CS, f = o.face || 1;
+  return [o.x + rx2 * f * s, o.y + ry2 * s];
 }
 function rainbow(x, y, r, k) { if (k <= 0) return; const cols = ['#FF6B6B', '#FF9F43', '#FFE066', '#7BD389', '#5BB3E8', '#8E7CF0']; ctx.save(); ctx.globalAlpha *= .75; ctx.lineWidth = 34; ctx.lineCap = 'round'; cols.forEach((c, i) => { ctx.strokeStyle = c; ctx.beginPath(); ctx.arc(x, y, r - i * 34, Math.PI, Math.PI + Math.PI * eOut(k)); ctx.stroke(); }); ctx.restore(); }
 function flowerArch(x, y, t) {
@@ -371,7 +375,11 @@ function focus(t, keys) { return { x: kf(t, keys.map(k => [k[0], k[1]])), y: kf(
 // 그리기 목록을 발 위치(y) 순서로 (뒤에 있는 캐릭터 먼저)
 function cast(list) { list.filter(Boolean).sort((a, b) => a[1].y - b[1].y).forEach(([k, o]) => drawChar(k, o)); }
 // 걷는 사람 공통: 키프레임 위치 + 걸음 동작
-function walker(t, keys, base) { const x = kf(t, keys), mv = moving(t, keys); return Object.assign({ x, walk: mv ? t * 11 : 0, bob: mv ? -Math.abs(Math.sin(t * 11)) * 14 : Math.sin(t * 2.2 + (base.seed || 0)) * 3, t, blink: blink(t, base.seed || 1) }, base, { x }); }
+function walker(t, keys, base) {
+  const x = kf(t, keys), mv = moving(t, keys), o = Object.assign({ x, walk: mv ? t * 11 : 0, bob: mv ? -Math.abs(Math.sin(t * 11)) * 14 : Math.sin(t * 2.2 + (base.seed || 0)) * 3, t, blink: blink(t, base.seed || 1) }, base, { x });
+  if (mv) { const v = kf(t + .05, keys) - kf(t - .05, keys); if (Math.abs(v) > .5) o.face = v > 0 ? 1 : -1; }   // 걷는 동안엔 가는 쪽을 봄 (뒷걸음질 없음)
+  return o;
+}
 function say(t, who, o) { o.mouth = talking(t, who); return o; }
 
 // ============================================================
@@ -379,18 +387,18 @@ function say(t, who, o) { o.mouth = talking(t, who); return o; }
 // ============================================================
 // 1. 호박나라
 function sCastle(t) {
-  const cam = focus(t, [[0, 960, 480, 1.0], [st('n1', 1), 960, 520, 1.05], [st('p1'), 900, 640, 1.3], [en('p1'), 900, 640, 1.3], [st('n2', .5), 960, 560, 1.05]]);
+  const cam = focus(t, [[0, 960, 480, 1.0], [st('n1', 1), 960, 520, 1.05], [st('p1'), 960, 640, 1.3], [en('p1'), 960, 640, 1.3], [st('n2', .5), 960, 560, 1.05]]);
   withCam(cam.x, cam.y, cam.z, () => {
     garden(t, { castle: false });
     pumpkinCastle(960, 720, 1, t);
     rect(-600, 760, W + 1200, 1000, K.grass); flowers(780, 7);
     ctx.save(); ctx.fillStyle = '#F2D7A6'; ctx.beginPath(); ctx.moveTo(900, 760); ctx.lineTo(1020, 760); ctx.lineTo(1200, 1100); ctx.lineTo(720, 1100); ctx.closePath(); ctx.fill(); ctx.restore();
     // 공주: 성문에서 나와 인사 → 초대장을 날려 보냄
-    const keys = [[0, 960], [st('n1', 1.5), 960], [st('p1'), 900]];
+    const keys = [[0, 960]];   // 성문에서 길을 따라 똑바로 앞으로 걸어 나옴
     const pyk = kf(t, [[0, 780], [st('n1', 1.5), 780], [st('p1'), 940]]);
     const send = t > st('n2', .3) && t < en('n2');
     const o = walker(t, keys, { s: 1, face: 1, mood: t > st('p1') ? 'joy' : 'happy', seed: 1, armL: speaking(t, 'pumpkin') ? 2.4 + Math.sin(t * 6) * .3 : send ? 2.2 : .4, armR: send ? 2.6 : .5, hold: t < st('n2', .3) ? 'letter' : null });
-    o.y = pyk; if (moving(t, [[0, 780], [st('n1', 1.5), 780], [st('p1'), 940]])) { o.walk = t * 11; o.bob = -Math.abs(Math.sin(t * 11)) * 14; }
+    o.y = pyk; if (moving(t, [[0, 780], [st('n1', 1.5), 780], [st('p1'), 940]])) { o.walk = t * 9; o.front = true; o.bob = -Math.abs(Math.sin(t * 9)) * 8; }
     o.s = lerp(.7, 1, clamp((pyk - 780) / 160));
     cast([['pumpkin', say(t, 'pumpkin', o)]]);
     // 초대장이 하늘로
@@ -518,9 +526,9 @@ function sDurian(t) {
     const stand = t > st('p11');
     const pumpkinMood = t < st('d1') ? 'cry' : t < st('p10', .5) ? 'surprised' : t < st('d3') ? 'happy' : t < st('p11') ? 'shy' : t > st('p12') ? 'joy' : 'surprised';
     const po = { x: 780, y: 950, s: 1, face: 1, t, blink: blink(t, 1), pose: stand ? null : 'sit', mood: pumpkinMood, tears: t < st('p10'), armL: t > st('p12') ? 2.4 : .2, armR: t > st('p12') ? 2.4 : .2, bob: stand ? (t > st('p12') ? -Math.abs(Math.sin(t * 7)) * 12 : Math.sin(t * 2.2) * 3) : Math.sin(t * 6) * (t < st('d1') ? 3 : 0), tilt: t < st('d1') ? .08 : 0 };
-    const open = arrived ? 1 : .15, umbOn = t < en('n13', 1.2);
+    const open = 1, umbOn = t < en('n13', 1.2);
     const close = p(t, st('n13', .4), .8);
-    const dr = { x: dx, y: 960, s: 1.05, face: -1, t, blink: blink(t, 3), mood: speaking(t, 'durian') && t > st('d2') && t < st('d3') ? 'shy' : 'happy', armR: close < 1 ? 2.3 : speaking(t, 'durian') ? 1.4 : .4, armL: t > st('d4') && t < en('p12') ? 1.2 : .4, walk: moving(t, dk) ? t * 11 : 0, bob: moving(t, dk) ? -Math.abs(Math.sin(t * 11)) * 14 : Math.sin(t * 2 + 1) * 3, tilt: speaking(t, 'durian') && t < st('d2') ? -.06 : 0, hold: close >= 1 ? 'umbrellaClosed' : null };
+    const dr = { x: dx, y: 960, s: 1.05, face: -1, t, steadyR: close < 1, blink: blink(t, 3), mood: speaking(t, 'durian') && t > st('d2') && t < st('d3') ? 'shy' : 'happy', armR: close < 1 ? 2.3 : speaking(t, 'durian') ? 1.4 : .4, armL: t > st('d4') && t < en('p12') ? 1.2 : .4, walk: moving(t, dk) ? t * 11 : 0, bob: moving(t, dk) ? -Math.abs(Math.sin(t * 11)) * 14 : Math.sin(t * 2 + 1) * 3, tilt: speaking(t, 'durian') && t < st('d2') ? -.06 : 0, hold: close >= 1 ? 'umbrellaClosed' : null };
     if (umbOn && close < 1) { const [hx, hy] = charHand('durian', dr); umbrella(hx, hy, 300 * (1 - close * .3), open * (1 - close), t); }
     cast([['pumpkin', say(t, 'pumpkin', po)], ['durian', say(t, 'durian', dr)]]);
     hearts(t, 940, 600, p(t, st('d3', 1), .8) * (1 - p(t, st('n13'), 1)), 400, 4);

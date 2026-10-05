@@ -24,7 +24,7 @@ GAP, SCENE_GAP = .32, 1.3
 VOICES = {
     'narr':    ('따뜻하고 부드러운 30대 한국 여성 동화 구연가의 목소리. 차분하고 다정하게, 또박또박 읽어 줌.', '옛날 옛날에, 작은 마을에 마음씨 고운 아이가 살았어요.'),
     'pumpkin': ('수줍고 상냥한 일곱 살 한국 여자아이 공주의 귀엽고 맑은 목소리. 다정하고 사랑스럽게.', '안녕하세요, 저는 호박나라의 공주예요. 만나서 정말 반가워요!'),
-    'melon':   ('밝고 당당하고 시원시원한 여덟 살 한국 여자아이 공주의 명랑한 목소리. 활발하고 자신감 있게.', '반가워요, 여러분! 오늘 파티 정말 신나요!'),
+    'melon':   ('상냥하고 사랑스러운 열 살 한국 소녀 공주의 높고 맑은 여자 목소리. 또랑또랑하고 명랑하게, 귀엽고 여성스러운 음색.', '반가워요, 여러분! 오늘 파티 정말 신나요!'),
     'apple':   ('씩씩하고 명랑한 열 살 한국 남자아이 왕자의 힘찬 목소리. 신나고 또랑또랑하게.', '안녕! 나는 사과나라의 사과 왕자야. 같이 놀자!'),
     'grape':   ('부드럽고 느긋한 열 살 한국 남자아이 왕자의 다정한 목소리. 살짝 장난스럽게.', '안녕하세요, 포도나라에서 온 포도 왕자예요. 반가워요.'),
     'banana':  ('익살스럽고 장난꾸러기 같은 여덟 살 한국 남자아이 목소리. 키득키득 웃으며 장난치는 말투.', '헤헤, 나는 바나나야! 미끌미끌 재미있지?'),
@@ -43,7 +43,7 @@ SCRIPT = [
     ('n3', 'party', 'narr', '파티가 시작되자 사과 왕자님, 포도 왕자님, 바나나와 딸기도 찾아왔어요.', .2),
     ('p2', 'party', 'pumpkin', '어서 와요! 달콤한 호박 파이도 많이 있어요.', .3),
     ('n4', 'party', 'narr', '그때, 옆 나라 수박공주님이 도착했어요.', .5),
-    ('w1', 'party', 'melon', '안녕하세요! 수박나라에서 온 수박공주예요.', .1),
+    ('w1', 'party', 'melon', '안녕하세요! 저는 수박나라에서 온 수박공주예요.', .1),
     ('a1', 'party', 'apple', '우와, 초록색 줄무늬가 정말 멋져요!', 0),
     ('g1', 'party', 'grape', '수박공주님, 저랑 춤춰요!', 0),
     ('b1', 'party', 'banana', '저는 수박공주님 옆에 앉을래요!', .2),
@@ -81,7 +81,7 @@ SCRIPT = [
     ('n13', 'durian', 'narr', '어느새 비가 그치고, 하늘에 커다란 무지개가 떴어요.', .6),
 
     ('n14', 'wedding', 'narr', '호박공주님과 두리안 왕자님은 결혼을 했어요.', .2),
-    ('w2', 'wedding', 'melon', '축하해요, 호박공주님! 정말 예뻐요!', .2),
+    ('w2', 'wedding', 'melon', '호박공주님, 결혼 축하해요! 정말 예뻐요!', .2),
     ('n15', 'wedding', 'narr', '그리고 오래오래 행복하게 살았답니다.', 1.8),
 ]
 
@@ -219,7 +219,7 @@ def main():
     with open(os.path.join(ROOT, 'timeline.js'), 'w', encoding='utf-8') as f:
         f.write('// make_audio.py 가 만든 시각표 (대사 실제 길이 기준, env = 입 모양용 소리 크기 30fps). 손으로 고치지 말고 make_audio.py 를 다시 실행하세요\n')
         f.write('window.TL = ' + json.dumps(TL, ensure_ascii=False) + ';\n')
-    N = int(dur * SR); nar = np.zeros(N); fx = np.zeros(N); mus = np.zeros(N)
+    N = int(dur * SR); nar = np.zeros(N); fx = np.zeros(N); mus = np.zeros(N); amb = np.zeros(N)
     for lid, (st, x) in voice.items(): place(nar, st, x)
     L = lambda k: lines[k]; S = {s['id']: s for s in scenes}
     for s in scenes[1:]: place(fx, s['start'] - .2, whoosh(.8), .45)
@@ -232,8 +232,8 @@ def main():
     rr_ = rain(re0 - rs0); fade = np.minimum(1, t_(len(rr_) / SR) / 1.2) * np.clip((len(rr_) / SR - t_(len(rr_) / SR)) / 2.5, 0, 1)
     # 두리안 왕자 장면 끝(무지개) 쯤엔 빗소리가 잦아들게
     stop = L('n13')['start'] - rs0; fade *= np.clip((stop + 1.5 - t_(len(rr_) / SR)) / 2.5, 0, 1)
-    place(fx, rs0, rr_ * fade, 1.0)
-    place(fx, L('n9')['start'] + .2, thunder(), .8)
+    place(amb, rs0, rr_ * fade, 1.0)                                       # 빗소리는 따로 작게, 대사 나올 땐 더 줄임
+    place(fx, S['rain']['start'] + .05, thunder(), .5)                     # 천둥은 대사 전에
     place(fx, L('b2')['end'] - .2, giggle(), .7)
     place(fx, L('s2')['end'] - .2, giggle(), .7)
     place(fx, L('n12')['start'] + 1.2, pop(420), .5)                      # 우산 펼침
@@ -250,7 +250,8 @@ def main():
         place(mus, s['start'], seg * np.minimum(1, t_(dd) / .4) * np.clip((dd - t_(dd)) / .5, 0, 1))
     envl = np.convolve(np.abs(nar), np.ones(int(.3 * SR)) / int(.3 * SR), 'same')
     duck = 1 - .55 * np.clip(envl / (envl.max() * .2 + 1e-9), 0, 1)
-    mix = nar * 1.0 + fx * .5 + mus * .5 * duck
+    duck2 = 1 - .75 * np.clip(envl / (envl.max() * .15 + 1e-9), 0, 1)
+    mix = nar * 1.0 + fx * .5 + mus * .5 * duck + amb * .035 * duck2
     mix = np.tanh(mix * .95) / .95
     mix = mix / (np.abs(mix).max() + 1e-9) * .9
     out = os.path.join(ROOT, 'audio', 'mix.wav')
