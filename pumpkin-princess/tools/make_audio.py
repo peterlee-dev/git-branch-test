@@ -174,7 +174,7 @@ def chime(): return sparkle(10, 1046.5, .05)
 def wedding_bells(d=4.0):
     out = np.zeros(int(d * SR) + SR)
     for i, f in enumerate([783.99, 659.25, 523.25, 392.0, 523.25, 659.25, 783.99, 1046.5]):
-        x = bell(f, 1.6, .35) + bell(f * 2, 1.0, .1); o = int(i * .42 * SR); out[o:o + len(x)] += x
+        x = bell(f, 1.6, .35); x[:int(1.0 * SR)] += bell(f * 2, 1.0, .1); o = int(i * .42 * SR); out[o:o + len(x)] += x
     return out[:int(d * SR)]
 def giggle():       # 놀리는 키득 (짧은 높은 음 몇 번)
     out = np.zeros(int(.7 * SR))
