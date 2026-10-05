@@ -3,3 +3,4 @@ audio/*
 !audio/.gitkeep
 out/*
 !out/.gitkeep
+__pycache__/
