@@ -17,7 +17,7 @@
 </style>
 </head>
 <body>
-<script src="timeline.js"></script>
+<script>document.write('<script src="timeline' + (/[?&]lang=en/.test(location.search) ? '_en' : '') + '.js"><\/script>');   // ?lang=en 이면 영어판 시각표</script>
 <script src="content.js"></script>
 <script src="schema.js"></script>
 <canvas id="c" width="1920" height="1080"></canvas>
@@ -514,7 +514,7 @@ function sRain(t) {
   rect(0, 0, W, H, 'rgba(40,50,90,1)', dark * .12);
   // 놀리는 말 (화면에 크게)
   const tk = p(t, st('b2'), .3) * (1 - p(t, en('s2', .6), .3));
-  if (tk > 0) { ctx.save(); ctx.translate(1180, 170); ctx.rotate(Math.sin(t * 6) * .04); ctx.scale(eBack(tk), eBack(tk)); text('호박에 줄 긋는다고 수박 되나?', 0, 0, { size: 76, color: '#FF6B6B', stroke: '#fff', lw: 14 }); ctx.restore(); }
+  if (tk > 0) { ctx.save(); ctx.translate(1180, 170); ctx.rotate(Math.sin(t * 6) * .04); ctx.scale(eBack(tk), eBack(tk)); text(C.tease, 0, 0, { size: TL.lang === 'en' ? 64 : 76, color: '#FF6B6B', stroke: '#fff', lw: 14 }); ctx.restore(); }
 }
 // 6. 두리안 왕자
 function sDurian(t) {
@@ -571,17 +571,21 @@ const NAMECOL = { pumpkin: '#F08A1C', melon: '#3E9B4A', apple: '#E04848', grape:
 function subtitle(t) {
   const id = TL.order.find(i => { const l = TL.lines[i]; return t >= l.start - .1 && t < l.end + .35; }); if (!id) return;
   const l = TL.lines[id], str = (C.subs && C.subs[id]) || l.text, a = Math.min(eOut(p(t, l.start - .1, .2)), 1 - p(t, l.end + .15, .2));
-  ctx.save(); ctx.font = `400 46px ${JUA}`; const w = Math.min(1500, ctx.measureText(str).width + 80); ctx.restore();
-  const y = 990;
-  rr(960 - w / 2, y - 44, w, 88, 44, rgba(K.subBox, .92), a);
+  ctx.save(); ctx.font = `400 46px ${JUA}`; const full = ctx.measureText(str).width;
+  // 길면 가운데 가까운 띄어쓰기에서 두 줄로 나눔 (영어판)
+  let rows = [str];
+  if (full > 1400 && str.includes(' ')) { const mid = str.length / 2; let best = -1; for (let i = 0; i < str.length; i++) if (str[i] === ' ' && (best < 0 || Math.abs(i - mid) < Math.abs(best - mid))) best = i; rows = [str.slice(0, best), str.slice(best + 1)]; }
+  const w = Math.min(1500, Math.max(...rows.map(r => ctx.measureText(r).width)) + 80); ctx.restore();
+  const two = rows.length > 1, y = two ? 962 : 990, bh = two ? 144 : 88;
+  rr(960 - w / 2, y - 44, w, bh, 44, rgba(K.subBox, .92), a);
   if (l.name) { ctx.save(); ctx.font = `400 30px ${JUA}`; const nw = ctx.measureText(l.name).width + 40; ctx.restore(); rr(960 - w / 2 + 20, y - 72, nw, 46, 23, NAMECOL[l.who] || '#888', a); text(l.name, 960 - w / 2 + 20 + nw / 2, y - 48, { size: 30, color: '#fff', alpha: a }); }
-  text(str, 960, y + 2, { size: Math.min(46, 46 * 1420 / Math.max(1, w - 80)), color: l.who === 'narr' ? '#5A4E48' : K.ink, alpha: a });
+  rows.forEach((r, i) => text(r, 960, y + 2 + i * 56, { size: Math.min(46, 46 * 1420 / Math.max(1, w - 80)), color: l.who === 'narr' ? '#5A4E48' : K.ink, alpha: a }));
 }
 function titleCard(t) {
   const a = 1 - p(t, 1.7, .5); if (a <= 0) return;
   rect(0, 0, W, H, 'rgba(255,248,236,.55)', a);
   const k = eBack(p(t, .1, .6)); ctx.save(); ctx.translate(960, 440); ctx.scale(k, k);
-  text(C.title.sub, 0, -120, { size: 44, color: '#8C7F78', alpha: a }); text(C.title.main, 0, 10, { size: 130, color: '#F7A23B', stroke: '#fff', lw: 22, alpha: a }); ctx.restore();
+  text(C.title.sub, 0, -120, { size: 44, color: '#8C7F78', alpha: a }); ctx.save(); ctx.font = `400 130px ${JUA}`; const tsz = Math.min(130, 130 * 1720 / ctx.measureText(C.title.main).width); ctx.restore(); text(C.title.main, 0, 10, { size: tsz, color: '#F7A23B', stroke: '#fff', lw: 22 * tsz / 130, alpha: a }); ctx.restore();
 }
 function draw(t) {
   ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalAlpha = 1;
@@ -596,7 +600,7 @@ function draw(t) {
 const seekEl = document.getElementById('seek'), timeEl = document.getElementById('time'), playEl = document.getElementById('play');
 seekEl.max = DURATION.toFixed(2);
 let playing = false, t0 = 0, tCur = 0;
-const audio = new Audio('audio/mix.wav'); audio.preload = 'auto';
+const audio = new Audio(TL.lang === 'en' ? 'audio/mix_en.wav' : 'audio/mix.wav'); audio.preload = 'auto';
 function show(t) { tCur = t; draw(t); seekEl.value = t; timeEl.textContent = t.toFixed(2) + 's'; }
 function loop(now) { if (!playing) return; const t = (now - t0) / 1000; if (t >= DURATION) { playing = false; playEl.textContent = '▶ 재생'; audio.pause(); show(DURATION); return; } show(t); requestAnimationFrame(loop); }
 playEl.onclick = () => { playing = !playing; playEl.textContent = playing ? '❚❚ 정지' : '▶ 재생'; if (playing) { if (tCur >= DURATION) tCur = 0; t0 = performance.now() - tCur * 1000; try { audio.currentTime = tCur; audio.play().catch(() => {}); } catch (e) {} requestAnimationFrame(loop); } else audio.pause(); };

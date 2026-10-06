@@ -85,6 +85,71 @@ SCRIPT = [
     ('n15', 'wedding', 'narr', '그리고 오래오래 행복하게 살았답니다.', 1.8),
 ]
 
+# ---------------------------------------------------------------- 영어 버전 (VIDEO_LANG=en)
+# 장면·말하는 사람·대사 id 는 한국어판과 같아서 화면 움직임이 그대로 따라감. 결과는 timeline_en.js / audio/mix_en.wav
+LANG = os.environ.get('VIDEO_LANG', 'ko')
+VOICES_EN = {
+    'narr':    ('A warm, gentle female storyteller in her thirties with a clear American English accent, reading a fairy tale to young children calmly and kindly.', 'Once upon a time, in a little village, there lived a kind-hearted child.'),
+    'pumpkin': ('A sweet, shy seven-year-old girl princess with a cute, clear, high voice and a native American English accent. Gentle and lovely.', 'Hello, I am the princess of Pumpkin Kingdom. It is so nice to meet you!'),
+    'melon':   ('A cheerful, kind ten-year-old girl princess with a bright, clear, high and girly voice and a native American English accent.', 'Hi, everyone! This party is so much fun!'),
+    'apple':   ('A brave, energetic twelve-year-old boy prince with a clearly boyish, slightly husky male voice, not high-pitched, and a native American English accent.', 'Hi! I am Prince Apple from Apple Kingdom. Let us play together!'),
+    'grape':   ('A soft, relaxed ten-year-old boy prince with a friendly, slightly playful voice and a native American English accent.', 'Hello, I am Prince Grape from Grape Kingdom. Nice to meet you.'),
+    'banana':  ('A funny, mischievous eight-year-old boy who giggles and teases, with a native American English accent.', 'Hee hee, I am Banana! Slippery and silly, right?'),
+    'berry':   ('A sassy, bubbly eight-year-old girl with a playful, teasing voice and a native American English accent.', 'I am Strawberry! Red and sweet, hee hee!'),
+    'durian':  ('A kind, gentle adult man prince in his late twenties with a warm, low, deep male baritone voice, calm and reassuring, with a native American English accent.', 'Good afternoon, Princess. What a lovely day it is.'),
+}
+NAMES_EN = {'narr': '', 'pumpkin': 'Pumpkin Princess', 'melon': 'Watermelon Princess', 'apple': 'Prince Apple', 'grape': 'Prince Grape', 'banana': 'Banana', 'berry': 'Strawberry', 'durian': 'Prince Durian'}
+SCENES_EN = {'castle': 'Pumpkin Kingdom', 'party': 'The Party', 'paint': 'Painting Stripes', 'stripes': 'Striped Princess', 'rain': 'Rain', 'durian': 'Prince Durian', 'wedding': 'The Wedding'}
+LINES_EN = {
+    'n1': 'Once upon a time, in the round, round Pumpkin Kingdom, there lived a Pumpkin Princess.',
+    'p1': 'Today is the day of my party! I hope lots of friends will come.',
+    'n2': 'The Pumpkin Princess invited all her friends from Fruit Land to the castle garden.',
+    'n3': 'When the party began, Prince Apple, Prince Grape, Banana, and Strawberry all came.',
+    'p2': 'Welcome, everyone! There is lots of sweet pumpkin pie.',
+    'n4': 'Just then, the Watermelon Princess from the next kingdom arrived.',
+    'w1': 'Hello! I am the Watermelon Princess from Watermelon Kingdom.',
+    'a1': 'Wow, your green stripes are so cool!',
+    'g1': 'Watermelon Princess, will you dance with me?',
+    'b1': 'I want to sit next to the Watermelon Princess!',
+    'n5': 'All the friends rushed over to the Watermelon Princess.',
+    'p3': 'Everyone only likes the Watermelon Princess...',
+    'p4': 'I wish I had stripes just like her.',
+    'n6': 'The Pumpkin Princess quietly went to her room and picked up a brush.',
+    'p5': 'Swish, swish! I will paint some green stripes.',
+    'p6': 'Ta-da! Now I look just like the Watermelon Princess!',
+    'n7': 'When the striped Pumpkin Princess came back to the garden,',
+    'a2': 'Wow, who is that lovely princess?',
+    'g2': 'Striped Princess, will you dance with me?',
+    'n8': 'The handsome princes gathered around the Pumpkin Princess.',
+    'p7': 'Hee hee, really? I would love to!',
+    'n9': 'But then, all of a sudden, rain poured down from the sky.',
+    'p8': 'Oh no, it is raining! Oh no!',
+    'n10': "The rain washed the Pumpkin Princess's stripes right off.",
+    's1': 'Huh? The stripes are gone! It was the Pumpkin Princess!',
+    'b2': 'Ha ha! Painting stripes on a pumpkin does not make it a watermelon!',
+    's2': 'A pumpkin with stripes is still a pumpkin! Hee hee!',
+    'p9': 'Sniff, sniff... I am so embarrassed.',
+    'n11': 'The Pumpkin Princess was so sad that she sat down in a corner of the garden and cried.',
+    'n12': 'Just then, someone came over and held an umbrella over her.',
+    'd1': 'Princess, please do not be sad.',
+    'p10': 'Who... are you?',
+    'd2': 'I am Prince Durian from Durian Kingdom. Everyone stays away from me because of my prickly spikes.',
+    'd3': 'You are beautiful without any stripes. You are lovely just the way you are, round and orange.',
+    'p11': 'Really? You think I am pretty just the way I am?',
+    'd4': 'Of course. Your smile is as bright as the sun.',
+    'p12': 'Thank you, Prince Durian!',
+    'n13': 'Soon the rain stopped, and a big rainbow appeared in the sky.',
+    'n14': 'The Pumpkin Princess and Prince Durian got married.',
+    'w2': 'Congratulations, Pumpkin Princess! You look beautiful!',
+    'n15': 'And they lived happily ever after.',
+}
+TTS_LANG = 'Korean'
+if LANG == 'en':
+    VOICES, NAMES, TTS_LANG = VOICES_EN, NAMES_EN, 'English'
+    SCENES = [(sid, SCENES_EN[sid]) for sid, _ in SCENES]
+    SCRIPT = [(lid, sc, sp, LINES_EN[lid], ex) for lid, sc, sp, tx, ex in SCRIPT]
+SUFFIX = '' if LANG == 'ko' else '_' + LANG
+
 # ---------------------------------------------------------------- TTS
 def trim(x, thr=.008):
     idx = np.where(np.abs(x) > thr)[0]
@@ -115,7 +180,7 @@ def make_voices():
         for k, (desc, text) in VOICES.items():
             if os.path.exists(refs[k]): continue
             torch.manual_seed(7)
-            w, sr = m.generate_voice_design(text=text, language='Korean', instruct=desc)
+            w, sr = m.generate_voice_design(text=text, language=TTS_LANG, instruct=desc)
             sf.write(refs[k], w[0], sr); print(f'  기준 목소리: {k}', flush=True)
         del m
     if need:                                                          # 2) 기준 목소리로 대사 읽기
@@ -125,7 +190,7 @@ def make_voices():
         for lid, sp, tx in need:
             if sp not in prompts: prompts[sp] = m.create_voice_clone_prompt(ref_audio=refs[sp], ref_text=VOICES[sp][1])
             torch.manual_seed(11)
-            w, sr = m.generate_voice_clone(text=tx, language='Korean', voice_clone_prompt=prompts[sp])
+            w, sr = m.generate_voice_clone(text=tx, language=TTS_LANG, voice_clone_prompt=prompts[sp])
             sf.write(line_path(sp, tx), w[0], sr); print(f'  {lid} {NAMES.get(sp) or "내레이션"}: {tx}', flush=True)
 
 def load_line(sp, tx):
@@ -215,8 +280,8 @@ def main():
     dur = round(t + .4, 2)
     ids = [s for s, _ in SCENES]
     scenes = [{'id': s, 'label': lab, 'start': round(max(0, scene_t[s]), 3), 'end': round(scene_t[ids[i + 1]] if i + 1 < len(ids) else dur, 3)} for i, (s, lab) in enumerate(SCENES)]
-    TL = {'duration': dur, 'scenes': scenes, 'lines': lines, 'order': order}
-    with open(os.path.join(ROOT, 'timeline.js'), 'w', encoding='utf-8') as f:
+    TL = {'lang': LANG, 'duration': dur, 'scenes': scenes, 'lines': lines, 'order': order}
+    with open(os.path.join(ROOT, f'timeline{SUFFIX}.js'), 'w', encoding='utf-8') as f:
         f.write('// make_audio.py 가 만든 시각표 (대사 실제 길이 기준, env = 입 모양용 소리 크기 30fps). 손으로 고치지 말고 make_audio.py 를 다시 실행하세요\n')
         f.write('window.TL = ' + json.dumps(TL, ensure_ascii=False) + ';\n')
     N = int(dur * SR); nar = np.zeros(N); fx = np.zeros(N); mus = np.zeros(N); amb = np.zeros(N)
@@ -229,9 +294,9 @@ def main():
     place(fx, L('p6')['start'] - .1, sparkle(12, 1318.5, .045), .9)        # 짜잔
     place(fx, L('a2')['start'] - .4, sparkle(8, 1568), .6)
     rs0, re0 = L('n9')['start'] - .4, S['durian']['end'] - 0
-    rr_ = rain(re0 - rs0); fade = np.minimum(1, t_(len(rr_) / SR) / 1.2) * np.clip((len(rr_) / SR - t_(len(rr_) / SR)) / 2.5, 0, 1)
+    rr_ = rain(re0 - rs0); tr = np.arange(len(rr_)) / SR; fade = np.minimum(1, tr / 1.2) * np.clip((len(rr_) / SR - tr) / 2.5, 0, 1)
     # 두리안 왕자 장면 끝(무지개) 쯤엔 빗소리가 잦아들게
-    stop = L('n13')['start'] - rs0; fade *= np.clip((stop + 1.5 - t_(len(rr_) / SR)) / 2.5, 0, 1)
+    stop = L('n13')['start'] - rs0; fade *= np.clip((stop + 1.5 - tr) / 2.5, 0, 1)
     place(amb, rs0, rr_ * fade, 1.0)                                       # 빗소리는 따로 작게, 대사 나올 땐 더 줄임
     place(fx, S['rain']['start'] + .05, thunder(), .25)                     # 천둥은 대사 전에
     place(fx, L('b2')['end'] - .2, giggle(), .7)
@@ -254,7 +319,7 @@ def main():
     mix = nar * 1.0 + fx * .5 + mus * .5 * duck + amb * .035 * duck2
     mix = np.tanh(mix * .95) / .95
     mix = mix / (np.abs(mix).max() + 1e-9) * .9
-    out = os.path.join(ROOT, 'audio', 'mix.wav')
+    out = os.path.join(ROOT, 'audio', f'mix{SUFFIX}.wav')
     sf.write(out, np.stack([mix, mix], 1).astype(np.float32), SR, subtype='PCM_16')
     print(f'완료: {out} ({dur}초, 대사 {len(order)}줄)')
 

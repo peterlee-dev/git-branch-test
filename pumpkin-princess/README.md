@@ -32,3 +32,14 @@ QWEN_DESIGN_DIR=/path/Qwen3-TTS-12Hz-1.7B-VoiceDesign QWEN_BASE_DIR=/path/Qwen3-
 export FFMPEG=$(python3 -c "import imageio_ffmpeg as i; print(i.get_ffmpeg_exe())")
 node render.mjs        # out/pumpkin_princess.mp4
 ```
+
+## 영어판 (English version)
+
+같은 장면·움직임에 영어 대사와 영어 목소리를 입힌 버전이에요. 대사는 `tools/make_audio.py`의 `LINES_EN`, 목소리 설명은 `VOICES_EN`(원어민 미국 영어 발음)에서 고쳐요.
+
+```bash
+VIDEO_LANG=en QWEN_DESIGN_DIR=... QWEN_BASE_DIR=... python3 tools/make_audio.py   # timeline_en.js, audio/mix_en.wav
+node render.mjs --lang en                                                         # out/pumpkin_princess_en.mp4
+```
+
+미리보기는 `index.html?lang=en`. 제목·놀림 자막·이름표가 영어로 바뀌고, 긴 영어 자막은 두 줄로 나와요.
