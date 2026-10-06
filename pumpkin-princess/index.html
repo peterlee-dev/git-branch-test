@@ -158,7 +158,12 @@ function fruitBody(g, kind, o) {
     if (kind === 'pumpkin') { g.strokeStyle = shade(col, .78); g.lineWidth = 6; [.55, .2].forEach(k => { g.beginPath(); g.ellipse(0, cy, rx * k, ry * .99, 0, 0, Math.PI * 2); g.stroke(); }); }
     if (kind === 'melon') melonStripes(g, cy, rx, ry, K.melonStripe, 1, 0);
     if (kind === 'pumpkin' && (o.stripes || 0) > 0) melonStripes(g, cy, rx, ry, K.paint, o.stripes, o.wash || 0, t);
-    if (kind === 'berry') { const r = rng(5); for (let i = 0; i < 22; i++) { const a = r() * Math.PI * 2, d = Math.sqrt(r()) * .85; ell(g, Math.cos(a) * rx * d, cy + Math.sin(a) * ry * d + 10, 4.5, 7, '#FFE27A'); } }
+    if (kind === 'berry') {   // 씨: 노란 작은 물방울 모양을 줄 맞춰 (테두리 없이)
+      g.fillStyle = '#FFF0A0';
+      for (let row = 0; row < 5; row++) { const yy = cy - ry * .55 + row * ry * .33, n = 5 - Math.floor(row / 2), half = rx * (1 - row * .14) * .78;
+        for (let i = 0; i < n; i++) { const xx = -half + (i + .5) * 2 * half / n + (row % 2 ? half / n * .5 : 0) - half / n * .25;
+          if (Math.abs(xx) < rx * .42 && yy > cy - ry * .3 && yy < cy + ry * .45) continue;   // 얼굴 자리는 비움
+          g.beginPath(); g.moveTo(xx, yy - 6); g.quadraticCurveTo(xx + 5, yy + 2, xx, yy + 6); g.quadraticCurveTo(xx - 5, yy + 2, xx, yy - 6); g.fill(); } } }
     if (kind === 'banana') { g.strokeStyle = shade(col, .8); g.lineWidth = 5; g.beginPath(); g.moveTo(-rx * .2, cy - ry * .9); g.quadraticCurveTo(-rx * .6, cy, rx * .2, cy + ry); g.stroke(); }
     if (kind === 'durian') { const r = rng(9); g.fillStyle = shade(col, .85); for (let i = 0; i < 18; i++) { const a = r() * Math.PI * 2, d = Math.sqrt(r()) * .85; g.beginPath(); g.moveTo(Math.cos(a) * rx * d, cy + Math.sin(a) * ry * d - 9); g.lineTo(Math.cos(a) * rx * d + 7, cy + Math.sin(a) * ry * d + 5); g.lineTo(Math.cos(a) * rx * d - 7, cy + Math.sin(a) * ry * d + 5); g.fill(); } }
     g.fillStyle = 'rgba(60,20,40,.12)'; g.beginPath(); g.ellipse(0, cy, rx * 1.4, ry * 1.4, 0, 0, Math.PI * 2); g.ellipse(-rx * .1, cy - ry * .12, rx * .97, ry * .97, 0, 0, Math.PI * 2, true); g.fill('evenodd');
