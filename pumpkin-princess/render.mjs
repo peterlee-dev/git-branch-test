@@ -9,16 +9,17 @@ import path from 'node:path';
 const dir = path.dirname(fileURLToPath(import.meta.url));
 const arg = (k, d) => { const i = process.argv.indexOf(k); return i > 0 ? process.argv[i + 1] : d; };
 const preview = process.argv.includes('--preview');
+const LANG = arg('--lang', 'ko'), SUF = LANG === 'ko' ? '' : '_' + LANG;   // --lang en → 영어판
 const FPS = +arg('--fps', preview ? 15 : 30);
-const OUT = path.resolve(dir, arg('--out', preview ? 'out/pumpkin_princess_preview.mp4' : 'out/pumpkin_princess.mp4'));
+const OUT = path.resolve(dir, arg('--out', preview ? `out/pumpkin_princess${SUF}_preview.mp4` : `out/pumpkin_princess${SUF}.mp4`));
 const FFMPEG = process.env.FFMPEG || 'ffmpeg';
 const AUDIO_START = process.env.AUDIO_START || '0'; // 노래의 시작 지점(초)
-const audio = ['mix.wav', 'song.mp3', 'song.wav', 'song.m4a'].map(f => path.join(dir, 'audio', f)).find(existsSync);
+const audio = [`mix${SUF}.wav`, 'song.mp3', 'song.wav', 'song.m4a'].map(f => path.join(dir, 'audio', f)).find(existsSync);
 
 mkdirSync(path.dirname(OUT), { recursive: true });
 const browser = await chromium.launch({ executablePath: process.env.CHROMIUM || '/opt/pw-browsers/chromium', args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
 const page = await browser.newPage({ viewport: { width: 1920, height: 1080 }, deviceScaleFactor: 1 });
-await page.goto(pathToFileURL(path.join(dir, 'index.html')).href + '?render');
+await page.goto(pathToFileURL(path.join(dir, 'index.html')).href + '?render' + (SUF ? '&lang=' + LANG : ''));
 await page.evaluate(() => window.ready);
 const projectPath = arg('--project');                  // 영상 편집기에서 저장한 문구·색 (../editor/PROTOCOL.md)
 if (projectPath) await page.evaluate(p => window.VIDEO.apply(p.content), JSON.parse(readFileSync(path.resolve(projectPath), 'utf8')));
