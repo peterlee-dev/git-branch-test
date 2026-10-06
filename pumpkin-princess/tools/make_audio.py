@@ -140,7 +140,7 @@ def lp(x, a):
     y = np.zeros_like(x); acc = 0.0
     for i in range(len(x)): acc += a * (x[i] - acc); y[i] = acc
     return y
-def bell(f, d=1.2, g=.5): tt = t_(d); return (np.sin(2 * np.pi * f * tt) + .3 * np.sin(2 * np.pi * f * 2.76 * tt) * np.exp(-tt * 6)) * np.exp(-tt * 3.5) * g
+def bell(f, d=1.2, g=.5): tt = t_(d); return (np.sin(2 * np.pi * f * tt) + .22 * np.sin(2 * np.pi * f * 2 * tt) * np.exp(-tt * 5) + .06 * np.sin(2 * np.pi * f * 3 * tt) * np.exp(-tt * 8)) * np.minimum(1, tt / .006) * np.exp(-tt * 3.2) * g
 def sparkle(n=8, base=1318.5, step=.06):
     out = np.zeros(int((n * step + 1.2) * SR)); scale = [1, 1.122, 1.26, 1.498, 1.682, 2, 2.245, 2.52]
     for i in range(n): x = bell(base * scale[i % 8], 1.0, .22); o = int(i * step * SR); out[o:o + len(x)] += x
@@ -181,12 +181,12 @@ def giggle():       # 놀리는 키득 (짧은 높은 음 몇 번)
     for i in range(5): tt = t_(.07); f = 900 + i * 60; x = np.sin(2 * np.pi * f * tt) * np.sin(np.pi * tt / .07); o = int(i * .12 * SR); out[o:o + len(x)] += x * .25
     return out
 def musicbox(dur, mood):
-    # 오르골 아르페지오. mood: 'day' 밝게, 'waltz' 파티 왈츠, 'sad' 단조, 'wedding' 환하게
+    # 오르골 아르페지오. mood: 'day' 밝게, 'waltz' 파티 왈츠, 'gentle' 비 올 때 잔잔한 장조 자장가 (무섭지 않게), 'wedding' 환하게
     prog = {'day': [[261.63, 329.63, 392.0], [220.0, 261.63, 329.63], [174.61, 220.0, 261.63], [196.0, 246.94, 293.66]],
             'waltz': [[293.66, 369.99, 440.0], [246.94, 293.66, 369.99], [196.0, 246.94, 293.66], [220.0, 277.18, 329.63]],
-            'sad': [[220.0, 261.63, 329.63], [196.0, 233.08, 293.66], [174.61, 220.0, 261.63], [164.81, 207.65, 246.94]],
+            'gentle': [[174.61, 220.0, 261.63], [146.83, 174.61, 220.0], [116.54, 146.83, 174.61], [130.81, 164.81, 196.0]],
             'wedding': [[261.63, 329.63, 392.0], [174.61, 220.0, 261.63], [196.0, 246.94, 293.66], [261.63, 329.63, 392.0]]}[mood]
-    beat = {'day': .36, 'waltz': .3, 'sad': .55, 'wedding': .34}[mood]
+    beat = {'day': .36, 'waltz': .3, 'gentle': .42, 'wedding': .34}[mood]
     pat = [0, 1, 2, 1, 2, 1] if mood == 'waltz' else [0, 1, 2, 3, 4, 3, 2, 1]
     out = np.zeros(int(dur * SR) + 2 * SR); t, k = 0.0, 0
     while t < dur:
@@ -233,14 +233,14 @@ def main():
     # 두리안 왕자 장면 끝(무지개) 쯤엔 빗소리가 잦아들게
     stop = L('n13')['start'] - rs0; fade *= np.clip((stop + 1.5 - t_(len(rr_) / SR)) / 2.5, 0, 1)
     place(amb, rs0, rr_ * fade, 1.0)                                       # 빗소리는 따로 작게, 대사 나올 땐 더 줄임
-    place(fx, S['rain']['start'] + .05, thunder(), .5)                     # 천둥은 대사 전에
+    place(fx, S['rain']['start'] + .05, thunder(), .25)                     # 천둥은 대사 전에
     place(fx, L('b2')['end'] - .2, giggle(), .7)
     place(fx, L('s2')['end'] - .2, giggle(), .7)
     place(fx, L('n12')['start'] + 1.2, pop(420), .5)                      # 우산 펼침
     place(fx, L('n13')['start'] + .6, sparkle(14, 1046.5, .06), .8)        # 무지개
     place(fx, S['wedding']['start'] + .3, wedding_bells(), .9)
     place(fx, L('n15')['end'] + .1, sparkle(10, 1318.5), .6)
-    moods = {'castle': 'day', 'party': 'waltz', 'paint': 'day', 'stripes': 'waltz', 'rain': 'sad', 'durian': 'sad', 'wedding': 'wedding'}
+    moods = {'castle': 'day', 'party': 'waltz', 'paint': 'day', 'stripes': 'waltz', 'rain': 'gentle', 'durian': 'gentle', 'wedding': 'wedding'}
     for s in scenes:
         seg = musicbox(s['end'] - s['start'] + .5, moods[s['id']])
         if s['id'] == 'durian':   # 무지개부터 밝아지게
