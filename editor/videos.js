@@ -1,5 +1,6 @@
 // 편집기에서 고를 수 있는 영상 (폴더 이름 = id). 각 폴더는 editor/PROTOCOL.md 를 따름
 window.VIDEOS = [
+ { id: 'adaptive-diagnosis', title: 'Adaptive Diagnostic Assessment (영문 설명)' },
  { id: 'pumpkin-princess', title: '호박공주와 두리안 왕자' },
  { id: 'jiwoo-big-brother', title: '지우의 형아 되기' },
  { id: 'jei-group-promo', title: '재능그룹 홍보' },
