@@ -1,0 +1,476 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Adaptive Diagnostic Assessment</title>
+<style>
+  @font-face { font-family: 'Noto Sans KR'; src: url('fonts/NotoSansKR.ttf') format('truetype'); font-weight: 100 900; font-display: block; }
+  html, body { margin: 0; background: #111; }
+  body { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 12px; font-family: 'Noto Sans KR', sans-serif; color: #ddd; }
+  canvas { width: min(100%, 1280px); aspect-ratio: 16 / 9; display: block; background: #fff; }
+  .bar { display: flex; gap: 12px; align-items: center; width: min(100%, 1280px); }
+  .bar input { flex: 1; }
+  body.render { padding: 0; gap: 0; }
+  body.render canvas { width: 1920px; height: 1080px; }
+  body.render .bar { display: none; }
+</style>
+</head>
+<body>
+<script src="timeline.js"></script>
+<script src="content.js"></script>
+<script src="schema.js"></script>
+<canvas id="c" width="1920" height="1080"></canvas>
+<div class="bar">
+  <button id="play">▶ Play</button>
+  <input id="seek" type="range" min="0" max="300" step="0.01" value="0">
+  <span id="time">0.00s</span>
+</div>
+<script>
+// ------------------------------------------------------------
+// Adaptive Diagnostic Assessment — explainer motion graphics for the Self-Learning JEI Math deck (17 slides)
+// Timing comes from timeline.js (tools/make_audio.py measures the cloned-voice narration). Every animation is keyed to a narration line,
+// so re-recording the voice keeps everything in sync. draw(t) is a pure function of time → frame-by-frame rendering.
+// ------------------------------------------------------------
+const W = 1920, H = 1080, TL = window.TL, DURATION = TL.duration;
+const cv = document.getElementById('c'), ctx = cv.getContext('2d');
+const DEFAULT_CONTENT = JSON.parse(JSON.stringify(window.CONTENT));
+let C = window.CONTENT, K = C.colors;
+const FONT = "'Noto Sans KR', sans-serif";
+
+// ---------- basics ----------
+const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
+const lerp = (a, b, k) => a + (b - a) * k;
+const p = (t, s, d) => clamp((t - s) / d);
+const eOut = x => 1 - Math.pow(1 - x, 3), eIO = x => x < .5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
+const eBack = x => { const c1 = 1.7, c3 = c1 + 1; return x <= 0 ? 0 : 1 + c3 * Math.pow(x - 1, 3) + c1 * Math.pow(x - 1, 2); };
+function rgba(hex, a) { const n = parseInt(hex.slice(1), 16); return `rgba(${n >> 16 & 255},${n >> 8 & 255},${n & 255},${a})`; }
+const L = id => TL.lines[id] || { start: 0, end: 0 };
+const S = id => TL.scenes.find(s => s.id === id) || { start: 0, end: 0 };
+const st = (id, f = 0) => L(id).start + (L(id).end - L(id).start) * f;   // f: 0 = start of the line, 1 = end
+const en = (id, d = 0) => L(id).end + d;
+function rr(x, y, w, h, r, fill, stroke, lw = 2, a = 1) { if (a <= 0) return; ctx.save(); ctx.globalAlpha *= a; ctx.beginPath(); ctx.roundRect(x, y, w, h, r); if (fill) { ctx.fillStyle = fill; ctx.fill(); } if (stroke) { ctx.lineWidth = lw; ctx.strokeStyle = stroke; ctx.stroke(); } ctx.restore(); }
+function circ(x, y, r, fill, stroke, lw = 3, a = 1) { if (a <= 0 || r <= 0) return; ctx.save(); ctx.globalAlpha *= a; ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); if (fill) { ctx.fillStyle = fill; ctx.fill(); } if (stroke) { ctx.lineWidth = lw; ctx.strokeStyle = stroke; ctx.stroke(); } ctx.restore(); }
+function line(x1, y1, x2, y2, c, lw = 3, a = 1, dash) { if (a <= 0) return; ctx.save(); ctx.globalAlpha *= a; ctx.strokeStyle = c; ctx.lineWidth = lw; ctx.lineCap = 'round'; if (dash) ctx.setLineDash(dash); ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke(); ctx.restore(); }
+function text(str, x, y, { size = 40, color = K.navy, weight = 500, align = 'center', alpha = 1, base = 'middle', maxW } = {}) {
+  if (alpha <= 0 || !str) return; ctx.save(); ctx.globalAlpha *= alpha; ctx.font = `${weight} ${size}px ${FONT}`; ctx.textAlign = align; ctx.textBaseline = base; ctx.fillStyle = color;
+  if (maxW) { const w = ctx.measureText(str).width; if (w > maxW) ctx.font = `${weight} ${size * maxW / w}px ${FONT}`; }
+  ctx.fillText(str, x, y); ctx.restore();
+}
+// rich text: [['plain ', color], ['bold', color, weight]] centred on x
+function rich(parts, x, y, size, alpha = 1, def = K.navy) {
+  if (alpha <= 0) return; ctx.save(); ctx.globalAlpha *= alpha; ctx.textBaseline = 'middle';
+  const ws = parts.map(([s, c, w]) => { ctx.font = `${w || 600} ${size}px ${FONT}`; return ctx.measureText(s).width; });
+  let cx = x - ws.reduce((a, b) => a + b, 0) / 2;
+  parts.forEach(([s, c, w], i) => { ctx.font = `${w || 600} ${size}px ${FONT}`; ctx.fillStyle = c || def; ctx.textAlign = 'left'; ctx.fillText(s, cx, y); cx += ws[i]; });
+  ctx.restore();
+}
+// entrance: fade + rise (+ optional pop). returns k (0..1) and applies a transform around (x, y) while fn runs
+function enter(t, t0, x, y, fn, { d = .55, rise = 30, pop = false } = {}) {
+  const k = p(t, t0, d); if (k <= 0) return 0;
+  const e = pop ? eBack(k) : eOut(k);
+  ctx.save(); ctx.globalAlpha *= clamp(k * 1.6); ctx.translate(x, y + (1 - eOut(k)) * rise); if (pop) ctx.scale(lerp(.6, 1, e), lerp(.6, 1, e)); ctx.translate(-x, -y); fn(k); ctx.restore(); return k;
+}
+function card(x, y, w, h, { fill = '#FFFFFF', stroke = K.line, r = 18, shadow = true, a = 1 } = {}) {
+  if (a <= 0) return; ctx.save(); ctx.globalAlpha *= a;
+  if (shadow) { ctx.shadowColor = 'rgba(30,60,140,.12)'; ctx.shadowBlur = 30; ctx.shadowOffsetY = 10; }
+  ctx.beginPath(); ctx.roundRect(x, y, w, h, r); ctx.fillStyle = fill; ctx.fill(); ctx.shadowColor = 'transparent'; ctx.lineWidth = 2; ctx.strokeStyle = stroke; ctx.stroke(); ctx.restore();
+}
+function arrowHead(x, y, ang, s, c) { ctx.save(); ctx.translate(x, y); ctx.rotate(ang); ctx.fillStyle = c; ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(-s, -s * .6); ctx.lineTo(-s, s * .6); ctx.closePath(); ctx.fill(); ctx.restore(); }
+// arc arrow between two points that bulges up (dir -1) or down (dir 1), drawn to fraction k
+function arcArrow(x1, y1, x2, y2, bulge, c, k, lw = 5) {
+  if (k <= 0) return; const mx = (x1 + x2) / 2, my = (y1 + y2) / 2 + bulge;
+  ctx.save(); ctx.strokeStyle = c; ctx.lineWidth = lw; ctx.lineCap = 'round'; ctx.beginPath();
+  let px = x1, py = y1, ang = 0; ctx.moveTo(x1, y1);
+  for (let i = 1; i <= 40 * k; i++) { const u = i / 40, nx = (1 - u) * (1 - u) * x1 + 2 * (1 - u) * u * mx + u * u * x2, ny = (1 - u) * (1 - u) * y1 + 2 * (1 - u) * u * my + u * u * y2; ang = Math.atan2(ny - py, nx - px); ctx.lineTo(nx, ny); px = nx; py = ny; }
+  ctx.stroke(); ctx.restore(); arrowHead(px, py, ang, 16, c);
+}
+function check(x, y, s, c, k = 1, lw = 7) { if (k <= 0) return; ctx.save(); ctx.strokeStyle = c; ctx.lineWidth = lw; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.beginPath(); const pts = [[-.5, 0], [-.15, .35], [.55, -.4]]; ctx.moveTo(x + pts[0][0] * s, y + pts[0][1] * s); const k1 = clamp(k * 2), k2 = clamp(k * 2 - 1); ctx.lineTo(x + lerp(pts[0][0], pts[1][0], k1) * s, y + lerp(pts[0][1], pts[1][1], k1) * s); if (k2 > 0) ctx.lineTo(x + lerp(pts[1][0], pts[2][0], k2) * s, y + lerp(pts[1][1], pts[2][1], k2) * s); ctx.stroke(); ctx.restore(); }
+function cross(x, y, s, c, k = 1, lw = 7) { if (k <= 0) return; const k1 = clamp(k * 2), k2 = clamp(k * 2 - 1); line(x - s / 2, y - s / 2, x - s / 2 + s * k1, y - s / 2 + s * k1, c, lw); if (k2 > 0) line(x + s / 2, y - s / 2, x + s / 2 - s * k2, y - s / 2 + s * k2, c, lw); }
+function bigArrow(x, y, up, c, s = 1, a = 1) { ctx.save(); ctx.globalAlpha *= a; ctx.translate(x, y); ctx.scale(s, up ? -s : s); ctx.fillStyle = c; ctx.beginPath(); ctx.moveTo(-9, -22); ctx.lineTo(9, -22); ctx.lineTo(9, 2); ctx.lineTo(20, 2); ctx.lineTo(0, 24); ctx.lineTo(-20, 2); ctx.lineTo(-9, 2); ctx.closePath(); ctx.fill(); ctx.restore(); }
+
+// ---------- background: soft gradient + blue swoosh waves (from the deck) ----------
+function backdrop(t, swoosh = .35) {
+  const g = ctx.createLinearGradient(0, 0, W, H); g.addColorStop(0, '#FFFFFF'); g.addColorStop(1, K.bg); ctx.fillStyle = g; ctx.fillRect(-200, -200, W + 400, H + 400);
+  const b = ctx.createRadialGradient(1500, 120, 10, 1500, 120, 900); b.addColorStop(0, 'rgba(120,160,255,.10)'); b.addColorStop(1, 'rgba(120,160,255,0)'); ctx.fillStyle = b; ctx.fillRect(0, 0, W, H);
+  if (swoosh > 0) waves(t, swoosh);
+}
+function waves(t, k) {
+  // three layered ribbons rising from the bottom-right corner
+  const cols = [rgba(K.blue, .10 * k / .35 * .35), rgba(K.blue, .5 * k), K.blueDark];
+  [[0, 520, cols[0]], [1, 380, cols[1]], [2, 250, cols[2]]].forEach(([i, h, c]) => {
+    if (i === 2 && k < .9) c = rgba(K.blueDark, k);
+    ctx.save(); ctx.fillStyle = c; ctx.beginPath(); ctx.moveTo(W + 50, H + 50);
+    const sway = Math.sin(t * .5 + i) * 20;
+    ctx.lineTo(W * (1 - .62 * k) - i * 40, H + 50); ctx.bezierCurveTo(W * (1 - .35 * k), H - h * .2 * k + sway, W - 380, H - h * k - 120 * k + sway, W + 50, H - h * k * 1.9 - 120 * k);
+    ctx.closePath(); ctx.fill(); ctx.restore();
+  });
+}
+// section header like the deck: small "01 Background" + title + hairline
+function header(t, t0, small, title) {
+  const k = p(t, t0, .6); if (k <= 0) return;
+  text(small, 90, 78, { size: 24, color: K.navy, weight: 500, align: 'left', alpha: eOut(k) });
+  text(title, 90 + (1 - eOut(k)) * -30, 124, { size: 46, color: K.navy, weight: 700, align: 'left', alpha: eOut(k) });
+  line(90, 168, 90 + (W - 180) * eOut(k), 168, '#E3E8F2', 2);
+}
+function withCam(z, cx, cy, fn) { ctx.save(); ctx.translate(cx, cy); ctx.scale(z, z); ctx.translate(-cx, -cy); fn(); ctx.restore(); }
+function drift(t, s0) { return 1 + .02 * eIO(clamp((t - s0) / 14)); }
+
+// ---------- icons (simple line-art in the deck's blue) ----------
+function iconDoc(x, y, s, k = 1) { ctx.save(); ctx.translate(x, y); ctx.scale(s, s); ctx.globalAlpha *= k; rr(-50, -62, 100, 124, 10, '#FFFFFF', K.blue, 5); for (let i = 0; i < 4; i++) line(-30, -30 + i * 22, 30 - (i === 3 ? 25 : 0), -30 + i * 22, K.blue, 5); rr(10, -90, 60, 42, 10, K.blueSoft, K.blue, 5); ctx.save(); ctx.translate(40, 50); ctx.rotate(-.8); rr(-8, -50, 16, 70, 4, '#FFFFFF', K.blue, 5); ctx.restore(); ctx.restore(); }
+function iconChart(x, y, s, k = 1) { ctx.save(); ctx.translate(x, y); ctx.scale(s, s); ctx.globalAlpha *= k; [[-60, 20, 40], [-35, 0, 60], [-10, -20, 80]].forEach(([bx, by, bh]) => rr(bx, 60 - bh * k, 18, bh * k, 3, K.blue)); ctx.beginPath(); ctx.moveTo(-40, -40); ctx.arc(-40, -40, 34, -Math.PI / 2, Math.PI * 1.1); ctx.closePath(); ctx.fillStyle = K.blueSoft; ctx.fill(); ctx.strokeStyle = K.blue; ctx.lineWidth = 5; ctx.stroke(); for (let i = 0; i < 3; i++) line(10, -60 + i * 20, 60, -60 + i * 20, K.blue, 5); circ(30, 20, 30, 'rgba(255,255,255,.8)', K.blue, 6); line(52, 42, 75, 66, K.blue, 10); ctx.restore(); }
+function iconBook(x, y, s, k = 1) { ctx.save(); ctx.translate(x, y); ctx.scale(s, s); ctx.globalAlpha *= k; ctx.strokeStyle = K.blue; ctx.lineWidth = 5; ctx.fillStyle = '#FFFFFF'; ctx.beginPath(); ctx.moveTo(0, -40); ctx.quadraticCurveTo(-40, -55, -75, -45); ctx.lineTo(-75, 40); ctx.quadraticCurveTo(-40, 30, 0, 45); ctx.quadraticCurveTo(40, 30, 75, 40); ctx.lineTo(75, -45); ctx.quadraticCurveTo(40, -55, 0, -40); ctx.closePath(); ctx.fill(); ctx.stroke(); line(0, -40, 0, 45, K.blue, 5); for (let i = 0; i < 3; i++) { line(-60, -20 + i * 18, -15, -24 + i * 18, K.blue, 4); line(15, -24 + i * 18, 60, -20 + i * 18, K.blue, 4); } circ(-10, 70, 18, K.blueSoft, K.blue, 5); ctx.save(); ctx.translate(55, -60); ctx.rotate(.7); rr(-7, -40, 14, 62, 4, '#FFFFFF', K.blue, 5); ctx.restore(); ctx.restore(); }
+function iconPerson(x, y, s, c = K.blue, a = 1) { ctx.save(); ctx.globalAlpha *= a; ctx.translate(x, y); ctx.scale(s, s); circ(0, -26, 14, null, c, 5); ctx.strokeStyle = c; ctx.lineWidth = 5; ctx.beginPath(); ctx.arc(0, 18, 26, Math.PI, 0); ctx.stroke(); ctx.restore(); }
+function iconSheet(x, y, s, a = 1) { ctx.save(); ctx.globalAlpha *= a; ctx.translate(x, y); ctx.scale(s, s); rr(-36, -46, 72, 92, 6, '#FFFFFF', K.blue, 4); for (let i = 0; i < 5; i++) line(-22, -28 + i * 14, i % 2 ? 6 : 22, -28 + i * 14, K.blue, 3); ctx.save(); ctx.translate(28, 30); ctx.rotate(-.7); rr(-5, -30, 10, 42, 3, K.blueSoft, K.blue, 3); ctx.restore(); ctx.restore(); }
+function iconGear(x, y, s, rot, a = 1) { ctx.save(); ctx.globalAlpha *= a; ctx.translate(x, y); ctx.scale(s, s); ctx.rotate(rot); ctx.fillStyle = K.blue; ctx.beginPath(); for (let i = 0; i < 16; i++) { const r = i % 2 ? 52 : 64, a2 = i / 16 * Math.PI * 2; ctx.lineTo(Math.cos(a2) * r, Math.sin(a2) * r); } ctx.closePath(); ctx.fill(); circ(0, 0, 30, '#FFFFFF'); ctx.restore(); ctx.save(); ctx.globalAlpha *= a; ctx.translate(x, y); ctx.scale(s, s); ctx.fillStyle = K.blue; ctx.beginPath(); ctx.moveTo(4, -22); ctx.lineTo(-12, 4); ctx.lineTo(0, 4); ctx.lineTo(-4, 22); ctx.lineTo(12, -4); ctx.lineTo(0, -4); ctx.closePath(); ctx.fill(); ctx.restore(); }
+function iconClock(x, y, s, ang, a = 1) { ctx.save(); ctx.globalAlpha *= a; ctx.translate(x, y); ctx.scale(s, s); ctx.strokeStyle = K.blue; ctx.lineWidth = 12; ctx.lineCap = 'round'; ctx.beginPath(); ctx.arc(0, 0, 60, -Math.PI * .35, Math.PI * 1.25); ctx.stroke(); arrowHead(Math.cos(Math.PI * 1.25) * 60, Math.sin(Math.PI * 1.25) * 60, Math.PI * 1.25 + Math.PI / 2 + .3, 26, K.blue); line(0, 0, 0, -38, K.blueDark, 10); line(0, 0, Math.cos(ang) * 30, Math.sin(ang) * 30, K.blueDark, 10); ctx.restore(); }
+function iconOps(x, y, s, a = 1) { ctx.save(); ctx.globalAlpha *= a; rr(x - 36 * s, y - 36 * s, 72 * s, 72 * s, 18 * s, K.blue); ctx.restore(); text('+ −', x, y - 12 * s, { size: 22 * s, color: '#fff', weight: 800, alpha: a }); text('× ÷', x, y + 14 * s, { size: 22 * s, color: '#fff', weight: 800, alpha: a }); }
+function iconChat(x, y, s, a = 1) { ctx.save(); ctx.globalAlpha *= a; ctx.translate(x, y); ctx.scale(s, s); ctx.fillStyle = K.blueDark; ctx.beginPath(); ctx.ellipse(-12, -8, 34, 26, 0, 0, Math.PI * 2); ctx.fill(); ctx.beginPath(); ctx.moveTo(-34, 6); ctx.lineTo(-40, 26); ctx.lineTo(-20, 14); ctx.fill(); ctx.fillStyle = K.navy; ctx.beginPath(); ctx.ellipse(18, 12, 28, 22, 0, 0, Math.PI * 2); ctx.fill(); ctx.beginPath(); ctx.moveTo(36, 22); ctx.lineTo(44, 38); ctx.lineTo(26, 30); ctx.fill(); ctx.restore(); }
+function iconReport(x, y, s, a = 1) { ctx.save(); ctx.globalAlpha *= a; ctx.translate(x, y); ctx.scale(s, s); ctx.strokeStyle = K.orange; ctx.lineWidth = 9; ctx.lineCap = 'round'; ctx.beginPath(); ctx.arc(0, 0, 30, Math.PI * .8, Math.PI * 2.55); ctx.stroke(); arrowHead(Math.cos(Math.PI * .8) * 30, Math.sin(Math.PI * .8) * 30, Math.PI * .8 - Math.PI / 2, 16, K.orange); line(0, 0, 0, -16, K.orange, 7); line(0, 0, 12, 8, K.orange, 7); ctx.restore(); }
+
+// ============================================================
+// scenes
+// ============================================================
+// 1. title
+function sIntro(t) {
+  backdrop(t, 0);
+  waves(t, eOut(p(t, .2, 2.2)));
+  const k = p(t, .6, .8);
+  enter(t, .5, 120, 160, () => { text('Self-Learning', 120, 160, { size: 30, color: K.navy, weight: 600, align: 'left' }); text('JEI', 318, 160, { size: 30, color: K.red, weight: 800, align: 'left' }); text('Math', 372, 160, { size: 30, color: K.navy, weight: 600, align: 'left' }); });
+  enter(t, 1.0, 120, 330, () => text('Math Online', 120, 330, { size: 52, color: K.navy, weight: 700, align: 'left' }));
+  // title reveals letter by letter
+  const title = C.title.main, n = Math.floor(title.length * eOut(p(t, 1.3, 1.6)));
+  if (n > 0) { ctx.save(); const tsz = Math.min(104, 104 * 1380 / (() => { ctx.font = `600 104px ${FONT}`; return ctx.measureText(title).width; })()); ctx.font = `600 ${tsz}px ${FONT}`; ctx.fillStyle = K.navy; ctx.textBaseline = 'middle'; ctx.fillText(title.slice(0, n), 116, 440); if (n < title.length) { const w = ctx.measureText(title.slice(0, n)).width; rr(122 + w, 440 - tsz * .42, 6, tsz * .84, 3, K.blue); } ctx.restore(); }
+  enter(t, 3.0, 120, 540, () => text(C.title.sub, 122, 540, { size: 34, color: K.gray, weight: 400, align: 'left' }));
+  enter(t, 3.4, 120, 640, () => text(C.title.team, 122, 640, { size: 28, color: K.navy, weight: 500, align: 'left' }));
+}
+// 2. what is a diagnostic assessment
+function sWhat(t) {
+  const s0 = S('what').start;
+  withCam(drift(t, s0), 960, 540, () => {
+    backdrop(t);
+    header(t, s0 + .1, '01 Background', 'What is a diagnostic assessment?');
+    const items = [['Pre-Learning Assessment', iconDoc], ['Assessing Learner Level', iconChart], ['Personalized Program', iconBook]];
+    const times = [st('l3', 0), st('l3', .25), st('l3', .62)];
+    items.forEach(([lab, icon], i) => {
+      const x = 380 + i * 580, y = 560;
+      enter(t, times[i], x, y, () => { card(x - 210, y - 200, 420, 400, { fill: i === 1 && t > times[1] ? '#FFFFFF' : '#FFFFFF' }); icon(x, y - 40, 1.25, 1); text(lab, x, y + 130, { size: 34, color: K.navy, weight: 600 }); if (i === 2) text('Prescription', x, y + 172, { size: 34, color: K.navy, weight: 600 }); }, { pop: true });
+      if (i < 2) { const ka = p(t, times[i + 1] - .2, .4); if (ka > 0) { text('»', x + 290, y - 10, { size: 90, color: K.green, weight: 700, alpha: ka }); } }
+    });
+    // flowing dot along the steps
+    const fk = p(t, st('l3', .7), 2); if (fk > 0 && fk < 1) circ(lerp(380, 1540, eIO(fk)), 800, 10, K.blue);
+    if (fk > 0) line(380, 800, lerp(380, 1540, eIO(fk)), 800, rgba(K.blue, .35), 6);
+  });
+}
+// 3. problems
+function sProblem(t) {
+  const s0 = S('problem').start;
+  withCam(drift(t, s0), 960, 540, () => {
+    backdrop(t);
+    header(t, s0 + .1, '01 Background', 'Problems with Diagnostic Assessment');
+    const bx = 360, by = 300;
+    enter(t, st('l4', .05), 640, 500, () => {
+      card(bx, by, 560, 360);
+      for (let i = 0; i < 3; i++) { const x = bx + 110 + i * 170; iconSheet(x, by + 105, 1.1); iconPerson(x, by + 250, 1.1); }
+      text('Every learner answers the same questions', bx + 280, by + 330, { size: 26, color: K.navy, weight: 600 });
+    });
+    // stack of questions piles up on each learner (the burden)
+    const pile = p(t, st('l5', .45), 2.5);
+    if (pile > 0) for (let i = 0; i < 3; i++) { const x = bx + 110 + i * 170; for (let j = 0; j < Math.floor(pile * 6); j++) rr(x - 30 + Math.sin(j * 1.7 + i) * 6, by + 40 - j * 16, 60, 12, 3, j % 2 ? K.blueSoft : '#FFFFFF', K.blue, 2); }
+    // branches
+    const kb = p(t, st('l5', 0), .8), kb2 = p(t, st('l5', .5), .8);
+    line(bx + 560, by + 180, bx + 560 + 150 * eOut(kb), by + 180 - 110 * eOut(kb), '#9AA7C0', 3, kb);
+    text('Improve', 1290, 300, { size: 40, color: K.navy, weight: 700, alpha: kb }); text('diagnostic accuracy', 1290, 350, { size: 40, color: K.navy, weight: 700, alpha: kb });
+    text('BUT', 1290, 470, { size: 34, color: K.gray, weight: 500, alpha: kb2 });
+    line(bx + 560, by + 180, bx + 560 + 150 * eOut(kb2), by + 180 + 110 * eOut(kb2), '#9AA7C0', 3, kb2);
+    enter(t, st('l5', .55), 1290, 580, () => { text('Burden on Learners', 1270, 580, { size: 44, color: K.orange, weight: 800 }); bigArrow(1510, 580, true, K.orange, 1.1); }, { pop: true });
+    enter(t, st('l6', .1), 960, 820, () => { card(430, 760, 1060, 120, { fill: '#FFFFFF' }); text('Efficiency of determining the learning starting point', 935, 820, { size: 38, color: K.navy, weight: 700 }); bigArrow(1435, 822, false, K.green, 1.2); });
+  });
+}
+// 4. adaptive: responsive system with the multiplication example
+function mathCard(x, y, w, h, q, opts, col, a = 1) {
+  card(x, y, w, h, { stroke: col || K.line, a }); if (a <= 0) return;
+  text('Multiply.', x + 22, y + 26, { size: 18, color: K.gray, weight: 500, align: 'left', alpha: a });
+  const [m1, m2] = q; text(m1, x + w / 2 + 40, y + 62, { size: 34, color: K.navy, weight: 500, align: 'right', alpha: a }); text('× ' + m2, x + w / 2 + 40, y + 100, { size: 34, color: K.navy, weight: 500, align: 'right', alpha: a });
+  line(x + w / 2 - 50, y + 122, x + w / 2 + 45, y + 122, K.navy, 2, a);
+  opts.forEach((o, i) => { const cx = x + 40 + (i % 5) * ((w - 80) / 5) + (w - 80) / 10, cy = y + 160 + Math.floor(i / 5) * 46; rr(cx - (w - 80) / 10 + 4, cy - 19, (w - 80) / 5 - 8, 38, 6, '#FFFFFF', '#E3E8F2', 2, a); text(o, cx, cy, { size: 22, color: K.navy, weight: 500, alpha: a }); });
+}
+function sAdaptive(t) {
+  const s0 = S('adaptive').start;
+  withCam(drift(t, s0), 960, 540, () => {
+    backdrop(t);
+    header(t, s0 + .1, '02 Introduction to Adaptive Diagnostic Assessment', 'What is an adaptive diagnostic assessment?');
+    enter(t, st('l7', .3), 960, 235, () => { rr(640, 200, 640, 70, 35, K.blueSoft); text('Responsive Diagnostic Assessment System', 960, 235, { size: 34, color: K.blue, weight: 700 }); }, { pop: true });
+    const q0 = st('l8', .02), qa = st('l8', .35), qb = st('l8', .62);
+    enter(t, q0, 420, 560, () => mathCard(200, 440, 470, 260, ['28', '70'], ['140', '1,400', '1,456', '1,460', '1,480', '1,940', '1,960', '1,988', '5,600', '?']));
+    // correct branch → harder question
+    const ka = p(t, qa, .8), kb = p(t, qb, .8);
+    if (ka > 0) { line(670, 560, lerp(670, 1180, eOut(ka)), lerp(560, 420, eOut(ka)), K.blue, 4); circ(890, 500, 34 * eBack(ka), '#FFFFFF', K.blue, 9); text('Correct', 890, 446, { size: 24, color: K.blue, weight: 700, alpha: ka }); }
+    enter(t, qa + .5, 1430, 410, () => { mathCard(1190, 290, 500, 260, ['419', '58'], ['4,572', '20,950', '21,002', '23,302', '24,209', '24,292', '24,302', '25,302', '53,822', '?'], K.blue); text('Multiplying 3- by 2-Digit · harder', 1440, 575, { size: 22, color: K.blue, weight: 600 }); });
+    if (kb > 0) { line(670, 600, lerp(670, 1180, eOut(kb)), lerp(600, 760, eOut(kb)), K.orange, 4); cross(890, 690, 50 * eBack(kb), K.orange, 1, 12); text('Incorrect', 890, 745, { size: 24, color: K.orange, weight: 700, alpha: kb }); }
+    enter(t, qb + .5, 1430, 770, () => { mathCard(1190, 650, 500, 260, ['34', '8'], ['242', '243', '252', '272', '280', '324', '332', '352', '2,432', '?'], K.orange); text('Multiplying 2- by 1-Digit · easier', 1440, 935, { size: 22, color: K.orange, weight: 600 }); });
+    text('Multiplying Two 2-Digits', 435, 725, { size: 22, color: K.gray, weight: 500, alpha: p(t, q0 + .3, .4) });
+  });
+}
+// 5. only the necessary questions
+function qGrid(x0, y0, active, k, t, dim) {
+  for (let i = 0; i < 20; i++) {
+    const r = Math.floor(i / 5), c = i % 5, x = x0 + c * 118, y = y0 + r * 92, on = active.includes(i + 1);
+    const ka = on ? active.indexOf(i + 1) : -1;
+    const lit = on && k > ka / active.length;
+    rr(x, y, 104, 74, 12, lit ? K.blue : dim ? '#E7EBF2' : '#FFFFFF', lit ? K.blue : '#D9E0EC', 2);
+    text('Q' + (i + 1), x + 52, y + 37, { size: 26, color: lit ? '#FFFFFF' : dim ? '#9AA3B5' : K.navy, weight: 700 });
+  }
+}
+function sNecessary(t) {
+  const s0 = S('necessary').start;
+  withCam(drift(t, s0), 960, 540, () => {
+    backdrop(t);
+    header(t, s0 + .1, '02 Introduction to Adaptive Diagnostic Assessment', 'What is an adaptive diagnostic assessment?');
+    enter(t, s0 + .4, 470, 500, () => { card(150, 260, 640, 430, { fill: '#F4F7FC' }); qGrid(175, 290, [], 0, t, false); });
+    const xk = p(t, st('l9', .2), .8);
+    if (xk > 0) { line(160, 270, lerp(160, 780, xk), lerp(270, 680, xk), K.red, 5); if (xk > .5) { const k2 = (xk - .5) * 2; line(780, 270, lerp(780, 160, k2), lerp(270, 680, k2), K.red, 5); } }
+    text('No need to answer every question', 470, 760, { size: 32, color: K.navy, weight: 700, alpha: p(t, st('l9', .25), .5) });
+    const k2 = p(t, st('l9', .5), .6); if (k2 > 0) text('»', 960, 470, { size: 110, color: K.green, weight: 700, alpha: k2 });
+    enter(t, st('l9', .5), 1450, 500, () => { card(1130, 260, 640, 430, { fill: '#F4F7FC' }); qGrid(1155, 290, [3, 9, 12, 14, 16], p(t, st('l9', .6), 2.2), t, true); });
+    enter(t, st('l9', .7), 1450, 780, () => rich([['Only ', K.navy], ['the necessary questions', K.blue], [' based on', K.navy]], 1450, 760, 32));
+    text('learner’s responses.', 1450, 806, { size: 32, color: K.navy, weight: 600, alpha: p(t, st('l9', .75), .5) });
+  });
+}
+// 6. benefits
+function sBenefit(t) {
+  const s0 = S('benefit').start;
+  withCam(drift(t, s0), 960, 540, () => {
+    backdrop(t);
+    header(t, s0 + .1, '02 Introduction to Adaptive Diagnostic Assessment', 'Benefits of Diagnostic Assessment');
+    const a0 = st('l10', .1), b0 = st('l10', .6);
+    enter(t, a0, 690, 450, () => {
+      card(500, 260, 380, 360); iconGear(640, 400, 1, t * .8);
+      const g = p(t, a0 + .4, 1.4); [[700, 30], [735, 55], [770, 90]].forEach(([bx, bh]) => rr(bx, 470 - bh * eOut(g), 26, bh * eOut(g), 4, K.blue));
+      text('Efficiency & Reliability', 690, 540, { size: 30, color: K.navy, weight: 700 }); text('UP', 690, 585, { size: 30, color: K.blue, weight: 800 }); bigArrow(745, 585, true, K.blue, .7);
+    }, { pop: true });
+    enter(t, b0, 1230, 450, () => {
+      card(1040, 260, 380, 360); const ang = -Math.PI / 2 - (t - b0) * 2.4 * (1 - p(t, b0 + 2, 1));
+      iconClock(1230, 400, 1, ang);
+      text('Assessment Duration', 1230, 540, { size: 30, color: K.navy, weight: 700 }); text('DOWN', 1230, 585, { size: 30, color: K.blue, weight: 800 }); bigArrow(1305, 585, false, K.blue, .7);
+    }, { pop: true });
+    const q = p(t, st('l11', .15), .8);
+    if (q > 0) { rich([['“ ', K.navy], ['Reduced', K.blue], [' Diagnostic ', K.navy], ['Burden', K.blue], [' & Setting ', K.navy], ['Precise Starting Point for Learning', K.blue], [' ”', K.navy]], 960, 740 + (1 - eOut(q)) * 20, 40, eOut(q)); line(960 - 600 * eOut(p(t, st('l11', .6), 1)), 790, 960 + 600 * eOut(p(t, st('l11', .6), 1)), 790, rgba(K.blue, .5), 4); }
+  });
+}
+// 7. how does it work + up / down rule
+function sHow(t) {
+  const s0 = S('how').start, q1 = p(t, st('l12', 0), .7), out = p(t, en('l12', .1), .6);
+  withCam(drift(t, s0), 960, 540, () => {
+    backdrop(t);
+    header(t, s0 + .1, '03 Operating Principle', 'Adaptive Diagnostic Algorithm');
+    if (out < 1) { const a = eOut(q1) * (1 - out); text('So how does the adaptive', 960, 470 - out * 120, { size: 64, color: K.navy, weight: 700, alpha: a }); rich([['diagnostic assessment actually ', K.navy, 700], ['work', K.blue, 800], ['?', K.navy, 700]], 960, 560 - out * 120, 64, a); }
+    enter(t, en('l12', .3), 960, 330, () => { card(560, 260, 800, 130, { fill: '#FFFFFF' }); text('Provide Questions', 600, 300, { size: 30, color: K.navy, weight: 700, align: 'left' }); text('Instead of solving all items in order, key representative items come first.', 600, 348, { size: 23, color: K.gray, weight: 400, align: 'left' }); });
+    const ka = p(t, st('l13', .25), .8), kb = p(t, st('l13', .55), .8);
+    if (ka > 0) arcArrow(900, 395, 560, 520, -20, K.blue, eOut(ka));
+    if (kb > 0) arcArrow(1020, 395, 1360, 520, -20, K.orange, eOut(kb));
+    enter(t, st('l13', .3), 560, 650, () => { card(220, 530, 680, 260, { fill: '#F3F7FF', stroke: '#C9D8FF' }); rr(250, 560, 180, 44, 8, K.blue); text('If correct', 340, 582, { size: 24, color: '#fff', weight: 700 }); rr(250, 630, 620, 120, 14, '#FFFFFF'); const up = Math.sin((t - st('l13')) * 3) * 6; ctx.save(); ctx.strokeStyle = K.blue; ctx.lineWidth = 8; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.beginPath(); ctx.moveTo(290, 715 - up); ctx.lineTo(330, 680 - up); ctx.lineTo(350, 700 - up); ctx.lineTo(390, 660 - up); ctx.stroke(); ctx.restore(); arrowHead(395, 655 - up, -.8, 22, K.blue); text('Move up to a higher difficulty level', 420, 690, { size: 30, color: K.blue, weight: 800, align: 'left' }); });
+    enter(t, st('l13', .6), 1360, 650, () => { card(1020, 530, 680, 260, { fill: '#FFF6F0', stroke: '#FFD9C2' }); rr(1050, 560, 200, 44, 8, K.orange); text('If incorrect', 1150, 582, { size: 24, color: '#fff', weight: 700 }); rr(1050, 630, 620, 120, 14, '#FFFFFF'); const dn = Math.sin((t - st('l13')) * 3) * 6; ctx.save(); ctx.strokeStyle = K.orange; ctx.lineWidth = 8; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.beginPath(); ctx.moveTo(1090, 660 + dn); ctx.lineTo(1130, 695 + dn); ctx.lineTo(1150, 675 + dn); ctx.lineTo(1190, 715 + dn); ctx.stroke(); ctx.restore(); arrowHead(1195, 720 + dn, .8, 22, K.orange); text('Move down to a lower difficulty level', 1220, 690, { size: 30, color: K.orange, weight: 800, align: 'left' }); });
+  });
+}
+// 8. 1 → 9 path: probe down on incorrect, probe up on correct (same step times as the sound cues in make_audio.py)
+const NODE_X = i => 250 + (i - 1) * 178, NODE_Y = 560;
+function steps(id, a, b) { const l = L(id); return [0, 1, 2].map(k => lerp(l.start + a, l.end - b, k / 2)); }
+function sPath(t) {
+  const s0 = S('path').start;
+  const dn = steps('l15', .6, .8), up = steps('l16', 1.2, .8);
+  const caseUp = t > st('l16', 0) - .2, summary = p(t, st('l17', 0), .7);
+  withCam(drift(t, s0), 960, 540, () => {
+    backdrop(t);
+    header(t, s0 + .1, '03 Operating Principle', 'Adaptive Diagnostic Algorithm');
+    const pa = 1 - eOut(summary);
+    if (pa > 0) {
+      ctx.save(); ctx.globalAlpha *= pa;
+      card(120, 300, 1680, 480, { fill: '#FFFFFF' });
+      text(caseUp ? '[CASE : Probe higher achievement upon a correct response]' : '[CASE : Probe underlying learning gaps upon an incorrect response]', 160, 345, { size: 28, color: caseUp ? K.blue : K.red, weight: 700, align: 'left', alpha: p(t, st('l14', .5), .5) });
+      // sequential sweep 1 → 9 that gets crossed out ("instead of answering every question in order")
+      const sw = p(t, st('l14', .08), st('l14', .45) - st('l14', .08));
+      if (sw > 0 && t < st('l14', .6)) { line(NODE_X(1), NODE_Y + 90, lerp(NODE_X(1), NODE_X(9), sw), NODE_Y + 90, '#B8C2D6', 6, 1, [14, 12]); }
+      const xs = p(t, st('l14', .45), .5); if (xs > 0 && t < st('l14', .75)) cross(960, NODE_Y + 90, 70 * eBack(xs), K.red, 1, 10);
+      // node state
+      const S9 = {};
+      for (let i = 1; i <= 9; i++) S9[i] = 'idle';
+      if (!caseUp) {
+        if (t > dn[0]) { S9[5] = 'x'; } if (t > dn[1]) { S9[3] = 'x'; } if (t > dn[2]) { S9[1] = 'o'; S9[2] = 'need'; S9[4] = 'mx'; [6, 7, 8, 9].forEach(i => S9[i] = 'mx'); }
+      } else {
+        if (t > up[0]) { S9[5] = 'o'; } if (t > up[1]) { S9[7] = 'o'; } if (t > up[2]) { S9[9] = 'x'; S9[8] = 'need'; [1, 2, 3, 4, 6].forEach(i => S9[i] = 'mo'); }
+      }
+      const startK = p(t, st('l14', .78), .5);
+      for (let i = 1; i <= 9; i++) {
+        const x = NODE_X(i), y = NODE_Y, rep = i % 2 === 1, k = p(t, st('l14', .02) + i * .07, .4); if (k <= 0) continue;
+        const s = S9[i], col = s === 'o' || s === 'mo' ? K.blue : s === 'x' || s === 'mx' ? K.orange : s === 'need' ? K.gray : rep ? K.navy : '#B8C2D6';
+        const pulse = (i === 5 && startK > 0 && S9[5] === 'idle') ? 1 + .12 * Math.sin(t * 7) : 1;
+        ctx.save(); ctx.translate(x, y); ctx.scale(eBack(k) * pulse, eBack(k) * pulse);
+        circ(0, 0, rep ? 44 : 36, s === 'mx' || s === 'mo' ? rgba(col, .12) : '#FFFFFF', col, rep ? 6 : 4);
+        if (i === 5 && startK > 0) circ(0, 0, 58, null, rgba(K.orange, .6 * startK), 4);
+        text(String(i), 0, 2, { size: rep ? 40 : 32, color: col, weight: 800 });
+        ctx.restore();
+        const lab = { o: 'Correct', x: 'Incorrect', mo: 'Marked as correct', mx: 'Marked as incorrect', need: 'Assessment needed' }[s];
+        if (lab) { const two = { 'Marked as correct': ['Marked as', 'correct'], 'Marked as incorrect': ['Marked as', 'incorrect'], 'Assessment needed': ['Assessment', 'needed'] }[lab] || [lab]; two.forEach((w, j) => text(w, x, y + 78 + j * 26, { size: 21, color: col, weight: 700 })); }
+      }
+      text('※ Representative items: Questions 1, 3, 5, 7, and 9', 160, 745, { size: 22, color: K.gray, weight: 500, align: 'left', alpha: p(t, st('l14', .85), .5) });
+      // arcs
+      if (!caseUp) { arcArrow(NODE_X(5) - 10, NODE_Y - 50, NODE_X(3) + 10, NODE_Y - 50, -110, K.orange, eOut(p(t, dn[0] + .1, .6))); arcArrow(NODE_X(3) - 10, NODE_Y - 50, NODE_X(1) + 10, NODE_Y - 50, -110, K.orange, eOut(p(t, dn[1] + .1, .6))); arcArrow(NODE_X(1) + 30, NODE_Y + 36, NODE_X(2) - 22, NODE_Y + 30, 22, K.blue, eOut(p(t, dn[2] + .1, .6))); }
+      else { arcArrow(NODE_X(5) + 10, NODE_Y - 50, NODE_X(7) - 10, NODE_Y - 50, -110, K.blue, eOut(p(t, up[0] + .1, .6))); arcArrow(NODE_X(7) + 10, NODE_Y - 50, NODE_X(9) - 10, NODE_Y - 50, -110, K.blue, eOut(p(t, up[1] + .1, .6))); arcArrow(NODE_X(9) - 30, NODE_Y + 36, NODE_X(8) + 22, NODE_Y + 30, 22, K.orange, eOut(p(t, up[2] + .1, .6))); }
+      ctx.restore();
+    }
+    // summary cards
+    if (summary > 0) {
+      enter(t, st('l17', 0), 600, 520, () => { card(250, 340, 700, 340, {}); circ(600, 430, 40, K.blueSoft); for (let i = 0; i < 3; i++) line(584, 416 + i * 12, 616 - i * 8, 416 + i * 12, K.blue, 4); text('Minimize the number of items', 600, 520, { size: 36, color: K.navy, weight: 700 }); text('Selects only the optimal items required for judgment,', 600, 575, { size: 22, color: K.gray, weight: 400 }); text("drastically reducing the learner's workload.", 600, 605, { size: 22, color: K.gray, weight: 400 }); }, { pop: true });
+      enter(t, st('l17', .45), 1320, 520, () => { card(970, 340, 700, 340, { fill: '#EEF4FF', stroke: '#C9D8FF' }); circ(1320, 430, 40, '#FFFFFF'); circ(1320, 430, 18, null, K.blue, 5); line(1320, 404, 1320, 418, K.blue, 5); line(1320, 442, 1320, 456, K.blue, 5); line(1294, 430, 1308, 430, K.blue, 5); line(1332, 430, 1346, 430, K.blue, 5); text('Accurately diagnose actual', 1320, 505, { size: 36, color: K.blueDark, weight: 700 }); text('performance level', 1320, 550, { size: 36, color: K.blueDark, weight: 700 }); text("Identifies what the learner knows and doesn't know", 1320, 610, { size: 22, color: K.gray, weight: 400 }); text('through algorithm-based precise tracking.', 1320, 640, { size: 22, color: K.gray, weight: 400 }); }, { pop: true });
+    }
+  });
+}
+// 9. validation: representative + 2 similar items, 2 of 3 rule
+function itemCard(x, y, w, h, lab, res, k, tint) {
+  card(x, y, w, h, { fill: tint || '#FFFFFF', r: 16 });
+  const lines2 = lab.split('\n'); lines2.forEach((s, i) => text(s, x + w / 2, y + 40 + i * 30, { size: 24, color: K.gray, weight: 600 }));
+  if (res === 'o') { check(x + w / 2, y + h - 80, 44, K.blue, k); text('Correct', x + w / 2, y + h - 30, { size: 22, color: K.blue, weight: 700, alpha: k }); }
+  if (res === 'x') { cross(x + w / 2, y + h - 82, 34, K.orange, k, 8); text('Incorrect', x + w / 2, y + h - 30, { size: 22, color: K.orange, weight: 700, alpha: k }); }
+}
+function sValidate(t) {
+  const s0 = S('validate').start, sw = p(t, st('l20', 0) - .3, .7);
+  withCam(drift(t, s0), 960, 540, () => {
+    backdrop(t);
+    header(t, s0 + .1, '03 Operating Principle', 'Adaptive Diagnostic Algorithm');
+    if (sw < 1) {
+      ctx.save(); ctx.globalAlpha *= 1 - sw;
+      enter(t, st('l18', .5), 600, 540, () => { itemCard(470, 400, 260, 280, 'Representative\nItem', null, 0); text('Learning Objective', 600, 748, { size: 24, color: K.blue, weight: 700 }); }, { pop: true });
+      enter(t, st('l19', .55), 960, 540, () => itemCard(830, 400, 260, 280, 'Similar\nItem 1', null, 0, '#F0F6FF'), { pop: true });
+      enter(t, st('l19', .7), 1320, 540, () => itemCard(1190, 400, 260, 280, 'Similar\nItem 2', null, 0, '#F0F6FF'), { pop: true });
+      const sh = p(t, st('l18', .3), 1); if (sh > 0) { ctx.save(); ctx.globalAlpha *= sh * (.6 + .4 * Math.sin(t * 4)); ctx.strokeStyle = K.blue; ctx.lineWidth = 4; ctx.setLineDash([14, 10]); ctx.beginPath(); ctx.roundRect(440, 370, 1040, 340, 26); ctx.stroke(); ctx.restore(); text('Validation step', 960, 340, { size: 28, color: K.blue, weight: 700, alpha: sh }); }
+      ctx.restore();
+    }
+    if (sw > 0) {
+      ctx.save(); ctx.globalAlpha *= eOut(sw);
+      const a0 = st('l20', 0) + .2, b0 = st('l20', 0) + 2.8;
+      // left: understood
+      rr(170, 300, 760, 420, 22, '#F3F7FF');
+      ['Representative\nItem', 'Similar\nItem 1', 'Similar\nItem 2'].forEach((lab, i) => itemCard(205 + i * 240, 330, 210, 230, lab, ['o', 'x', 'o'][i], p(t, a0 + i * .25, .4)));
+      const ua = eBack(p(t, a0 + .9, .5)); if (ua > 0) { ctx.save(); ctx.translate(550, 640); ctx.scale(ua, ua); rr(-235, -32, 470, 64, 32, '#FFFFFF', K.blue, 3); check(-195, 0, 30, K.blue, 1, 5); text("Determined as 'Understood'", 22, 0, { size: 26, color: K.blue, weight: 700 }); ctx.restore(); }
+      // right: not understood
+      rr(990, 300, 760, 420, 22, '#FFF5EE');
+      ['Representative\nItem', 'Similar\nItem 1', 'Similar\nItem 2'].forEach((lab, i) => itemCard(1025 + i * 240, 330, 210, 230, lab, ['o', 'x', 'x'][i], p(t, b0 + i * .25, .4)));
+      const na = eBack(p(t, b0 + .9, .5)); if (na > 0) { ctx.save(); ctx.translate(1370, 640); ctx.scale(na, na); rr(-255, -32, 510, 64, 32, '#FFFFFF', K.orange, 3); cross(-218, 0, 22, K.orange, 1, 5); text("Determined as 'Not Understood'", 22, 0, { size: 26, color: K.orange, weight: 700 }); ctx.restore(); }
+      text('2 of 3 correct', 550, 760, { size: 28, color: K.blue, weight: 800, alpha: p(t, a0 + 1, .5) }); text('fewer than 2 correct', 1370, 760, { size: 28, color: K.orange, weight: 800, alpha: p(t, b0 + 1, .5) });
+      const q = p(t, st('l21', .1), .8); if (q > 0) { text('“A mechanism designed to reduce the number of items', 960, 845, { size: 36, color: K.navy, weight: 700, alpha: eOut(q) }); text('without sacrificing assessment reliability.”', 960, 895, { size: 36, color: K.navy, weight: 700, alpha: eOut(q) }); }
+      ctx.restore();
+    }
+  });
+}
+// 10. quick diagnosis
+function sQuick(t) {
+  const s0 = S('quick').start;
+  withCam(drift(t, s0), 960, 540, () => {
+    backdrop(t);
+    header(t, s0 + .1, '04 Quick Diagnosis', 'On-Site Quick Diagnosis');
+    enter(t, st('l22', .3), 960, 245, () => { rr(700, 210, 520, 70, 35, K.blueSoft); text('⚡ Quick Diagnosis', 960, 245, { size: 34, color: K.blue, weight: 800 }); }, { pop: true });
+    const cards = [['Numbers and', 'Operations', 'Diagnoses Numbers and', 'Operations first.', iconOps, st('l23', .05)], ['Report Before', 'Completion', 'See results before the full', 'diagnosis ends.', iconReport, st('l23', .65)], ['Consultation', '', 'Discuss understanding level and', 'next steps right away.', iconChat, st('l24', .35)]];
+    cards.forEach(([a, b, c, d, ic, t0], i) => {
+      const x = 410 + i * 550, y = 470;
+      enter(t, t0, x, y, () => { card(x - 230, y - 140, 460, 280, { fill: '#FFFFFF' }); ic(x - 140, y - 70, 1, 1); text(a, x + 40, y - 86, { size: 32, color: K.navy, weight: 700 }); if (b) text(b, x + 40, y - 46, { size: 32, color: K.navy, weight: 700 }); text(c, x, y + 50, { size: 23, color: K.gray, weight: 400 }); text(d, x, y + 82, { size: 23, color: K.gray, weight: 400 }); }, { pop: true });
+      if (i < 2) { const ka = p(t, cards[i + 1][5] - .3, .4); if (ka > 0) text('›', x + 275, y, { size: 80, color: K.green, weight: 700, alpha: ka }); }
+    });
+    // progress of the full diagnosis with Numbers and Operations finishing first
+    const pk = p(t, st('l23', .2), 4), full = p(t, st('l24', .2), 6);
+    if (pk > 0) {
+      const y = 760, x0 = 300, w = 1320; rr(x0, y, w, 26, 13, '#E7ECF5');
+      rr(x0, y, w * .3 * eOut(pk), 26, 13, K.blue); rr(x0 + w * .3, y, w * .7 * eIO(full), 26, 13, rgba(K.blue, .35));
+      text('Numbers and Operations', x0 + w * .15, y - 30, { size: 24, color: K.blue, weight: 700, alpha: pk });
+      text('Other areas', x0 + w * .65, y - 30, { size: 24, color: K.gray, weight: 600, alpha: pk });
+      const rk = eBack(p(t, st('l23', .7), .6)); if (rk > 0) { ctx.save(); ctx.translate(x0 + w * .3, y + 80); ctx.scale(rk, rk); rr(-150, -30, 300, 60, 30, K.orange); text('Quick report ready', 0, 0, { size: 26, color: '#FFFFFF', weight: 800 }); ctx.restore(); line(x0 + w * .3, y + 30, x0 + w * .3, y + 50, K.orange, 4, rk); }
+    }
+  });
+}
+// 11. expected effects
+function sEffects(t) {
+  const s0 = S('effects').start;
+  withCam(drift(t, s0), 960, 540, () => {
+    backdrop(t);
+    header(t, s0 + .1, '05 Expected Effects', 'Expected Effects of Adaptive Diagnostic Assessment');
+    // left: excessive items → just a few
+    enter(t, st('l26', .1), 560, 500, () => {
+      card(130, 230, 860, 470, { fill: '#F7F9FD' });
+      rich([['‘', K.navy], ['Excessive number of items', K.blue], ['’', K.navy]], 400, 290, 32); text('Problem Solving', 270, 340, { size: 30, color: K.navy, weight: 700, align: 'left' });
+      const shrink = p(t, st('l26', .7), 1.2);
+      ['Q1', 'Q2', '~', 'Q86', '~', 'Q91'].forEach((q, i) => { const x = 200 + i * 128; if (q === '~') text('~', x + 50, 420, { size: 34, color: K.navy, alpha: 1 - shrink * .6 }); else { rr(x, 390, 104, 60, 10, '#FFFFFF', '#D9E0EC', 2, 1 - shrink * .6); text(q, x + 52, 420, { size: 26, color: K.navy, weight: 700, alpha: 1 - shrink * .6 }); } });
+      text('⌄⌄', 560, 500, { size: 40, color: K.green, weight: 800, alpha: shrink });
+      ['Q3', 'Q57', 'Q80'].forEach((q, i) => { const k = eBack(p(t, st('l26', .8) + i * .2, .5)); if (k <= 0) return; ctx.save(); ctx.translate(410 + i * 150, 600); ctx.scale(k, k); rr(-58, -36, 116, 72, 10, K.blue); text(q, 0, 0, { size: 28, color: '#FFFFFF', weight: 800 }); ctx.restore(); });
+    });
+    // right: workload ↓ / efficiency ↑
+    enter(t, st('l27', .05), 1370, 500, () => {
+      card(1030, 230, 760, 470, { fill: '#F7F9FD' });
+      // teacher with board + two students
+      rr(1110, 360, 150, 100, 10, '#FFFFFF', K.blue, 5); [[1140, 30], [1170, 50], [1200, 70]].forEach(([bx, bh]) => rr(bx, 440 - bh, 18, bh, 3, K.blue)); iconPerson(1090, 470, 1.3); iconPerson(1120, 600, 1.3); iconPerson(1210, 600, 1.3);
+      text('Workload', 1330, 390, { size: 30, color: K.navy, weight: 700, align: 'left' }); bigArrow(1480, 390, false, K.green, .9 * eBack(p(t, st('l27', .3), .5)));
+      text('for Students & Teachers', 1330, 432, { size: 28, color: K.navy, weight: 600, align: 'left' });
+      const k2 = p(t, st('l28', .1), .6);
+      text('Consultation & Class', 1330, 540, { size: 30, color: K.navy, weight: 700, align: 'left', alpha: k2 }); text('Operations Efficiency', 1330, 582, { size: 28, color: K.navy, weight: 600, align: 'left', alpha: k2 }); if (k2 > 0) bigArrow(1640, 578, true, K.green, .9 * eBack(k2));
+    });
+    // bottom: JEI Math first → other subjects
+    const k3 = p(t, st('l29', .05), .7);
+    if (k3 > 0) {
+      rich([['Initially Applied', K.blue], [' to JEI Math ', K.navy], ['⇨ ', K.navy], ['Scalable', K.blue], [' to Other Subjects', K.navy]], 960, 790, 40, eOut(k3));
+      const subs = C.subjects; subs.forEach((s, i) => { const k = eBack(p(t, st('l29', .45) + i * .25, .5)); if (k <= 0) return; const x = 960 + (i - (subs.length - 1) / 2) * 230; ctx.save(); ctx.translate(x, 880); ctx.scale(k, k); rr(-100, -30, 200, 60, 30, i === 0 ? K.blue : '#FFFFFF', K.blue, 3); text(s, 0, 0, { size: 26, color: i === 0 ? '#FFFFFF' : K.blue, weight: 700 }); ctx.restore(); });
+    }
+  });
+}
+// 12. thank you
+function sOutro(t) {
+  const s0 = S('outro').start;
+  backdrop(t, 0); waves(t, eOut(p(t, s0 + .2, 2)));
+  enter(t, s0 + .4, 960, 380, () => { text('Self-Learning', 820, 380, { size: 30, color: K.navy, weight: 600 }); text('JEI', 945, 380, { size: 30, color: K.red, weight: 800 }); text('Math', 1010, 380, { size: 30, color: K.navy, weight: 600 }); });
+  enter(t, st('l30', .3), 960, 470, () => text(C.title.main, 960, 470, { size: 56, color: K.navy, weight: 700 }));
+  enter(t, st('l31', 0) - .2, 960, 600, () => text('Thank you', 960, 600, { size: 110, color: K.navy, weight: 700 }), { pop: true });
+  const f = p(t, DURATION - 1.2, 1.2); if (f > 0) { ctx.fillStyle = `rgba(255,255,255,${eIO(f)})`; ctx.fillRect(0, 0, W, H); }
+}
+// ---------- subtitles: the current chunk of the current line ----------
+function subtitle(t) {
+  const id = TL.order.find(i => { const l = TL.lines[i]; return t >= l.start - .1 && t < l.end + .3; }); if (!id) return;
+  const l = TL.lines[id], cs = l.chunks || [{ text: l.text, start: l.start }];
+  let ci = 0; for (let i = 0; i < cs.length; i++) if (t >= cs[i].start - .05) ci = i;
+  const str = (C.subs && C.subs[id] && C.subs[id] !== l.text) ? C.subs[id] : cs[ci].text;   // edited subtitle replaces the whole line
+  const a = Math.min(eOut(p(t, l.start - .1, .2)), 1 - p(t, l.end + .1, .2));
+  ctx.save(); ctx.font = `500 38px ${FONT}`; const w = Math.min(1700, ctx.measureText(str).width + 70); ctx.restore();
+  rr(960 - w / 2, 975, w, 70, 14, rgba(K.subBox, .78), null, 0, a);
+  text(str, 960, 1011, { size: 38, color: '#FFFFFF', weight: 500, alpha: a, maxW: 1640 });
+}
+function draw(t) {
+  ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalAlpha = 1;
+  const sc = TL.scenes.find(s => t >= s.start && t < s.end) || TL.scenes[TL.scenes.length - 1];
+  ({ intro: sIntro, what: sWhat, problem: sProblem, adaptive: sAdaptive, necessary: sNecessary, benefit: sBenefit, how: sHow, path: sPath, validate: sValidate, quick: sQuick, effects: sEffects, outro: sOutro })[sc.id](t);
+  // soft white dip between scenes
+  const fi = 1 - p(t, sc.start, .4), fo = p(t, sc.end - .3, .3);
+  if (sc.id !== 'intro' && fi > 0) { ctx.fillStyle = `rgba(255,255,255,${fi})`; ctx.fillRect(0, 0, W, H); }
+  if (sc.id !== 'outro' && fo > 0) { ctx.fillStyle = `rgba(255,255,255,${fo})`; ctx.fillRect(0, 0, W, H); }
+  subtitle(t);
+}
+
+// ---------- preview player ----------
+const seekEl = document.getElementById('seek'), timeEl = document.getElementById('time'), playEl = document.getElementById('play');
+seekEl.max = DURATION.toFixed(2);
+let playing = false, t0 = 0, tCur = 0;
+const audio = new Audio('audio/mix.wav'); audio.preload = 'auto';
+function show(t) { tCur = t; draw(t); seekEl.value = t; timeEl.textContent = t.toFixed(2) + 's'; }
+function loop(now) { if (!playing) return; const t = (now - t0) / 1000; if (t >= DURATION) { playing = false; playEl.textContent = '▶ Play'; audio.pause(); show(DURATION); return; } show(t); requestAnimationFrame(loop); }
+playEl.onclick = () => { playing = !playing; playEl.textContent = playing ? '❚❚ Pause' : '▶ Play'; if (playing) { if (tCur >= DURATION) tCur = 0; t0 = performance.now() - tCur * 1000; try { audio.currentTime = tCur; audio.play().catch(() => {}); } catch (e) {} requestAnimationFrame(loop); } else audio.pause(); };
+seekEl.oninput = () => { show(+seekEl.value); if (playing) { t0 = performance.now() - tCur * 1000; try { audio.currentTime = tCur; } catch (e) {} } };
+
+window.draw = draw; window.DURATION = DURATION;
+function merge(base, over) {
+  if (Array.isArray(base)) return Array.isArray(over) ? over.map((v, i) => base[i] !== undefined ? merge(base[i], v) : v) : base;
+  if (base && typeof base === 'object') { const o = {}; for (const k in base) o[k] = over && k in over ? merge(base[k], over[k]) : base[k]; return o; }
+  return over === undefined || over === null ? base : over;
+}
+function apply(content) { C = window.CONTENT = merge(DEFAULT_CONTENT, content); K = C.colors; }
+window.VIDEO = { schema: window.SCHEMA, defaults: DEFAULT_CONTENT, get content() { return C; }, apply, canvas: cv };
+window.ready = document.fonts.load(`700 100px 'Noto Sans KR'`, 'Aa').then(r => {
+  if (!r.length) throw new Error('font failed to load (check fonts/)');
+}).then(() => document.fonts.ready).then(() => { if (location.search.includes('render')) document.body.classList.add('render'); show(0); return true; });
+</script>
+</body>
+</html>
