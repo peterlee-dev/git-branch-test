@@ -3,7 +3,7 @@
 - Voice: Qwen3-TTS (Alibaba Qwen, Apache 2.0) Base model clones the reference voice in audio/voice_ref.wav
   (the sample the team provided) and reads every line of the script in English.
 - Each line's real length decides the timing → writes ../timeline.js (subtitle chunks included), which index.html follows.
-- UI sound effects and a soft background pad are synthesised with numpy.
+- Light UI sound effects (correct / incorrect / scene change) are synthesised with numpy. No background music.
 
   pip install torch qwen-tts soundfile numpy
   QWEN_BASE_DIR=/path/Qwen3-TTS-12Hz-1.7B-Base python3 tools/make_audio.py
@@ -106,9 +106,11 @@ def load_line(tx):
 def chunks(text, maxc=74, soft=38):
     out, cur = [], []
     for w in text.split():
-        if cur and len(' '.join(cur + [w])) > maxc: out.append(' '.join(cur)); cur = []
+        if cur and len(' '.join(cur + [w])) > maxc:
+            if cur[-1] == 'No.': out.append(' '.join(cur[:-1])); cur = cur[-1:]   # keep 'No.' with its number
+            else: out.append(' '.join(cur)); cur = []
         cur.append(w)
-        if len(' '.join(cur)) >= soft and w[-1] in ',;:.?!': out.append(' '.join(cur)); cur = []
+        if len(' '.join(cur)) >= soft and w[-1] in ',;:.?!' and w != 'No.': out.append(' '.join(cur)); cur = []   # never split 'No. 7'
     if cur:
         if out and len(' '.join(cur)) < 20 and len(out[-1]) + len(' '.join(cur)) < maxc + 12: out[-1] += ' ' + ' '.join(cur)
         else: out.append(' '.join(cur))
@@ -172,10 +174,9 @@ def main():
     for k, tt in enumerate(np.linspace(l16['start'] + 1.2, l16['end'] - .8, 3)): place(fx, tt, ding() if k < 2 else pop(), .7)
     place(fx, L('l20')['start'] + .8, ding(), .6); place(fx, L('l20')['start'] + 3.4, boop(), .6)
     place(fx, L('l31')['start'] - .3, ding(), .5)
-    mus = pad(dur)
     envl = np.convolve(np.abs(nar), np.ones(int(.3 * SR)) / int(.3 * SR), 'same')
     duck = 1 - .5 * np.clip(envl / (envl.max() * .2 + 1e-9), 0, 1)
-    mix = nar * 1.0 + fx * .5 + mus * duck * np.minimum(1, t_(dur)[:N] / 2) * np.clip((dur - t_(dur)[:N]) / 2.5, 0, 1)
+    mix = nar * 1.0 + fx * .5                     # no background music (removed on request); narration + light UI cues only
     mix = np.tanh(mix * .95) / .95
     mix = mix / (np.abs(mix).max() + 1e-9) * .9
     out = os.path.join(ROOT, 'audio', 'mix.wav')
