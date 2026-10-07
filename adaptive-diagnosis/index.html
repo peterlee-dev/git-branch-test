@@ -86,6 +86,14 @@ function arcArrow(x1, y1, x2, y2, bulge, c, k, lw = 5) {
 }
 function check(x, y, s, c, k = 1, lw = 7) { if (k <= 0) return; ctx.save(); ctx.strokeStyle = c; ctx.lineWidth = lw; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.beginPath(); const pts = [[-.5, 0], [-.15, .35], [.55, -.4]]; ctx.moveTo(x + pts[0][0] * s, y + pts[0][1] * s); const k1 = clamp(k * 2), k2 = clamp(k * 2 - 1); ctx.lineTo(x + lerp(pts[0][0], pts[1][0], k1) * s, y + lerp(pts[0][1], pts[1][1], k1) * s); if (k2 > 0) ctx.lineTo(x + lerp(pts[1][0], pts[2][0], k2) * s, y + lerp(pts[1][1], pts[2][1], k2) * s); ctx.stroke(); ctx.restore(); }
 function cross(x, y, s, c, k = 1, lw = 7) { if (k <= 0) return; const k1 = clamp(k * 2), k2 = clamp(k * 2 - 1); line(x - s / 2, y - s / 2, x - s / 2 + s * k1, y - s / 2 + s * k1, c, lw); if (k2 > 0) line(x + s / 2, y - s / 2, x + s / 2 - s * k2, y - s / 2 + s * k2, c, lw); }
+function measure(str, size, weight = 600) { ctx.save(); ctx.font = `${weight} ${size}px ${FONT}`; const w = ctx.measureText(str).width; ctx.restore(); return w; }
+// text with an up/down arrow after it, never touching: align 'center' centres text+arrow together, 'left' starts at x
+function textArrow(str, x, y, { size = 40, color = K.navy, weight = 700, align = 'center', alpha = 1 } = {}, up, acol, as = 1) {
+  if (alpha <= 0) return; const w = measure(str, size, weight), aw = 40 * as, gap = Math.max(14, size * .4), tot = w + gap + aw, x0 = align === 'center' ? x - tot / 2 : x;
+  text(str, x0, y, { size, color, weight, align: 'left', alpha }); if (as > 0) bigArrow(x0 + w + gap + aw / 2, y + 2, up, acol, as, alpha);
+}
+// rounded pill whose width follows its text (padding on both sides)
+function pill(str, x, y, size, fill, color, pad = 44, weight = 700) { const w = measure(str, size, weight) + pad * 2, h = size * 2; rr(x - w / 2, y - h / 2, w, h, h / 2, fill); text(str, x, y, { size, color, weight }); return w; }
 function bigArrow(x, y, up, c, s = 1, a = 1) { ctx.save(); ctx.globalAlpha *= a; ctx.translate(x, y); ctx.scale(s, up ? -s : s); ctx.fillStyle = c; ctx.beginPath(); ctx.moveTo(-9, -22); ctx.lineTo(9, -22); ctx.lineTo(9, 2); ctx.lineTo(20, 2); ctx.lineTo(0, 24); ctx.lineTo(-20, 2); ctx.lineTo(-9, 2); ctx.closePath(); ctx.fill(); ctx.restore(); }
 
 // ---------- background: soft gradient + blue swoosh waves (from the deck) ----------
@@ -153,8 +161,8 @@ function sWhat(t) {
     const times = [st('l3', 0), st('l3', .25), st('l3', .62)];
     items.forEach(([lab, icon], i) => {
       const x = 380 + i * 580, y = 560;
-      enter(t, times[i], x, y, () => { card(x - 210, y - 200, 420, 400, { fill: i === 1 && t > times[1] ? '#FFFFFF' : '#FFFFFF' }); icon(x, y - 40, 1.25, 1); text(lab, x, y + 130, { size: 34, color: K.navy, weight: 600 }); if (i === 2) text('Prescription', x, y + 172, { size: 34, color: K.navy, weight: 600 }); }, { pop: true });
-      if (i < 2) { const ka = p(t, times[i + 1] - .2, .4); if (ka > 0) { text('»', x + 290, y - 10, { size: 90, color: K.green, weight: 700, alpha: ka }); } }
+      enter(t, times[i], x, y, () => { card(x - 240, y - 210, 480, 420); icon(x, y - 50, 1.2, 1); text(lab, x, y + 118, { size: 32, color: K.navy, weight: 600, maxW: 400 }); if (i === 2) text('Prescription', x, y + 160, { size: 32, color: K.navy, weight: 600 }); }, { pop: true });
+      if (i < 2) { const ka = p(t, times[i + 1] - .2, .4); if (ka > 0) { text('»', x + 290, y - 10, { size: 80, color: K.green, weight: 700, alpha: ka }); } }
     });
     // flowing dot along the steps
     const fk = p(t, st('l3', .7), 2); if (fk > 0 && fk < 1) circ(lerp(380, 1540, eIO(fk)), 800, 10, K.blue);
@@ -169,21 +177,21 @@ function sProblem(t) {
     header(t, s0 + .1, '01 Background', 'Problems with Diagnostic Assessment');
     const bx = 360, by = 300;
     enter(t, st('l4', .05), 640, 500, () => {
-      card(bx, by, 560, 360);
+      card(bx - 20, by - 110, 600, 470);
       for (let i = 0; i < 3; i++) { const x = bx + 110 + i * 170; iconSheet(x, by + 105, 1.1); iconPerson(x, by + 250, 1.1); }
-      text('Every learner answers the same questions', bx + 280, by + 330, { size: 26, color: K.navy, weight: 600 });
+      text('Every learner answers the same questions', bx + 280, by + 325, { size: 25, color: K.navy, weight: 600, maxW: 540 });
     });
     // stack of questions piles up on each learner (the burden)
     const pile = p(t, st('l5', .45), 2.5);
     if (pile > 0) for (let i = 0; i < 3; i++) { const x = bx + 110 + i * 170; for (let j = 0; j < Math.floor(pile * 6); j++) rr(x - 30 + Math.sin(j * 1.7 + i) * 6, by + 40 - j * 16, 60, 12, 3, j % 2 ? K.blueSoft : '#FFFFFF', K.blue, 2); }
     // branches
     const kb = p(t, st('l5', 0), .8), kb2 = p(t, st('l5', .5), .8);
-    line(bx + 560, by + 180, bx + 560 + 150 * eOut(kb), by + 180 - 110 * eOut(kb), '#9AA7C0', 3, kb);
-    text('Improve', 1290, 300, { size: 40, color: K.navy, weight: 700, alpha: kb }); text('diagnostic accuracy', 1290, 350, { size: 40, color: K.navy, weight: 700, alpha: kb });
-    text('BUT', 1290, 470, { size: 34, color: K.gray, weight: 500, alpha: kb2 });
-    line(bx + 560, by + 180, bx + 560 + 150 * eOut(kb2), by + 180 + 110 * eOut(kb2), '#9AA7C0', 3, kb2);
-    enter(t, st('l5', .55), 1290, 580, () => { text('Burden on Learners', 1270, 580, { size: 44, color: K.orange, weight: 800 }); bigArrow(1510, 580, true, K.orange, 1.1); }, { pop: true });
-    enter(t, st('l6', .1), 960, 820, () => { card(430, 760, 1060, 120, { fill: '#FFFFFF' }); text('Efficiency of determining the learning starting point', 935, 820, { size: 38, color: K.navy, weight: 700 }); bigArrow(1435, 822, false, K.green, 1.2); });
+    line(bx + 580, by + 180, bx + 580 + 150 * eOut(kb), by + 180 - 110 * eOut(kb), '#9AA7C0', 3, kb);
+    text('Improve', 1330, 300, { size: 40, color: K.navy, weight: 700, alpha: kb }); text('diagnostic accuracy', 1330, 350, { size: 40, color: K.navy, weight: 700, alpha: kb });
+    text('BUT', 1330, 470, { size: 34, color: K.gray, weight: 500, alpha: kb2 });
+    line(bx + 580, by + 180, bx + 580 + 150 * eOut(kb2), by + 180 + 110 * eOut(kb2), '#9AA7C0', 3, kb2);
+    enter(t, st('l5', .55), 1290, 580, () => textArrow('Burden on Learners', 1365, 580, { size: 44, color: K.orange, weight: 800 }, true, K.orange, 1.1), { pop: true });
+    enter(t, st('l6', .1), 960, 820, () => { const w = measure('Efficiency of determining the learning starting point', 38, 700) + 14 + 48 + 120; card(960 - w / 2, 760, w, 120); textArrow('Efficiency of determining the learning starting point', 960, 820, { size: 38, color: K.navy, weight: 700 }, false, K.green, 1.2); });
   });
 }
 // 4. adaptive: responsive system with the multiplication example
@@ -199,7 +207,7 @@ function sAdaptive(t) {
   withCam(drift(t, s0), 960, 540, () => {
     backdrop(t);
     header(t, s0 + .1, '02 Introduction to Adaptive Diagnostic Assessment', 'What is an adaptive diagnostic assessment?');
-    enter(t, st('l7', .3), 960, 235, () => { rr(640, 200, 640, 70, 35, K.blueSoft); text('Responsive Diagnostic Assessment System', 960, 235, { size: 34, color: K.blue, weight: 700 }); }, { pop: true });
+    enter(t, st('l7', .3), 960, 235, () => pill('Responsive Diagnostic Assessment System', 960, 235, 34, K.blueSoft, K.blue), { pop: true });
     const q0 = st('l8', .02), qa = st('l8', .35), qb = st('l8', .62);
     enter(t, q0, 420, 560, () => mathCard(200, 440, 470, 260, ['28', '70'], ['140', '1,400', '1,456', '1,460', '1,480', '1,940', '1,960', '1,988', '5,600', '?']));
     // correct branch → harder question
@@ -264,12 +272,12 @@ function sHow(t) {
     backdrop(t);
     header(t, s0 + .1, '03 Operating Principle', 'Adaptive Diagnostic Algorithm');
     if (out < 1) { const a = eOut(q1) * (1 - out); text('So how does the adaptive', 960, 470 - out * 120, { size: 64, color: K.navy, weight: 700, alpha: a }); rich([['diagnostic assessment actually ', K.navy, 700], ['work', K.blue, 800], ['?', K.navy, 700]], 960, 560 - out * 120, 64, a); }
-    enter(t, en('l12', .3), 960, 330, () => { card(560, 260, 800, 130, { fill: '#FFFFFF' }); text('Provide Questions', 600, 300, { size: 30, color: K.navy, weight: 700, align: 'left' }); text('Instead of solving all items in order, key representative items come first.', 600, 348, { size: 23, color: K.gray, weight: 400, align: 'left' }); });
+    enter(t, en('l12', .3), 960, 330, () => { card(500, 255, 920, 140, { fill: '#FFFFFF' }); text('Provide Questions', 545, 298, { size: 30, color: K.navy, weight: 700, align: 'left' }); text('Instead of solving all items in order, key representative items come first.', 545, 348, { size: 23, color: K.gray, weight: 400, align: 'left', maxW: 830 }); });
     const ka = p(t, st('l13', .25), .8), kb = p(t, st('l13', .55), .8);
-    if (ka > 0) arcArrow(900, 395, 560, 520, -20, K.blue, eOut(ka));
-    if (kb > 0) arcArrow(1020, 395, 1360, 520, -20, K.orange, eOut(kb));
-    enter(t, st('l13', .3), 560, 650, () => { card(220, 530, 680, 260, { fill: '#F3F7FF', stroke: '#C9D8FF' }); rr(250, 560, 180, 44, 8, K.blue); text('If correct', 340, 582, { size: 24, color: '#fff', weight: 700 }); rr(250, 630, 620, 120, 14, '#FFFFFF'); const up = Math.sin((t - st('l13')) * 3) * 6; ctx.save(); ctx.strokeStyle = K.blue; ctx.lineWidth = 8; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.beginPath(); ctx.moveTo(290, 715 - up); ctx.lineTo(330, 680 - up); ctx.lineTo(350, 700 - up); ctx.lineTo(390, 660 - up); ctx.stroke(); ctx.restore(); arrowHead(395, 655 - up, -.8, 22, K.blue); text('Move up to a higher difficulty level', 420, 690, { size: 30, color: K.blue, weight: 800, align: 'left' }); });
-    enter(t, st('l13', .6), 1360, 650, () => { card(1020, 530, 680, 260, { fill: '#FFF6F0', stroke: '#FFD9C2' }); rr(1050, 560, 200, 44, 8, K.orange); text('If incorrect', 1150, 582, { size: 24, color: '#fff', weight: 700 }); rr(1050, 630, 620, 120, 14, '#FFFFFF'); const dn = Math.sin((t - st('l13')) * 3) * 6; ctx.save(); ctx.strokeStyle = K.orange; ctx.lineWidth = 8; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.beginPath(); ctx.moveTo(1090, 660 + dn); ctx.lineTo(1130, 695 + dn); ctx.lineTo(1150, 675 + dn); ctx.lineTo(1190, 715 + dn); ctx.stroke(); ctx.restore(); arrowHead(1195, 720 + dn, .8, 22, K.orange); text('Move down to a lower difficulty level', 1220, 690, { size: 30, color: K.orange, weight: 800, align: 'left' }); });
+    if (ka > 0) arcArrow(880, 400, 520, 520, -20, K.blue, eOut(ka));
+    if (kb > 0) arcArrow(1040, 400, 1400, 520, -20, K.orange, eOut(kb));
+    enter(t, st('l13', .3), 560, 650, () => { card(130, 530, 780, 260, { fill: '#F3F7FF', stroke: '#C9D8FF' }); ctx.save(); ctx.translate(-90, 0); rr(250, 560, 180, 44, 8, K.blue); text('If correct', 340, 582, { size: 24, color: '#fff', weight: 700 }); rr(250, 630, 720, 120, 14, '#FFFFFF'); const up = Math.sin((t - st('l13')) * 3) * 6; ctx.save(); ctx.strokeStyle = K.blue; ctx.lineWidth = 8; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.beginPath(); ctx.moveTo(290, 715 - up); ctx.lineTo(330, 680 - up); ctx.lineTo(350, 700 - up); ctx.lineTo(390, 660 - up); ctx.stroke(); ctx.restore(); arrowHead(395, 655 - up, -.8, 22, K.blue); text('Move up to a higher difficulty level', 420, 690, { size: 30, color: K.blue, weight: 800, align: 'left', maxW: 520 }); ctx.restore(); });
+    enter(t, st('l13', .6), 1360, 650, () => { card(1010, 530, 780, 260, { fill: '#FFF6F0', stroke: '#FFD9C2' }); ctx.save(); ctx.translate(-10, 0); rr(1050, 560, 200, 44, 8, K.orange); text('If incorrect', 1150, 582, { size: 24, color: '#fff', weight: 700 }); rr(1050, 630, 720, 120, 14, '#FFFFFF'); const dn = Math.sin((t - st('l13')) * 3) * 6; ctx.save(); ctx.strokeStyle = K.orange; ctx.lineWidth = 8; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.beginPath(); ctx.moveTo(1090, 660 + dn); ctx.lineTo(1130, 695 + dn); ctx.lineTo(1150, 675 + dn); ctx.lineTo(1190, 715 + dn); ctx.stroke(); ctx.restore(); arrowHead(1195, 720 + dn, .8, 22, K.orange); text('Move down to a lower difficulty level', 1220, 690, { size: 30, color: K.orange, weight: 800, align: 'left', maxW: 520 }); ctx.restore(); });
   });
 }
 // 8. 1 → 9 path: probe down on incorrect, probe up on correct (same step times as the sound cues in make_audio.py)
@@ -368,7 +376,7 @@ function sQuick(t) {
   withCam(drift(t, s0), 960, 540, () => {
     backdrop(t);
     header(t, s0 + .1, '04 Quick Diagnosis', 'On-Site Quick Diagnosis');
-    enter(t, st('l22', .3), 960, 245, () => { rr(700, 210, 520, 70, 35, K.blueSoft); text('⚡ Quick Diagnosis', 960, 245, { size: 34, color: K.blue, weight: 800 }); }, { pop: true });
+    enter(t, st('l22', .3), 960, 245, () => pill('⚡ Quick Diagnosis', 960, 245, 34, K.blueSoft, K.blue, 60, 800), { pop: true });
     const cards = [['Numbers and', 'Operations', 'Diagnoses Numbers and', 'Operations first.', iconOps, st('l23', .05)], ['Report Before', 'Completion', 'See results before the full', 'diagnosis ends.', iconReport, st('l23', .65)], ['Consultation', '', 'Discuss understanding level and', 'next steps right away.', iconChat, st('l24', .35)]];
     cards.forEach(([a, b, c, d, ic, t0], i) => {
       const x = 410 + i * 550, y = 470;
@@ -406,10 +414,10 @@ function sEffects(t) {
       card(1030, 230, 760, 470, { fill: '#F7F9FD' });
       // teacher with board + two students
       rr(1110, 360, 150, 100, 10, '#FFFFFF', K.blue, 5); [[1140, 30], [1170, 50], [1200, 70]].forEach(([bx, bh]) => rr(bx, 440 - bh, 18, bh, 3, K.blue)); iconPerson(1090, 470, 1.3); iconPerson(1120, 600, 1.3); iconPerson(1210, 600, 1.3);
-      text('Workload', 1330, 390, { size: 30, color: K.navy, weight: 700, align: 'left' }); bigArrow(1480, 390, false, K.green, .9 * eBack(p(t, st('l27', .3), .5)));
+      textArrow('Workload', 1330, 390, { size: 30, color: K.navy, weight: 700, align: 'left' }, false, K.green, .9 * eBack(p(t, st('l27', .3), .5)));
       text('for Students & Teachers', 1330, 432, { size: 28, color: K.navy, weight: 600, align: 'left' });
       const k2 = p(t, st('l28', .1), .6);
-      text('Consultation & Class', 1330, 540, { size: 30, color: K.navy, weight: 700, align: 'left', alpha: k2 }); text('Operations Efficiency', 1330, 582, { size: 28, color: K.navy, weight: 600, align: 'left', alpha: k2 }); if (k2 > 0) bigArrow(1640, 578, true, K.green, .9 * eBack(k2));
+      text('Consultation & Class', 1330, 540, { size: 30, color: K.navy, weight: 700, align: 'left', alpha: k2 }); textArrow('Operations Efficiency', 1330, 582, { size: 28, color: K.navy, weight: 600, align: 'left', alpha: k2 }, true, K.green, .9 * eBack(k2));
     });
     // bottom: JEI Math first → other subjects
     const k3 = p(t, st('l29', .05), .7);
