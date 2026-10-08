@@ -135,7 +135,7 @@ function stamp(str, x, y, k, c, rot = -.08, size = 34) {
 }
 function chip(str, x, y, { size = 22, fill = K.blue, color = '#FFFFFF', a = 1, pad = 16, weight = 700, spacing = 1.5, align = 'left' } = {}) {
   if (a <= 0) return 0; const w = measure(str, size, weight) + spacing * str.length + pad * 2, h = size * 1.8, x0 = align === 'center' ? x - w / 2 : x;
-  rr(x0, y - h / 2, w, h, h / 2, fill, null, 0, a); text(str, x0 + pad, y + 1, { size, weight, color, alpha: a, spacing }); return w;
+  rr(x0, y - h / 2, w, h, h / 2, '#FFFFFF', null, 0, a); rr(x0, y - h / 2, w, h, h / 2, fill, null, 0, a); text(str, x0 + pad, y + 1, { size, weight, color, alpha: a, spacing }); return w;   // white underneath: tinted labels never show the grid
 }
 function sheet(x, y, w, h, rot = 0, a = 1, lines = 5) {
   if (a <= 0) return; ctx.save(); ctx.globalAlpha *= a; ctx.translate(x, y); ctx.rotate(rot);
@@ -335,11 +335,15 @@ SC.path = t => {
     const k = eBack(p(t, st('l14', .02) + i * .05, .4)), rep = i % 2 === 1, y = RY(i); if (k <= 0) continue;
     const mine = caseUp && i >= 5, s = mine ? upS[i] : down[i], a = mine ? 1 : dim;
     const col = s === 'o' ? K.blue : s === 'x' ? K.orange : s === 'need' ? K.green : rep ? K.ink : K.muted;
+    const lab = { o: 'correct', x: 'incorrect', need: 'check this one' }[s];
+    // solid white under every circle and label, so the rail and the grid never show through (also when dimmed)
+    circle(RX, y, (rep ? 26 : 18) * k + 2, '#FFFFFF');
+    if (lab) { const w = measure(lab, 20, 700) + 1.5 * lab.length + 28; rr(RX + 84, y - 18, w, 36, 18, '#FFFFFF'); }
     ctx.save(); ctx.globalAlpha *= s ? a : 1;
     circle(RX, y, (rep ? 26 : 18) * k, s ? rgba(col, .15) : '#FFFFFF', col, rep ? 4 : 3);
     text(String(i), RX, y + 1, { size: rep ? 26 : 20, weight: 800, color: col, align: 'center', alpha: k });
     if (s === 'o') check(RX + 52, y, 30, 1, K.blue, 5); if (s === 'x') crossMark(RX + 52, y, 22, 1, K.orange, 5);
-    const lab = { o: 'correct', x: 'incorrect', need: 'check this one' }[s]; if (lab) chip(lab, RX + 84, y, { size: 20, fill: rgba(col, .14), color: col, pad: 14 });
+    if (lab) chip(lab, RX + 84, y, { size: 20, fill: rgba(col, .14), color: col, pad: 14 });
     ctx.restore();
   }
   // the learner's pencil mark moves along the ladder
