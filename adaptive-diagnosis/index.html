@@ -120,8 +120,6 @@ function header(t, t0, small, title) {
   text(title, 90 + (1 - eOut(k)) * -30, 124, { size: 46, color: K.navy, weight: 700, align: 'left', alpha: eOut(k) });
   line(90, 168, 90 + (W - 180) * eOut(k), 168, '#E3E8F2', 2);
 }
-function withCam(z, cx, cy, fn) { ctx.save(); ctx.translate(cx, cy); ctx.scale(z, z); ctx.translate(-cx, -cy); fn(); ctx.restore(); }
-function drift(t, s0) { return 1 + .02 * eIO(clamp((t - s0) / 14)); }
 
 // ---------- icons (simple line-art in the deck's blue) ----------
 function iconDoc(x, y, s, k = 1) { ctx.save(); ctx.translate(x, y); ctx.scale(s, s); ctx.globalAlpha *= k; rr(-50, -62, 100, 124, 10, '#FFFFFF', K.blue, 5); for (let i = 0; i < 4; i++) line(-30, -30 + i * 22, 30 - (i === 3 ? 25 : 0), -30 + i * 22, K.blue, 5); rr(10, -90, 60, 42, 10, K.blueSoft, K.blue, 5); ctx.save(); ctx.translate(40, 50); ctx.rotate(-.8); rr(-8, -50, 16, 70, 4, '#FFFFFF', K.blue, 5); ctx.restore(); ctx.restore(); }
@@ -154,7 +152,7 @@ function sIntro(t) {
 // 2. what is a diagnostic assessment
 function sWhat(t) {
   const s0 = S('what').start;
-  withCam(drift(t, s0), 960, 540, () => {
+  {
     backdrop(t);
     header(t, s0 + .1, '01 Background', 'What is a diagnostic assessment?');
     const items = [['Pre-Learning Assessment', iconDoc], ['Assessing Learner Level', iconChart], ['Personalized Program', iconBook]];
@@ -167,12 +165,12 @@ function sWhat(t) {
     // flowing dot along the steps
     const fk = p(t, st('l3', .7), 2); if (fk > 0 && fk < 1) circ(lerp(380, 1540, eIO(fk)), 800, 10, K.blue);
     if (fk > 0) line(380, 800, lerp(380, 1540, eIO(fk)), 800, rgba(K.blue, .35), 6);
-  });
+  }
 }
 // 3. problems
 function sProblem(t) {
   const s0 = S('problem').start;
-  withCam(drift(t, s0), 960, 540, () => {
+  {
     backdrop(t);
     header(t, s0 + .1, '01 Background', 'Problems with Diagnostic Assessment');
     const bx = 360, by = 300;
@@ -192,7 +190,7 @@ function sProblem(t) {
     line(bx + 580, by + 180, bx + 580 + 150 * eOut(kb2), by + 180 + 110 * eOut(kb2), '#9AA7C0', 3, kb2);
     enter(t, st('l5', .55), 1290, 580, () => textArrow('Burden on Learners', 1365, 580, { size: 44, color: K.orange, weight: 800 }, true, K.orange, 1.1), { pop: true });
     enter(t, st('l6', .1), 960, 820, () => { const w = measure('Efficiency of determining the learning starting point', 38, 700) + 14 + 48 + 120; card(960 - w / 2, 760, w, 120); textArrow('Efficiency of determining the learning starting point', 960, 820, { size: 38, color: K.navy, weight: 700 }, false, K.green, 1.2); });
-  });
+  }
 }
 // 4. adaptive: responsive system with the multiplication example
 function mathCard(x, y, w, h, q, opts, col, a = 1) {
@@ -204,7 +202,7 @@ function mathCard(x, y, w, h, q, opts, col, a = 1) {
 }
 function sAdaptive(t) {
   const s0 = S('adaptive').start;
-  withCam(drift(t, s0), 960, 540, () => {
+  {
     backdrop(t);
     header(t, s0 + .1, '02 Introduction to Adaptive Diagnostic Assessment', 'What is an adaptive diagnostic assessment?');
     enter(t, st('l7', .3), 960, 235, () => pill('Responsive Diagnostic Assessment System', 960, 235, 34, K.blueSoft, K.blue), { pop: true });
@@ -217,7 +215,7 @@ function sAdaptive(t) {
     if (kb > 0) { line(670, 600, lerp(670, 1180, eOut(kb)), lerp(600, 760, eOut(kb)), K.orange, 4); cross(890, 690, 50 * eBack(kb), K.orange, 1, 12); text('Incorrect', 890, 745, { size: 24, color: K.orange, weight: 700, alpha: kb }); }
     enter(t, qb + .5, 1430, 770, () => { mathCard(1190, 650, 500, 260, ['34', '8'], ['242', '243', '252', '272', '280', '324', '332', '352', '2,432', '?'], K.orange); text('Multiplying 2- by 1-Digit · easier', 1440, 935, { size: 22, color: K.orange, weight: 600 }); });
     text('Multiplying Two 2-Digits', 435, 725, { size: 22, color: K.gray, weight: 500, alpha: p(t, q0 + .3, .4) });
-  });
+  }
 }
 // 5. only the necessary questions
 function qGrid(x0, y0, active, k, t, dim) {
@@ -231,7 +229,7 @@ function qGrid(x0, y0, active, k, t, dim) {
 }
 function sNecessary(t) {
   const s0 = S('necessary').start;
-  withCam(drift(t, s0), 960, 540, () => {
+  {
     backdrop(t);
     header(t, s0 + .1, '02 Introduction to Adaptive Diagnostic Assessment', 'What is an adaptive diagnostic assessment?');
     enter(t, s0 + .4, 470, 500, () => { card(150, 260, 640, 430, { fill: '#F4F7FC' }); qGrid(175, 290, [], 0, t, false); });
@@ -242,12 +240,12 @@ function sNecessary(t) {
     enter(t, st('l9', .5), 1450, 500, () => { card(1130, 260, 640, 430, { fill: '#F4F7FC' }); qGrid(1155, 290, [3, 9, 12, 14, 16], p(t, st('l9', .6), 2.2), t, true); });
     enter(t, st('l9', .7), 1450, 780, () => rich([['Only ', K.navy], ['the necessary questions', K.blue], [' based on', K.navy]], 1450, 760, 32));
     text('learner’s responses.', 1450, 806, { size: 32, color: K.navy, weight: 600, alpha: p(t, st('l9', .75), .5) });
-  });
+  }
 }
 // 6. benefits
 function sBenefit(t) {
   const s0 = S('benefit').start;
-  withCam(drift(t, s0), 960, 540, () => {
+  {
     backdrop(t);
     header(t, s0 + .1, '02 Introduction to Adaptive Diagnostic Assessment', 'Benefits of Diagnostic Assessment');
     const a0 = st('l10', .1), b0 = st('l10', .6);
@@ -263,12 +261,12 @@ function sBenefit(t) {
     }, { pop: true });
     const q = p(t, st('l11', .15), .8);
     if (q > 0) { rich([['“ ', K.navy], ['Reduced', K.blue], [' Diagnostic ', K.navy], ['Burden', K.blue], [' & Setting ', K.navy], ['Precise Starting Point for Learning', K.blue], [' ”', K.navy]], 960, 740 + (1 - eOut(q)) * 20, 40, eOut(q)); line(960 - 600 * eOut(p(t, st('l11', .6), 1)), 790, 960 + 600 * eOut(p(t, st('l11', .6), 1)), 790, rgba(K.blue, .5), 4); }
-  });
+  }
 }
 // 7. how does it work + up / down rule
 function sHow(t) {
   const s0 = S('how').start, q1 = p(t, st('l12', 0), .7), out = p(t, en('l12', .1), .6);
-  withCam(drift(t, s0), 960, 540, () => {
+  {
     backdrop(t);
     header(t, s0 + .1, '03 Operating Principle', 'Adaptive Diagnostic Algorithm');
     if (out < 1) { const a = eOut(q1) * (1 - out); text('So how does the adaptive', 960, 470 - out * 120, { size: 64, color: K.navy, weight: 700, alpha: a }); rich([['diagnostic assessment actually ', K.navy, 700], ['work', K.blue, 800], ['?', K.navy, 700]], 960, 560 - out * 120, 64, a); }
@@ -278,7 +276,7 @@ function sHow(t) {
     if (kb > 0) arcArrow(1040, 400, 1400, 520, -20, K.orange, eOut(kb));
     enter(t, st('l13', .3), 560, 650, () => { card(130, 530, 780, 260, { fill: '#F3F7FF', stroke: '#C9D8FF' }); ctx.save(); ctx.translate(-90, 0); rr(250, 560, 180, 44, 8, K.blue); text('If correct', 340, 582, { size: 24, color: '#fff', weight: 700 }); rr(250, 630, 720, 120, 14, '#FFFFFF'); const up = Math.sin((t - st('l13')) * 3) * 6; ctx.save(); ctx.strokeStyle = K.blue; ctx.lineWidth = 8; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.beginPath(); ctx.moveTo(290, 715 - up); ctx.lineTo(330, 680 - up); ctx.lineTo(350, 700 - up); ctx.lineTo(390, 660 - up); ctx.stroke(); ctx.restore(); arrowHead(395, 655 - up, -.8, 22, K.blue); text('Move up to a higher difficulty level', 420, 690, { size: 30, color: K.blue, weight: 800, align: 'left', maxW: 520 }); ctx.restore(); });
     enter(t, st('l13', .6), 1360, 650, () => { card(1010, 530, 780, 260, { fill: '#FFF6F0', stroke: '#FFD9C2' }); ctx.save(); ctx.translate(-10, 0); rr(1050, 560, 200, 44, 8, K.orange); text('If incorrect', 1150, 582, { size: 24, color: '#fff', weight: 700 }); rr(1050, 630, 720, 120, 14, '#FFFFFF'); const dn = Math.sin((t - st('l13')) * 3) * 6; ctx.save(); ctx.strokeStyle = K.orange; ctx.lineWidth = 8; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.beginPath(); ctx.moveTo(1090, 660 + dn); ctx.lineTo(1130, 695 + dn); ctx.lineTo(1150, 675 + dn); ctx.lineTo(1190, 715 + dn); ctx.stroke(); ctx.restore(); arrowHead(1195, 720 + dn, .8, 22, K.orange); text('Move down to a lower difficulty level', 1220, 690, { size: 30, color: K.orange, weight: 800, align: 'left', maxW: 520 }); ctx.restore(); });
-  });
+  }
 }
 // 8. 1 → 9 path: probe down on incorrect, probe up on correct (same step times as the sound cues in make_audio.py)
 const NODE_X = i => 250 + (i - 1) * 178, NODE_Y = 560;
@@ -287,7 +285,7 @@ function sPath(t) {
   const s0 = S('path').start;
   const dn = steps('l15', .6, .8), up = steps('l16', 1.2, .8);
   const caseUp = t > st('l16', 0) - .2, summary = p(t, st('l17', 0), .7);
-  withCam(drift(t, s0), 960, 540, () => {
+  {
     backdrop(t);
     header(t, s0 + .1, '03 Operating Principle', 'Adaptive Diagnostic Algorithm');
     const pa = 1 - eOut(summary);
@@ -331,7 +329,7 @@ function sPath(t) {
       enter(t, st('l17', 0), 600, 520, () => { card(250, 340, 700, 340, {}); circ(600, 430, 40, K.blueSoft); for (let i = 0; i < 3; i++) line(584, 416 + i * 12, 616 - i * 8, 416 + i * 12, K.blue, 4); text('Minimize the number of items', 600, 520, { size: 36, color: K.navy, weight: 700 }); text('Selects only the optimal items required for judgment,', 600, 575, { size: 22, color: K.gray, weight: 400 }); text("drastically reducing the learner's workload.", 600, 605, { size: 22, color: K.gray, weight: 400 }); }, { pop: true });
       enter(t, st('l17', .45), 1320, 520, () => { card(970, 340, 700, 340, { fill: '#EEF4FF', stroke: '#C9D8FF' }); circ(1320, 430, 40, '#FFFFFF'); circ(1320, 430, 18, null, K.blue, 5); line(1320, 404, 1320, 418, K.blue, 5); line(1320, 442, 1320, 456, K.blue, 5); line(1294, 430, 1308, 430, K.blue, 5); line(1332, 430, 1346, 430, K.blue, 5); text('Accurately diagnose actual', 1320, 505, { size: 36, color: K.blueDark, weight: 700 }); text('performance level', 1320, 550, { size: 36, color: K.blueDark, weight: 700 }); text("Identifies what the learner knows and doesn't know", 1320, 610, { size: 22, color: K.gray, weight: 400 }); text('through algorithm-based precise tracking.', 1320, 640, { size: 22, color: K.gray, weight: 400 }); }, { pop: true });
     }
-  });
+  }
 }
 // 9. validation: representative + 2 similar items, 2 of 3 rule
 function itemCard(x, y, w, h, lab, res, k, tint) {
@@ -342,7 +340,7 @@ function itemCard(x, y, w, h, lab, res, k, tint) {
 }
 function sValidate(t) {
   const s0 = S('validate').start, sw = p(t, st('l20', 0) - .3, .7);
-  withCam(drift(t, s0), 960, 540, () => {
+  {
     backdrop(t);
     header(t, s0 + .1, '03 Operating Principle', 'Adaptive Diagnostic Algorithm');
     if (sw < 1) {
@@ -368,12 +366,12 @@ function sValidate(t) {
       const q = p(t, st('l21', .1), .8); if (q > 0) { text('“A mechanism designed to reduce the number of items', 960, 845, { size: 36, color: K.navy, weight: 700, alpha: eOut(q) }); text('without sacrificing assessment reliability.”', 960, 895, { size: 36, color: K.navy, weight: 700, alpha: eOut(q) }); }
       ctx.restore();
     }
-  });
+  }
 }
 // 10. quick diagnosis
 function sQuick(t) {
   const s0 = S('quick').start;
-  withCam(drift(t, s0), 960, 540, () => {
+  {
     backdrop(t);
     header(t, s0 + .1, '04 Quick Diagnosis', 'On-Site Quick Diagnosis');
     enter(t, st('l22', .3), 960, 245, () => pill('⚡ Quick Diagnosis', 960, 245, 34, K.blueSoft, K.blue, 60, 800), { pop: true });
@@ -392,12 +390,12 @@ function sQuick(t) {
       text('Other areas', x0 + w * .65, y - 30, { size: 24, color: K.gray, weight: 600, alpha: pk });
       const rk = eBack(p(t, st('l23', .7), .6)); if (rk > 0) { ctx.save(); ctx.translate(x0 + w * .3, y + 80); ctx.scale(rk, rk); rr(-150, -30, 300, 60, 30, K.orange); text('Quick report ready', 0, 0, { size: 26, color: '#FFFFFF', weight: 800 }); ctx.restore(); line(x0 + w * .3, y + 30, x0 + w * .3, y + 50, K.orange, 4, rk); }
     }
-  });
+  }
 }
 // 11. expected effects
 function sEffects(t) {
   const s0 = S('effects').start;
-  withCam(drift(t, s0), 960, 540, () => {
+  {
     backdrop(t);
     header(t, s0 + .1, '05 Expected Effects', 'Expected Effects of Adaptive Diagnostic Assessment');
     // left: excessive items → just a few
@@ -425,7 +423,7 @@ function sEffects(t) {
       rich([['Initially Applied', K.blue], [' to JEI Math ', K.navy], ['⇨ ', K.navy], ['Scalable', K.blue], [' to Other Subjects', K.navy]], 960, 790, 40, eOut(k3));
       const subs = C.subjects; subs.forEach((s, i) => { const k = eBack(p(t, st('l29', .45) + i * .25, .5)); if (k <= 0) return; const x = 960 + (i - (subs.length - 1) / 2) * 230; ctx.save(); ctx.translate(x, 880); ctx.scale(k, k); rr(-100, -30, 200, 60, 30, i === 0 ? K.blue : '#FFFFFF', K.blue, 3); text(s, 0, 0, { size: 26, color: i === 0 ? '#FFFFFF' : K.blue, weight: 700 }); ctx.restore(); });
     }
-  });
+  }
 }
 // 12. thank you
 function sOutro(t) {
