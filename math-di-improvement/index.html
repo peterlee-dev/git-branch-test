@@ -1,0 +1,778 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>JEI Math D–I Improvement Plan</title>
+<style>
+  html, body { margin: 0; padding: 0; background: #000; overflow: hidden; }
+  #viewport { width: 1920px; height: 1080px; position: relative; overflow: hidden; background: #fff; }
+  /* 슬라이드 원본 좌표(1000×562.5)로 그리고 1.92배 확대 */
+  #stage { position: absolute; left: 0; top: 0; width: 1000px; height: 562.5px; transform: scale(1.92); transform-origin: 0 0;
+           font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; color: #1B2A4A; -webkit-font-smoothing: antialiased; }
+  .layer, .scene { position: absolute; left: 0; top: 0; width: 1000px; height: 562.5px; }
+  .scene { visibility: hidden; }
+  .pos { position: absolute; height: 0; display: flex; align-items: center; }
+  .pos > div { flex: none; }
+  .nw { white-space: nowrap; }
+  .box { position: absolute; }
+  svg.ov { position: absolute; left: 0; top: 0; width: 1000px; height: 562.5px; overflow: visible; }
+  b, .b { font-weight: 700; }
+  .blue { color: #3A5BB8; } .gray { color: #6B7A90; } .navy { color: #1B2A4A; }
+  .w { display: inline-block; }
+</style>
+</head>
+<body>
+<div id="viewport"><div id="stage">
+  <div class="layer" id="leftbar" style="left:0;width:11px;background:#3A5BB8"></div>
+  <div class="layer" id="hdr"></div>
+  <div class="layer" id="dark" style="background:#182B4D;clip-path:inset(0% 0% 0% 0%)"></div>
+  <div class="layer" id="topbar" style="height:9px;background:#5BB8DD;transform-origin:0 0"></div>
+  <div class="layer" id="scenes"></div>
+</div></div>
+<script src="node_modules/gsap/dist/gsap.min.js"></script>
+<script src="timeline.js"></script>
+<script>
+const C = { blue: "#3A5BB8", navy: "#1B2A4A", dark: "#182B4D", cyan: "#5BB8DD", orange: "#F0A35A", green: "#4FA88A",
+            gray: "#6B7A90", light: "#EEF3FD", line: "#E2E6EC", red: "#E11D2A" };
+const SVGNS = "http://www.w3.org/2000/svg";
+const TL = window.TIMELINE;
+const tl = gsap.timeline({ paused: true });
+const E = { power: "power3.out", back: "back.out(1.7)" };
+
+/* ---------- DOM 헬퍼 ---------- */
+function el(tag, parent, style = "", html = "") {
+  const e = document.createElement(tag);
+  if (style) e.style.cssText = style;
+  if (html) e.innerHTML = html;
+  parent.appendChild(e);
+  return e;
+}
+// 텍스트: (x, y)는 세로 중앙. a = 'l'|'c'|'r'
+function T(p, x, y, html, css = "", { a = "l", w = null } = {}) {
+  const wrap = el("div", p);
+  wrap.className = "pos";
+  const width = w || 0;
+  const left = a === "c" ? x - width / 2 : a === "r" ? x - width : x;
+  wrap.style.cssText = `left:${left}px;top:${y}px;width:${width}px;justify-content:${a === "c" ? "center" : a === "r" ? "flex-end" : "flex-start"}`;
+  const inner = el("div", wrap, css + (w ? `;width:${w}px` : ""), html);
+  if (!w) inner.classList.add("nw");
+  if (a === "c") inner.style.textAlign = "center";
+  return inner;
+}
+function R(p, x, y, w, h, css = "", html = "") {
+  const b = el("div", p, `left:${x}px;top:${y}px;width:${w}px;height:${h}px;${css}`, html);
+  b.className = "box";
+  return b;
+}
+function svg(p) { const s = document.createElementNS(SVGNS, "svg"); s.setAttribute("class", "ov"); s.setAttribute("viewBox", "0 0 1000 562.5"); p.appendChild(s); return s; }
+function S(s, tag, attrs) {
+  const e = document.createElementNS(SVGNS, tag);
+  for (const k in attrs) e.setAttribute(k, attrs[k]);
+  s.appendChild(e);
+  return e;
+}
+function line(s, d, color, w = 3, extra = {}) { return S(s, "path", { d, fill: "none", stroke: color, "stroke-width": w, "stroke-linecap": "round", "stroke-linejoin": "round", ...extra }); }
+// 화살표: 몸통 + 머리
+function arrow(s, x1, y1, x2, y2, color, w = 3, head = 9) {
+  const ang = Math.atan2(y2 - y1, x2 - x1);
+  const bx = x2 - Math.cos(ang) * head * 0.6, by = y2 - Math.sin(ang) * head * 0.6;
+  const shaft = line(s, `M${x1},${y1} L${bx},${by}`, color, w);
+  const p = (a, r) => `${x2 - Math.cos(ang + a) * r},${y2 - Math.sin(ang + a) * r}`;
+  const hd = S(s, "path", { d: `M${p(0.55, head)} L${x2},${y2} L${p(-0.55, head)} L${x2 - Math.cos(ang) * head * 0.45},${y2 - Math.sin(ang) * head * 0.45} Z`, fill: color });
+  return { shaft, head: hd };
+}
+
+/* ---------- 애니메이션 헬퍼 ---------- */
+function prepDraw(path) { const L = path.getTotalLength(); path.style.strokeDasharray = `${L} ${L + 2}`; path.style.strokeDashoffset = L; return L; }
+function draw(path, t, dur = 0.6, ease = "power2.inOut") {
+  prepDraw(path);
+  gsap.set(path, { visibility: "hidden" });           // 그리기 전 둥근 선끝 점이 보이지 않게
+  tl.set(path, { visibility: "visible" }, t + 0.01);
+  tl.to(path, { strokeDashoffset: 0, duration: dur, ease }, t);
+}
+function drawArrow(a, t, dur = 0.5) { draw(a.shaft, t, dur); gsap.set(a.head, { opacity: 0, scale: 0.3, transformOrigin: "50% 50%" }); tl.to(a.head, { opacity: 1, scale: 1, duration: 0.25, ease: E.back }, t + dur - 0.12); }
+function fadeUp(els, t, { y = 14, dur = 0.6, stagger = 0.08, ease = E.power } = {}) {
+  gsap.set(els, { opacity: 0, y });
+  tl.to(els, { opacity: 1, y: 0, duration: dur, stagger, ease }, t);
+}
+function fadeIn(els, t, dur = 0.5, stagger = 0) { gsap.set(els, { opacity: 0 }); tl.to(els, { opacity: 1, duration: dur, stagger, ease: "power1.out" }, t); }
+function slideIn(els, t, { x = -24, dur = 0.6, stagger = 0.08 } = {}) { gsap.set(els, { opacity: 0, x }); tl.to(els, { opacity: 1, x: 0, duration: dur, stagger, ease: E.power }, t); }
+function pop(els, t, { dur = 0.5, stagger = 0.08, from = 0.4, origin = "50% 50%" } = {}) {
+  gsap.set(els, { opacity: 0, scale: from, transformOrigin: origin });
+  tl.to(els, { opacity: 1, scale: 1, duration: dur, stagger, ease: E.back }, t);
+}
+function growX(els, t, dur = 0.7, stagger = 0) { gsap.set(els, { scaleX: 0, transformOrigin: "0% 50%" }); tl.to(els, { scaleX: 1, duration: dur, stagger, ease: "power2.inOut" }, t); }
+function growY(els, t, dur = 0.7, stagger = 0.05) { gsap.set(els, { scaleY: 0, transformOrigin: "50% 100%" }); tl.to(els, { scaleY: 1, duration: dur, stagger, ease: E.power }, t); }
+function count(elm, to, t, dur = 1.0, from = 0, fmt = v => Math.round(v)) {
+  const o = { v: from };
+  elm.textContent = fmt(from);
+  tl.to(o, { v: to, duration: dur, ease: "power2.out", onUpdate: () => { elm.textContent = fmt(o.v); } }, t);
+}
+function pulse(els, t, s = 1.12) { tl.to(els, { scale: s, duration: 0.22, ease: "power2.out", yoyo: true, repeat: 1, transformOrigin: "50% 50%" }, t); }
+function color(els, t, c, dur = 0.4) { tl.to(els, { color: c, duration: dur }, t); }
+function sweep(els, t, dur = 0.7) {
+  gsap.set(els, { clipPath: "inset(0% 100% 0% 0%)" });
+  tl.to(els, { clipPath: "inset(0% 0% 0% 0%)", duration: dur, ease: "power2.inOut" }, t);
+}
+
+/* ---------- 공통 머리글 ---------- */
+/* 장면이 바뀌어도 같은 요소(머리글·섹션 제목)는 그대로 두고, 바뀐 것만 교체한다 */
+const HDR = document.getElementById("hdr");
+const PERSIST = {};          // key -> 현재 살아 있는 항목
+const PERSIST_ALL = [];      // 모든 항목 { els, last: 마지막으로 쓰인 장면 index }
+let CUR = { idx: 0 };
+function keep(key, make, t) {
+  const p = PERSIST[key];
+  if (p && p.last === CUR.idx - 1) { p.last = CUR.idx; return p.els; }
+  const els = make(HDR, t);
+  PERSIST[key] = { els, last: CUR.idx };
+  PERSIST_ALL.push(PERSIST[key]);
+  return els;
+}
+function header(sc, kicker, title, t) {
+  keep("rule", (p, t) => { const r = R(p, 57, 111, 886, 1, "background:#E2E6EC"); growX(r, t + 0.15, 0.8); return [r]; }, t);
+  keep("k:" + kicker, (p, t) => { const k = T(p, 63, 36, kicker, "font-size:8px;font-weight:700;color:#3A5BB8;letter-spacing:.2px"); fadeIn(k, t, 0.4); return [k]; }, t);
+  keep("t:" + title, (p, t) => { const h = T(p, 63, 78, title, "font-size:25.5px;font-weight:700;color:#1B2A4A"); slideIn(h, t + 0.1, { x: -18, dur: 0.7 }); return [h]; }, t);
+}
+function section(sc, num, label, t) {
+  keep("s:" + num + label, (p, t) => {
+    const n = T(p, 63, 181, num, "font-size:46px;font-weight:700;color:#3A5BB8;letter-spacing:-1px");
+    const l = T(p, 156, 182, label, "font-size:21px;font-weight:700;color:#1B2A4A");
+    const r = R(p, 74, 227, 826, 3, "background:#3A5BB8");
+    pop(n, t, { from: 0.6, origin: "0% 50%" });
+    slideIn(l, t + 0.15, { x: -14 });
+    growX(r, t + 0.25, 0.9);
+    return [n, l, r];
+  }, t);
+}
+function badge(sc, x, y, w, label, t) {
+  const b = R(sc, x, y, w, 29, "background:#3A5BB8;border-radius:6px;color:#fff;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center", label);
+  pop(b, t, { from: 0.5, origin: "0% 50%" });
+  return b;
+}
+
+/* ---------- 장면 정의 ---------- */
+const SCENES = {};
+
+SCENES.intro = (sc, s, c) => {
+  // 오른쪽 장식: D~I 등급 타일
+  const tiles = [];
+  const cols = ["#3B76E8", "#2563EB", "#4F46E5", "#06B6D4", "#06B6D4", "#06B6D4"];
+  "DEFGHI".split("").forEach((g, i) => {
+    const x = 640 + (i % 3) * 92, y = 150 + Math.floor(i / 3) * 92;
+    tiles.push(R(sc, x, y, 76, 76, `border-radius:14px;background:${cols[i]}22;border:1.5px solid ${cols[i]}88;color:#DCE6FF;font-size:34px;font-weight:700;display:flex;align-items:center;justify-content:center`, g));
+  });
+  const t1 = T(sc, 66, 113, "JEI Math Grades D–I", "font-size:32px;font-weight:700;color:#fff");
+  const t2 = T(sc, 66, 170, "Improvement Plan", "font-size:37px;font-weight:700;color:#A9C8FF");
+  const sub = T(sc, 68, 223, "U.S. Curriculum Alignment and Workbook Revision", "font-size:14.5px;color:#DDE5F2");
+  const rule = R(sc, 68, 250, 120, 2, "background:#5BB8DD");
+  const ag = [["01", "CCSS Alignment"], ["02", "Workbook Structure &amp; Supplementary Materials"], ["03", "System Data updates"]]
+    .map(([n, txt], i) => T(sc, 68, 365 + i * 41.5, `<span style="color:#7FB9FF;font-weight:700;margin-right:6px">${n}</span>${txt}`, "font-size:15px;color:#DDE5F2"));
+  gsap.set("#topbar", { scaleX: 0 });
+  tl.to("#topbar", { scaleX: 1, duration: 1.0, ease: "power2.inOut" }, s + 0.1);
+  slideIn(t1, s + 0.35, { x: -30, dur: 0.8 });
+  slideIn(t2, s + 0.55, { x: -30, dur: 0.8 });
+  fadeUp(sub, s + 0.9);
+  growX(rule, s + 1.1, 0.6);
+  pop(tiles, s + 0.7, { stagger: 0.09, from: 0.2 });
+  // 타일 떠다니기
+  tiles.forEach((tile, i) => tl.to(tile, { y: (i % 2 ? 6 : -6), duration: 2.2, ease: "sine.inOut", yoyo: true, repeat: 5 }, s + 1.4 + i * 0.15));
+  ag.forEach((a, i) => slideIn(a, s + c["agenda" + (i + 1)], { x: -20 }));
+};
+
+SCENES.priority = (sc, s, c) => {
+  header(sc, "BACKGROUND", "Why Grades D–I Are Our Priority", s + 0.05);
+  const g = R(sc, 185, 163, 630, 310, "transform-origin:0 0");
+  const H = [7, 12, 28, 120, 155, 209, 180, 137, 121, 112, 76, 24];
+  const COL = ["#CBD5E1", "#CBD5E1", "#CBD5E1", "#3B76E8", "#2563EB", "#4F46E5", "#06B6D4", "#06B6D4", "#06B6D4", "#CBD5E1", "#CBD5E1", "#CBD5E1"];
+  const bars = [], letters = [];
+  "ABCDEFGHIJKL".split("").forEach((L, i) => {
+    const x = i * 53;
+    bars.push(R(g, x, 277 - H[i], 45, H[i], `background:${COL[i]};border-radius:4px 4px 0 0`));
+    const hi = i >= 3 && i <= 8;
+    letters.push(R(g, x, 287, 45, 17, `${hi ? "background:#EEF2FF;" : ""}border-radius:2px;font-size:12px;font-weight:700;color:${hi ? "#1E293B" : "#64748B"};display:flex;align-items:center;justify-content:center`, L));
+  });
+  const base = R(g, 0, 277, 630, 3, "background:#CBD5E1");
+  const lbA = R(g, 0, 7, 152, 37, "background:#EEF2F7;border-radius:4px;color:#64748B;font-size:14px;font-weight:700;display:flex;align-items:center;justify-content:center", "Grade A-C");
+  const lbJ = R(g, 474, 7, 153, 37, "background:#EEF2F7;border-radius:4px;color:#64748B;font-size:14px;font-weight:700;display:flex;align-items:center;justify-content:center", "Grade J-L");
+  const lbD = R(g, 159, 0, 310, 49, "background:#E0E7FF;border-radius:5px;color:#4F46E5;font-size:14px;font-weight:700;display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1.3",
+    `<div>Grades D-I</div><div>approximately <span id="p80" style="font-size:18px">0</span><span style="font-size:18px">%</span> of total members</div>`);
+  const glow = R(g, 154, 50, 320, 232, "border-radius:8px;background:rgba(79,70,229,.07);border:1.5px dashed rgba(79,70,229,.45)");
+
+  growX(base, s + 0.5, 0.8);
+  growY(bars, s + 0.8, 0.8, 0.06);
+  fadeUp(letters, s + 0.9, { y: 6, stagger: 0.04, dur: 0.4 });
+  fadeUp([lbA, lbJ], s + 1.4, { y: -8 });
+  // 80% 강조
+  const h = s + c.highlight;
+  pop(lbD, h - 0.1, { from: 0.7 });
+  count(lbD.querySelector("#p80"), 80, h, 1.0);
+  fadeIn(glow, h + 0.1, 0.5);
+  tl.to(bars.filter((_, i) => i < 3 || i > 8), { opacity: 0.55, duration: 0.5 }, h + 0.1);
+  tl.to([lbA, lbJ], { opacity: 0.6, duration: 0.5 }, h + 0.1);
+
+  // 왼쪽으로 축소 이동 + 오른쪽 우선순위
+  const sh = s + c.shift;
+  tl.to(g, { x: 30 - 185, y: 215 - 163, scale: 0.667, duration: 1.0, ease: "power3.inOut" }, sh);
+  const div = R(sc, 472, 203, 3, 235, "background:#E2E8F0;transform-origin:50% 0");
+  const ttl = T(sc, 501, 217, "Highest priority for revision", "font-size:18px;font-weight:700");
+  gsap.set(div, { scaleY: 0 });
+  tl.to(div, { scaleY: 1, duration: 0.6, ease: "power2.inOut" }, sh + 0.6);
+  slideIn(ttl, sh + 0.8, { x: 20 });
+  [["1", "Stronger alignment with the CCSS", 276, c.prio1], ["2", "Optimized learner experience", 378, c.prio2]].forEach(([n, txt, y, t]) => {
+    const nb = R(sc, 494, y - 15, 34, 30, "background:#3A5BB8;border-radius:5px;color:#fff;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center", n);
+    const tx = T(sc, 553, y, txt, "font-size:16px;color:#1B2A4A");
+    pop(nb, s + t, { from: 0.3 });
+    slideIn(tx, s + t + 0.1, { x: 16 });
+  });
+};
+
+function chevron(s, x, w, fill, stroke) {
+  const h = 88, r = 44, y = 372;
+  // 왼쪽은 오목, 오른쪽은 볼록
+  return S(s, "path", { d: `M${x},${y} L${x + w - r},${y} A${r},${r} 0 0 1 ${x + w - r},${y + h} L${x},${y + h} A${r * 0.9},${r} 0 0 0 ${x},${y} Z`, fill, stroke, "stroke-width": 1.4 });
+}
+
+SCENES.roadmap = (sc, s, c) => {
+  header(sc, "AREA OF IMPROVEMENT 1", "Stronger incorporation of the CCSS", s + 0.05);
+  section(sc, "01", "CCSS alignment", s + 0.4);
+  const lab = R(sc, 74, 274, 455, 49, "background:#EEF3FD;border-radius:3px;font-size:18px;font-weight:700;display:flex;align-items:center;padding-left:48px;box-sizing:border-box", "JEI’s Small Step Learning Road Map");
+  slideIn(lab, s + c.roadmapLabel, { x: -20 });
+  const items = [
+    ["Concept Introduction", "Understand the concept", "#DCE8FB", "#1B2A4A"],
+    ["Step-by-Step Learning", "Build skills through<br>small steps", "#AFC9F2", "#1B2A4A"],
+    ["Practice &amp; Reinforce", "Apply and solidify", "#5B8DE0", "#fff"],
+    ["Advanced &amp; Connected", "Link to<br>higher-level learning", "#1E3A8A", "#fff"],
+  ];
+  const sv = svg(sc);
+  const xs = [50, 268, 488, 708];
+  items.forEach(([a, b, fill, fg], i) => {
+    const g = S(sv, "g", {});
+    const p = chevron(g, xs[i], 232, fill, "#1B2A4A");
+    sv.appendChild(g);
+    const tx = T(sc, xs[i] + 122, 416, `<div style="font-size:14.5px;font-weight:700;margin-bottom:8px">${a}</div><div style="font-size:14px;line-height:1.3">${b}</div>`, `color:${fg}`, { a: "c", w: 200 });
+    const t = s + c.chevrons + i * 0.55;
+    gsap.set(g, { opacity: 0, x: -30 });
+    tl.to(g, { opacity: 1, x: 0, duration: 0.6, ease: E.power }, t);
+    fadeUp(tx, t + 0.2, { y: 8 });
+  });
+};
+
+SCENES.align = (sc, s, c) => {
+  header(sc, "AREA OF IMPROVEMENT 1", "Stronger Connection with the U.S. Curriculum", s + 0.05);
+  section(sc, "01", "CCSS alignment", s + 0.3);
+  const lbC = R(sc, 161, 296, 185, 59, "background:#EEF3FD;border-radius:3px;display:flex;flex-direction:column;align-items:center;justify-content:center", `<div style="font-size:18px;font-weight:700">CCSS</div><div style="font-size:9.5px;font-weight:700">(Grade-level Standards)</div>`);
+  const lbJ = R(sc, 161, 406, 185, 57, "background:#EEF3FD;border-radius:3px;display:flex;align-items:center;justify-content:center;text-align:center;font-size:16px;font-weight:700;line-height:1.3", "JEI systematic<br>learning road map");
+  const sv = svg(sc);
+  const X = [405, 529, 651, 774], cc = ["#5B9BEA", C.red, "#0B4A8C", C.orange];
+  const codes = ["2.MD.A.1", "2.MD.A.2", "2.MD.A.3", "2.MD.A.4"];
+  const descs = ["Measure the<br>length of objects", "Measure the length<br>using different units", "Estimate lengths", "Solve word problems<br>involving length"];
+  const conns = X.map(x => line(sv, `M${x},320 L${x},434`, "#9AA3B2", 1, { "stroke-dasharray": "3 3" }));
+  const trC = line(sv, "M405,320 L774,320", "#D6DEEA", 7);
+  const trJ = line(sv, "M405,434 L774,434", "#D6DEEA", 7);
+  const nodesC = X.map((x, i) => S(sv, "circle", { cx: x, cy: 320, r: 8, fill: cc[i] }));
+  const nodesJ = X.map((x, i) => i === 1 ? S(sv, "circle", { cx: x, cy: 434, r: 7.5, fill: "#fff", stroke: C.red, "stroke-width": 1.5, "stroke-dasharray": "3 2.2" })
+                                         : S(sv, "circle", { cx: x, cy: 434, r: 8, fill: cc[i] }));
+  const codeEls = X.map((x, i) => T(sc, x, 267, `<span style="background:#EEF3FD;padding:4px 7px;border-radius:3px">${codes[i]}</span>`, "font-size:14px;font-weight:700", { a: "c" }));
+  const descEls = X.map((x, i) => T(sc, x, 296, descs[i], "font-size:10px;line-height:1.15;color:#1B2A4A", { a: "c", w: 120 }));
+  const exist = X.map((x, i) => i === 1 ? T(sc, x, 470, `<div style="color:${C.red};font-size:14px">Add content</div><div style="font-size:9.5px">(to align with CCSS)</div>`, "", { a: "c", w: 130 })
+                                       : T(sc, x, 471, "Existing<br>content", "font-size:14.5px;line-height:1.25", { a: "c", w: 100 }));
+  // JEI 트랙
+  const tj = s + c.jeiTrack;
+  slideIn(lbJ, tj);
+  draw(trJ, tj + 0.2, 0.9);
+  pop(nodesJ.filter((_, i) => i !== 1), tj + 0.6, { stagger: 0.25 });
+  fadeUp(exist.filter((_, i) => i !== 1), tj + 0.7, { stagger: 0.25 });
+  // CCSS 트랙
+  const tc = s + c.ccssTrack;
+  slideIn(lbC, tc);
+  draw(trC, tc + 0.2, 0.9);
+  pop(nodesC, tc + 0.5, { stagger: 0.18 });
+  fadeUp(codeEls, tc + 0.6, { stagger: 0.18, y: 8 });
+  fadeUp(descEls, tc + 0.7, { stagger: 0.18, y: 6 });
+  conns.forEach((p, i) => { if (i !== 1) draw(p, tc + 1.0 + i * 0.1, 0.5); });
+  // 빈 칸 → 내용 추가
+  const ta = s + c.addContent;
+  draw(conns[1], ta, 0.5);
+  pop(nodesJ[1], ta + 0.4, { from: 0.2 });
+  fadeUp(exist[1], ta + 0.5);
+  tl.to(nodesJ[1], { attr: { r: 10.5 }, duration: 0.35, yoyo: true, repeat: 1, ease: "sine.inOut" }, ta + 0.9);
+  const bt = s + c.bottom;
+  fadeUp(T(sc, 500, 520, "Further alignment with U.S. grade-level standards", "font-size:17.5px;font-weight:700;color:#3A5BB8", { a: "c" }), bt);
+  fadeUp(T(sc, 500, 542, "Right content at the right grade・Complete concept coverage", "font-size:15px;color:#A3A9B3", { a: "c" }), bt + 0.3);
+};
+
+SCENES.gradeD = (sc, s, c) => {
+  header(sc, "AREA OF IMPROVEMENT 1", "Grade D: Meaning and Application", s + 0.05);
+  badge(sc, 56, 141, 94, "GRADE D", s + 0.4);
+  const h1 = T(sc, 63, 214, "Relational meaning of the equal sign", "font-size:20px;font-weight:700;color:#1F5FA8");
+  const d1 = T(sc, 63, 262, "Both sides have the same value", "font-size:15px;color:#6B7A90");
+  const card = R(sc, 551, 184, 293, 101, "background:#EEF3FD;border-radius:6px");
+  const L = T(sc, 617, 224, "8 + 4", "font-size:30px;font-weight:700", { a: "c" });
+  const eq = T(sc, 690, 224, "=", "font-size:30px;font-weight:700;color:#3A5BB8", { a: "c" });
+  const Rr = T(sc, 769, 224, "7 + 5", "font-size:30px;font-weight:700", { a: "c" });
+  const tf = T(sc, 693, 254, `<span id="tTrue">True</span>/ False`, "font-size:16px;color:#6B7A90", { a: "c" });
+  const v1 = T(sc, 617, 196, "12", "font-size:12px;font-weight:700;color:#5BB8DD", { a: "c" });
+  const v2 = T(sc, 769, 196, "12", "font-size:12px;font-weight:700;color:#5BB8DD", { a: "c" });
+  const te = s + c.eq;
+  slideIn(h1, te - 0.3); fadeUp(d1, te);
+  pop(card, te - 0.1, { from: 0.85 });
+  fadeUp([L, Rr], te + 0.3, { stagger: 0.25 });
+  pop(eq, te + 0.8, { from: 0.2 });
+  fadeUp(tf, te + 1.0);
+  const tt = s + c.eqTrue;
+  fadeUp([v1, v2], tt, { y: 6, stagger: 0.15 });
+  pulse(eq, tt + 0.3, 1.35);
+  tl.to(tf.querySelector("#tTrue"), { color: C.green, fontWeight: 700, duration: 0.3 }, tt + 0.5);
+
+  const div = R(sc, 57, 320, 886, 1, "background:#E2E6EC");
+  const h2 = T(sc, 63, 370, "Addition and subtraction of three numbers", "font-size:20px;font-weight:700;color:#1F5FA8");
+  const d2 = T(sc, 63, 417, "Add word problems for practice in real-life situations", "font-size:15px;color:#6B7A90");
+  const card2 = R(sc, 551, 351, 293, 176, "background:#EEF3FD;border-radius:7px");
+  const tag = R(sc, 557, 358, 133, 28, "background:#3A5BB8;border-radius:5px;color:#fff;font-size:14px;font-weight:700;display:flex;align-items:center;justify-content:center", "word problems");
+  const paper = R(sc, 570, 395, 254, 123, "background:#fff");
+  const q = T(sc, 573, 412, "There were 5 rabbits. Then 1 more came, and 1 more came. How many rabbits are there in all?", "font-size:11px;line-height:1.3;color:#111", { w: 248 });
+  const rab = [578, 600, 622, 644, 666, 732, 787].map((x, i) => {
+    const img = el("img", sc, `position:absolute;left:${x}px;top:445px;width:21px;height:24px`);
+    img.src = i < 5 ? "assets/rabbit_r.png" : "assets/rabbit_l.png";
+    return img;
+  });
+  const sum = T(sc, 668, 505, `5 + 1 + 1 = <span id="ans" style="display:inline-block;width:30px;border-bottom:1.5px solid #F0A35A;text-align:center;color:#E07B1F;font-weight:700"><span id="ansv">7</span></span>`, "font-size:14px;color:#111", { a: "c" });
+  const tw = s + c.wp;
+  tl.to(h1, { color: C.navy, duration: 0.4 }, tw);
+  growX(div, tw, 0.8);
+  slideIn(h2, tw + 0.2); fadeUp(d2, tw + 0.5);
+  pop(card2, tw + 0.3, { from: 0.85 });
+  pop(tag, tw + 0.6, { from: 0.5, origin: "0% 50%" });
+  fadeIn(paper, tw + 0.6);
+  fadeUp(q, tw + 0.9, { y: 6 });
+  const tr = s + c.rabbits;
+  gsap.set(rab, { opacity: 0, y: -26 });
+  rab.forEach((r, i) => tl.to(r, { opacity: 1, y: 0, duration: 0.55, ease: "bounce.out" }, tr + (i < 5 ? i * 0.12 : 0.9 + (i - 5) * 0.4)));
+  fadeUp(sum, tr + 1.3, { y: 6 });
+  const ansv = sum.querySelector("#ansv");
+  pop(ansv, s + c.sum, { from: 0.1 });
+};
+
+SCENES.gradeI = (sc, s, c) => {
+  header(sc, "AREA OF IMPROVEMENT 1", "Grade I: Coordinate plane and Integers", s + 0.05);
+  badge(sc, 56, 141, 86, "GRADE I", s + 0.4);
+  const n1 = T(sc, 63, 209, "A new set", "font-size:13px;color:#6B7A90");
+  const h1 = T(sc, 63, 245, "Coordinate plane", "font-size:24px;font-weight:700;color:#1F5FA8");
+  const sv = svg(sc);
+  const ax = arrow(sv, 457, 219, 688, 219, C.navy, 1.8, 10);
+  const ay = arrow(sv, 566, 308, 566, 129, C.navy, 1.8, 10);
+  const lx = T(sc, 694, 220, "x", "font-size:13px;font-weight:700");
+  const ly = T(sc, 553, 131, "y", "font-size:13px;font-weight:700");
+  const pts = [[517, 192], [494, 264], [627, 294]].map(([x, y]) => S(sv, "circle", { cx: x, cy: y, r: 6, fill: C.blue }));
+  const rings = [[517, 192], [494, 264], [627, 294]].map(([x, y]) => S(sv, "circle", { cx: x, cy: y, r: 6, fill: "none", stroke: C.blue, "stroke-width": 1.5 }));
+  const tp = s + c.plane;
+  fadeIn(n1, tp - 0.2); slideIn(h1, tp - 0.1);
+  drawArrow(ax, tp, 0.6); drawArrow(ay, tp + 0.2, 0.6);
+  fadeIn([lx, ly], tp + 0.6);
+  pop(pts, tp + 0.9, { stagger: 0.25, from: 0 });
+  gsap.set(rings, { opacity: 0 });
+  rings.forEach((r, i) => {
+    const t = tp + 0.9 + i * 0.25;
+    tl.fromTo(r, { attr: { r: 6 }, opacity: 0.8 }, { attr: { r: 18 }, opacity: 0, duration: 0.8, ease: "power2.out", immediateRender: false }, t);
+  });
+
+  const div = R(sc, 57, 320, 886, 1, "background:#E2E6EC");
+  const n2 = T(sc, 63, 349, "Strengthened learning", "font-size:13px;color:#6B7A90");
+  const h2 = T(sc, 63, 382, "Comparing integers", "font-size:24px;font-weight:700;color:#1F5FA8");
+  const h3 = T(sc, 63, 418, "Absolute value", "font-size:24px;font-weight:700;color:#1F5FA8");
+  const nl = line(sv, "M462,407 L798,407", C.navy, 1.6);
+  const aL = S(sv, "path", { d: "M457,407 L467,402 L467,412 Z", fill: C.navy });
+  const aR = S(sv, "path", { d: "M803,407 L793,402 L793,412 Z", fill: C.navy });
+  const ticks = [528, 630, 732].map(x => line(sv, `M${x},400 L${x},414`, C.navy, 1.2));
+  const tlab = [[528, "-3"], [630, "0"], [732, "3"]].map(([x, t]) => T(sc, x, 427, t, "font-size:15px", { a: "c" }));
+  // 0에서 출발해 -3, 3에 닿는 호. 화살촉은 호 끝의 진행 방향(마지막 제어점 → 끝점)을 따른다
+  const arcL = line(sv, "M630,400 C612,356 546,356 530,394", C.navy, 1.2);
+  const arcR = line(sv, "M630,400 C648,356 714,356 730,394", C.navy, 1.2);
+  const tip = (x, y, cx, cy, size = 8) => {
+    const L = Math.hypot(x - cx, y - cy), ux = (x - cx) / L, uy = (y - cy) / L, bx = x - ux * size, by = y - uy * size;
+    return S(sv, "path", { d: `M${x},${y} L${bx - uy * size * 0.45},${by + ux * size * 0.45} L${bx + uy * size * 0.45},${by - ux * size * 0.45} Z`, fill: C.navy });
+  };
+  const hL = tip(529, 402, 546, 356), hR = tip(731, 402, 714, 356);
+  const absL = T(sc, 579, 351, "|-3|=3", "font-size:15px;color:#3A5BB8", { a: "c" });
+  const absR = T(sc, 681, 351, "|3|=3", "font-size:15px;color:#3A5BB8", { a: "c" });
+  const ti = s + c.integers;
+  tl.to(h1, { color: C.navy, duration: 0.4 }, ti);
+  growX(div, ti, 0.8);
+  fadeIn(n2, ti + 0.1); slideIn(h2, ti + 0.2);
+  draw(nl, ti + 0.3, 0.8); fadeIn([aL, aR], ti + 0.9, 0.3);
+  pop(ticks, ti + 0.7, { stagger: 0.12 });
+  fadeUp(tlab, ti + 0.8, { stagger: 0.12, y: 6 });
+  const ta = s + c.abs;
+  slideIn(h3, ta);
+  draw(arcL, ta + 0.2, 0.6); draw(arcR, ta + 0.2, 0.6);
+  fadeIn([hL, hR], ta + 0.7, 0.2);
+  fadeUp([absL, absR], ta + 0.6, { stagger: 0.15, y: 6 });
+};
+
+SCENES.synergy = (sc, s, c) => {
+  header(sc, "AREA OF IMPROVEMENT 1", "Stronger incorporation of the CCSS", s + 0.05);
+  const a = T(sc, 169, 260, "JEI learning system", "font-size:18px;font-weight:700", { a: "c" });
+  const p1 = T(sc, 341, 258, "+", "font-size:38px;font-weight:300;color:#3A5BB8", { a: "c" });
+  const b = T(sc, 497, 260, "Local curriculum", "font-size:18px;font-weight:700", { a: "c" });
+  const p2 = T(sc, 653, 258, "+", "font-size:38px;font-weight:300;color:#3A5BB8", { a: "c" });
+  const d = T(sc, 851, 260, "Stronger cross-grade<br>connections", "font-size:18px;font-weight:700;line-height:1.3", { a: "c", w: 230 });
+  const box = R(sc, 185, 373, 630, 69, "background:#EEF3FD;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;color:#3A5BB8", "A More Natural Learning Progression Across Grades");
+  pop(a, s + c.s1, { from: 0.6 });
+  pop(p1, s + c.s2 - 0.2, { from: 0 }); pop(b, s + c.s2, { from: 0.6 });
+  pop(p2, s + c.s3 - 0.2, { from: 0 }); pop(d, s + c.s3, { from: 0.6 });
+  const sv = svg(sc);
+  const arr = [169, 497, 851].map(x => line(sv, `M${x},285 C${x},330 ${(x + 500) / 2},340 500,368`, "#B9C7E8", 1.5, { "stroke-dasharray": "4 4" }));
+  const tr = s + c.result;
+  arr.forEach(p => { gsap.set(p, { opacity: 0 }); tl.to(p, { opacity: 1, duration: 0.5 }, tr); });
+  pop(box, tr + 0.3, { from: 0.8 });
+};
+
+SCENES.workbook = (sc, s, c) => {
+  header(sc, "AREA OF IMPROVEMENT 2", "Page Structure Reorganized for More Effective Learning", s + 0.05);
+  section(sc, "02", "Core workbook structure", s + 0.4);
+  const cur = T(sc, 63, 268, "CURRENT", "font-size:14px;font-weight:700;color:#F0A35A");
+  const num = T(sc, 68, 305, `<span id="nA" style="font-size:24px;font-weight:700;color:#1B2A4A">12–24</span>&nbsp;&nbsp;<span style="font-size:15px;color:#6B7A90">calculation practice problems per page</span>`, "");
+  const note = T(sc, 73, 347, "Valuable opportunities for practice and mastery", "font-size:15px;color:#111");
+  const tc = s + c.current;
+  fadeUp(cur, tc); slideIn(num, tc + 0.2); fadeUp(note, s + c.currentNote);
+  // 문항이 빽빽한 미니 워크시트
+  const sheet = R(sc, 140, 380, 210, 75, "border:1px solid #E2E6EC;border-radius:4px;background:#FCFCFD");
+  const cells = [];
+  for (let r = 0; r < 4; r++) for (let k = 0; k < 6; k++) cells.push(R(sheet, 10 + k * 33, 9 + r * 16, 26, 9, "background:#F5C99A;border-radius:2px"));
+  pop(cells, tc + 0.6, { stagger: 0.03, from: 0 });
+  fadeIn(sheet, tc + 0.5, 0.3);
+
+  const vd = R(sc, 430, 258, 2, 204, "background:#CBD5E1;transform-origin:50% 0");
+  const ro = T(sc, 465, 268, "REORGANIZED CORE WORKBOOK", "font-size:14px;font-weight:700;color:#3A5BB8");
+  const tr = s + c.reorg;
+  gsap.set(vd, { scaleY: 0 }); tl.to(vd, { scaleY: 1, duration: 0.6, ease: "power2.inOut" }, tr);
+  slideIn(ro, tr + 0.2, { x: 16 });
+  tl.to(cells.filter((_, i) => i % 3 !== 0), { opacity: 0.15, duration: 0.6, stagger: 0.01 }, tr + 0.4);
+  const bl = [["Conceptual understanding and representative problems", C.blue, 305, c.b1],
+              ["Focus on key learning objectives", C.cyan, 357, c.b2],
+              ["Sufficient space to show work", C.green, 408, c.b3]];
+  const texts = [];
+  bl.forEach(([txt, col, y, t], i) => {
+    const sq = R(sc, 458, y - 8.5, 17, 17, `background:${col};border-radius:4px`);
+    const tx = T(sc, 498, y, txt, "font-size:15px;color:#1B2A4A;font-weight:700");
+    texts.push(tx);
+    pop(sq, s + t, { from: 0 });
+    slideIn(tx, s + t + 0.1, { x: 14 });
+    if (i > 0) tl.to(texts[i - 1], { fontWeight: 400, duration: 0.01 }, s + t);
+  });
+  const ft = T(sc, 500, 501, "Reduce student fatigue and resistance to learning", "font-size:18px;font-weight:700;color:#3A5BB8", { a: "c" });
+  tl.to(texts[2], { fontWeight: 400, duration: 0.01 }, s + c.fatigue);
+  fadeUp(ft, s + c.fatigue - 0.3);
+};
+
+SCENES.supp = (sc, s, c) => {
+  header(sc, "AREA OF IMPROVEMENT 2", "Development of Supplementary Materials", s + 0.05);
+  const sv = svg(sc);
+  const col = [[155, "Adjusted repetitive<br>problems", "font-size:16px;font-weight:700;line-height:1.25", "From the core workbook", c.f1],
+               [490, "Supplementary Materials", "font-size:17px;font-weight:700;color:#3A5BB8", "Linked to the relevant set", c.f2],
+               [812, "Additional practice", "font-size:18.5px;font-weight:700", "After core workbook learning", c.f3]];
+  const a1 = arrow(sv, 281, 187, 368, 187, C.blue, 3, 11);
+  const a2 = arrow(sv, 613, 187, 700, 187, C.blue, 3, 11);
+  col.forEach(([x, h, css, cap, t], i) => {
+    const he = T(sc, x, 188, h, css, { a: "c", w: 220 });
+    const vl = R(sc, x, 235, 1.5, 48, "background:#CBD5E1;transform-origin:50% 0");
+    const ce = T(sc, x, 303, cap, "font-size:14px;color:#6B7A90", { a: "c" });
+    if (i === 1) drawArrow(a1, s + t - 0.4, 0.5);
+    if (i === 2) drawArrow(a2, s + t - 0.4, 0.5);
+    pop(he, s + t, { from: 0.7 });
+    gsap.set(vl, { scaleY: 0 }); tl.to(vl, { scaleY: 1, duration: 0.4 }, s + t + 0.3);
+    fadeUp(ce, s + t + 0.5, { y: 6 });
+  });
+  const box = R(sc, 185, 373, 630, 69, "background:#EEF3FD;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;color:#3A5BB8;gap:0",
+    `Center&nbsp;<span class="w" id="w1">downloads</span>,&nbsp;<span class="w" id="w2">prints</span>,&nbsp;and&nbsp;<span class="w" id="w3">provides</span>&nbsp;the relevant material`);
+  pop(box, s + c.box, { from: 0.85 });
+  // 아이콘(다운로드 / 프린터 / 전달)
+  const icons = [
+    `<svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="#3A5BB8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M4 19h16"/></svg>`,
+    `<svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="#3A5BB8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V3h12v6"/><rect x="3" y="9" width="18" height="8" rx="2"/><path d="M7 14h10v7H7z"/></svg>`,
+    `<svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="#3A5BB8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h11v10H4z"/><path d="M15 10h3l2 3v4h-5"/><circle cx="8" cy="18" r="1.6"/><circle cx="17" cy="18" r="1.6"/></svg>`,
+  ];
+  const words = ["#w1", "#w2", "#w3"].map(q => box.querySelector(q));
+  const iconEls = icons.map((ic, i) => R(sc, 390 + i * 100, 468, 44, 44, "background:#fff;border:1.5px solid #C9D6F2;border-radius:50%;display:flex;align-items:center;justify-content:center", ic));
+  ["dl", "pr", "pv"].forEach((k, i) => {
+    const t = s + c[k];
+    // 글자 크기 자체를 키워 옆 단어가 밀려나게 한다(scale은 레이아웃을 무시해 옆 글자를 덮는다)
+    tl.to(words[i], { fontSize: 23, duration: 0.3, ease: "power2.out" }, t);
+    tl.to(words[i], { fontSize: 18, duration: 0.3, ease: "power2.inOut" }, t + 0.45);
+    pop(iconEls[i], t, { from: 0 });
+  });
+};
+
+SCENES.mastery = (sc, s, c) => {
+  header(sc, "AREA OF IMPROVEMENT 2", "Core Learning with Targeted Practice", s + 0.05);
+  const h1 = T(sc, 179, 200, "Core workbook", "font-size:19px;font-weight:700", { a: "c" });
+  const b1 = R(sc, 94, 243, 171, 10, "background:#F0A35A;border-radius:5px");
+  const c1 = T(sc, 179, 288, "Less unnecessary burden", "font-size:15px;color:#6B7A90", { a: "c" });
+  const plus = T(sc, 343, 242, "+", "font-size:28px;font-weight:700;color:#3A5BB8", { a: "c" });
+  const h2 = T(sc, 523, 200, "Supplementary materials", "font-size:19px;font-weight:700", { a: "c" });
+  const b2 = R(sc, 426, 243, 195, 10, "background:#4FA88A;border-radius:5px");
+  const c2 = T(sc, 523, 296, "Sufficient practice linked to each target set", "font-size:15px;color:#6B7A90;line-height:1.3", { a: "c", w: 250 });
+  const sv = svg(sc);
+  const ar = arrow(sv, 680, 248, 778, 248, C.blue, 3, 11);
+  const box = R(sc, 790, 192, 139, 116, "background:#3A5BB8;border-radius:6px;color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;box-shadow:0 0 0 0 rgba(58,91,184,.4)",
+    `<div style="font-size:13px;font-weight:700">MASTERY</div><div style="font-size:19px;font-weight:700">Achieved</div>`);
+  const t1 = s + c.core;
+  fadeUp(h1, t1); growX(b1, t1 + 0.2, 0.8); fadeUp(c1, t1 + 0.5);
+  const t2 = s + c.supp;
+  pop(plus, t2 - 0.2, { from: 0 });
+  fadeUp(h2, t2); growX(b2, t2 + 0.2, 0.8); fadeUp(c2, t2 + 0.5);
+  const t3 = s + c.master;
+  drawArrow(ar, t3 - 0.3, 0.5);
+  pop(box, t3, { from: 0.5 });
+  tl.to(box, { boxShadow: "0 0 0 14px rgba(58,91,184,0)", duration: 1.0, ease: "power2.out" }, t3 + 0.4);
+  tl.set(box, { boxShadow: "0 0 0 0 rgba(58,91,184,.4)" }, t3 + 1.45);
+  tl.to(box, { boxShadow: "0 0 0 14px rgba(58,91,184,0)", duration: 1.0, ease: "power2.out" }, t3 + 1.5);
+};
+
+SCENES.sequence = (sc, s, c) => {
+  header(sc, "AREA OF IMPROVEMENT 3", "Connecting Prerequisite Concepts to Subsequent Learning", s + 0.05);
+  section(sc, "03", "Learning sequence", s + 0.4);
+  const l1 = T(sc, 96, 278, "Strong foundation", "font-size:12px;font-weight:700;color:#F0A35A");
+  const l2 = T(sc, 96, 325, "JEI’s strong conceptual<br>structure", "font-size:19px;font-weight:700;line-height:1.25");
+  const l3 = T(sc, 96, 382, "A solid foundation for subsequent<br>learning", "font-size:15px;color:#6B7A90;line-height:1.35");
+  const sv = svg(sc);
+  const ar = arrow(sv, 411, 332, 529, 332, C.orange, 3, 12);
+  const r1 = T(sc, 579, 278, "Refined learning sequence", "font-size:12px;font-weight:700;color:#3A5BB8");
+  const r2 = T(sc, 579, 318, "Learning steps further subdivided", "font-size:19px;font-weight:700");
+  const r3 = T(sc, 579, 374, "Easier transitions to equations, fractions, and<br>decimals", "font-size:15px;color:#6B7A90;line-height:1.35");
+  // 계단: 왼쪽 3칸 → 오른쪽 6칸
+  const stairs = (x0, n, w, col) => Array.from({ length: n }, (_, i) => R(sc, x0 + i * (w / n), 520 - (i + 1) * (90 / n), w / n - 2, (i + 1) * (90 / n), `background:${col};border-radius:2px 2px 0 0`));
+  const sl = stairs(96, 3, 230, "#F6CFA4"), sr = stairs(579, 6, 230, "#AFC5EE");
+  const tl0 = s + c.left;
+  fadeIn(l1, tl0); slideIn(l2, tl0 + 0.1); fadeUp(l3, tl0 + 0.4);
+  growY(sl, tl0 + 0.3, 0.6, 0.15);
+  const tr = s + c.right;
+  drawArrow(ar, tr - 0.5, 0.6);
+  fadeIn(r1, tr); slideIn(r2, tr + 0.1, { x: 16 });
+  growY(sr, tr + 0.3, 0.45, 0.1);
+  fadeUp(r3, s + c.rightNote);
+};
+
+SCENES.gradeF = (sc, s, c) => {
+  header(sc, "AREA OF IMPROVEMENT 3", "Grade F: Foundations for fractions and equations", s + 0.05);
+  badge(sc, 56, 141, 86, "GRADE F", s + 0.4);
+  const h1 = T(sc, 52, 196, "Smoother Learning Progression", "font-size:18px;font-weight:700");
+  const p1 = R(sc, 76, 240, 194, 37, "background:#EEF3FD;border-radius:3px;font-size:19px;font-weight:700;display:flex;align-items:center;justify-content:center", "Equal partitioning");
+  const sv = svg(sc);
+  const a1 = arrow(sv, 281, 258, 403, 258, C.blue, 3, 11);
+  const p2 = R(sc, 426, 240, 180, 37, "background:#EEF3FD;border-radius:3px;font-size:19px;font-weight:700;color:#3A5BB8;display:flex;align-items:center;justify-content:center", "Fraction notation");
+  // 등분할 막대 → 1/4
+  const bar = R(sc, 650, 236, 180, 44, "border:2px solid #3A5BB8;border-radius:3px;box-sizing:border-box;overflow:hidden");
+  const shade = R(bar, 0, 0, 44, 40, "background:#9DB4EA");
+  const cuts = [45, 90, 135].map(x => R(bar, x - 1, 0, 2, 40, "background:#3A5BB8;transform-origin:50% 0"));
+  const frac = T(sc, 875, 258, `<div style="display:inline-flex;flex-direction:column;align-items:center;line-height:1"><span>1</span><span style="width:22px;height:2px;background:#3A5BB8;margin:3px 0"></span><span>4</span></div>`, "font-size:22px;font-weight:700;color:#3A5BB8", { a: "c" });
+  const t1 = s + c.partition;
+  fadeIn(h1, t1 - 0.6); pop(p1, t1, { from: 0.7 });
+  fadeIn(bar, t1 + 0.3, 0.4);
+  gsap.set(cuts, { scaleY: 0 }); tl.to(cuts, { scaleY: 1, duration: 0.35, stagger: 0.2 }, t1 + 0.6);
+  const t2 = s + c.fraction;
+  drawArrow(a1, t2 - 0.4, 0.5);
+  pop(p2, t2, { from: 0.7 });
+  gsap.set(shade, { opacity: 0 }); tl.to(shade, { opacity: 1, duration: 0.4 }, t2 + 0.3);
+  pop(frac, t2 + 0.5, { from: 0.3 });
+
+  const div = R(sc, 57, 300, 886, 1, "background:#E2E6EC");
+  const h2 = T(sc, 59, 343, "Gradual Concept Development", "font-size:18px;font-weight:700");
+  const v = R(sc, 61, 386, 311, 85, "background:#EEF7F2;border-radius:7px;padding:10px 13px;box-sizing:border-box",
+    `<div style="font-size:17px;font-weight:700;margin-bottom:9px">Use of letter variables</div><div style="font-size:13px;color:#6B7A90;line-height:1.35">Adjust content that goes beyond the grade level</div>`);
+  const a2 = arrow(sv, 422, 429, 543, 429, C.green, 3, 11);
+  const e = R(sc, 567, 386, 311, 85, "background:#C9E6D8;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;color:#4FA88A", "Understanding of equations");
+  const t3 = s + c.vars;
+  growX(div, t3 - 0.3, 0.7); fadeIn(h2, t3); slideIn(v, t3 + 0.2);
+  const t4 = s + c.equations;
+  drawArrow(a2, t4 - 0.4, 0.5);
+  pop(e, t4, { from: 0.7 });
+};
+
+SCENES.gradeGH = (sc, s, c) => {
+  header(sc, "AREA OF IMPROVEMENT 3", "Grades G and H: Visual models for later concepts", s + 0.05);
+  badge(sc, 56, 141, 114, "GRADES G–H", s + 0.4);
+  const xs = [183, 484, 785], names = ["Number lines", "Area models", "Grouping models"], keys = ["m1", "m2", "m3"];
+  xs.forEach((x, i) => {
+    const t = s + c[keys[i]];
+    const lb = T(sc, x, 227, names[i], "font-size:18px;font-weight:700", { a: "c" });
+    const bx = R(sc, x - 74, 266, 148, 70, "background:#EEF3FD;border-radius:5px");
+    fadeUp(lb, t); pop(bx, t + 0.1, { from: 0.8 });
+    if (i === 0) {
+      const sv = svg(sc);
+      const nl = line(sv, `M${x - 56},300 L${x + 59},300`, C.blue, 2);
+      const tk = [0, 1, 2, 3, 4].map(k => line(sv, `M${x - 56 + k * 28.75},291 L${x - 56 + k * 28.75},309`, C.blue, 1.6));
+      draw(nl, t + 0.4, 0.6); pop(tk, t + 0.6, { stagger: 0.1, from: 0 });
+    } else if (i === 1) {
+      const r1 = R(sc, x - 50, 282, 46, 37, "background:#3A5BB8"), r2 = R(sc, x - 3, 282, 46, 37, "background:#5BB8DD");
+      growX(r1, t + 0.4, 0.4); growX(r2, t + 0.75, 0.4);
+    } else {
+      const d = [C.blue, C.cyan, C.green].map((col, k) => R(sc, x - 51 + k * 39, 289, 23, 23, `background:${col};border-radius:6px`));
+      pop(d, t + 0.4, { stagger: 0.15, from: 0 });
+    }
+  });
+  fadeUp(T(sc, 500, 412, "Intuitive understanding of rounding and fraction multiplication and division", "font-size:18px;font-weight:700;color:#3A5BB8", { a: "c" }), s + c.caption);
+};
+
+SCENES.gradeI2 = (sc, s, c) => {
+  header(sc, "AREA OF IMPROVEMENT 3", "Grade I: Relationships between two variables", s + 0.05);
+  badge(sc, 56, 141, 86, "GRADE I", s + 0.4);
+  const card = (x, bg, title, tc) => R(sc, x, 215, 219, 120, `background:${bg};border:1px solid #DDE3EC;border-radius:6px`, `<div style="text-align:center;margin-top:10px;font-size:18px;font-weight:700;color:${tc}">${title}</div>`);
+  const c1 = card(74, "#fff", "Equations", C.navy), c2 = card(390, "#EEF3FD", "Tables", C.blue), c3 = card(707, "#fff", "Graphs", C.navy);
+  const eqn = T(sc, 183, 282, "y = 2x + 1", "font-size:15.5px;color:#6B7A90", { a: "c" });
+  const sv = svg(sc);
+  const a1 = arrow(sv, 301, 277, 380, 277, C.blue, 3, 11), a2 = arrow(sv, 618, 277, 695, 277, C.blue, 3, 11);
+  const tb = R(sc, 416, 251, 168, 80, "display:grid;grid-template-columns:repeat(4,1fr);grid-template-rows:1fr 1fr;border:1px solid #1B2A4A;background:#fff");
+  const vals = ["x", "1", "2", "3", "y", "3", "5", "7"];
+  const cells = vals.map((v, i) => el("div", tb, `border:1px solid #1B2A4A;display:flex;align-items:center;justify-content:center;font-size:14px`, `<span>${v}</span>`).firstChild);
+  const gx = line(sv, "M767,296 L890,296", C.navy, 1.4), gy = line(sv, "M797,251 L797,331", C.navy, 1.4);
+  const gl = line(sv, "M771,310 L823,255", C.blue, 2.4);
+  const t1 = s + c.equ;
+  pop(c1, t1, { from: 0.85 }); fadeUp(eqn, t1 + 0.3, { y: 6 });
+  const t2 = s + c.tab;
+  drawArrow(a1, t2 - 0.4, 0.45); pop(c2, t2, { from: 0.85 }); fadeIn(tb, t2 + 0.2, 0.3);
+  fadeIn([0, 4, 1, 2, 3].map(i => cells[i]), t2 + 0.3, 0.2, 0.08);
+  fadeUp([5, 6, 7].map(i => cells[i]), t2 + 0.8, { y: 6, stagger: 0.2 });
+  const t3 = s + c.gra;
+  drawArrow(a2, t3 - 0.4, 0.45); pop(c3, t3, { from: 0.85 });
+  draw(gx, t3 + 0.2, 0.4); draw(gy, t3 + 0.3, 0.4); draw(gl, t3 + 0.6, 0.7);
+  fadeUp(T(sc, 500, 425, "A natural expansion of the same relationship", "font-size:18px;font-weight:700;color:#3A5BB8", { a: "c" }), s + c.caption - 0.3);
+};
+
+SCENES.cycle = (sc, s, c) => {
+  header(sc, "AREA OF IMPROVEMENT 3", "A more Complete Learning Cycle", s + 0.05);
+  const card = (x, bg, title, tc, sub) => R(sc, x, 193, 234, 93, `background:${bg};border-radius:4px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:5px`,
+    `<div style="font-size:19px;font-weight:700;color:${tc}">${title}</div>` + (sub ? `<div style="font-size:15px;line-height:1.35;color:#1B2A4A">${sub}</div>` : ""));
+  const d = card(70, "#EEF3FD", "Diagnosis", C.blue, "Accurately identifies each<br>student’s starting point");
+  const p = card(383, "#EEF7F2", "Prescription", C.green, "Personalized supplementary<br>material recommendations");
+  const l = card(696, "#FEF4E6", "Learning", C.orange, "");
+  const sv = svg(sc);
+  const a1 = arrow(sv, 316, 240, 376, 240, "#6B7A90", 4, 12), a2 = arrow(sv, 629, 240, 689, 240, "#6B7A90", 4, 12);
+  const sys = R(sc, 136, 319, 728, 83, "background:#182B4D;border-radius:6px;color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:13px",
+    `<div style="font-size:18px;font-weight:700">System data</div><div style="font-size:15px;font-weight:700">All revised learning objectives reflected in diagnostic assessments and system data</div>`);
+  const lr = line(sv, "M896,288 L896,360 L866,360", "#6B7A90", 4);
+  const ll = arrow(sv, 134, 360, 111, 360, "#6B7A90", 4, 1);
+  const lu = arrow(sv, 111, 360, 111, 290, "#6B7A90", 4, 12);
+  pop(sys, s + c.sys, { from: 0.85 });
+  pop(d, s + c.diag, { from: 0.8 });
+  drawArrow(a1, s + c.presc - 0.4, 0.45); pop(p, s + c.presc, { from: 0.8 });
+  drawArrow(a2, s + c.learn - 0.2, 0.45); pop(l, s + c.learn + 0.2, { from: 0.8 });
+  const tL = s + c.loop;
+  draw(lr, tL, 0.5); draw(ll.shaft, tL + 0.45, 0.15); gsap.set(ll.head, { opacity: 0 }); drawArrow(lu, tL + 0.55, 0.4);
+  // 순환 순서대로 카드 강조
+  [d, p, l, sys].forEach((card, i) => pulse(card, tL + 0.9 + i * 0.4, 1.05));
+};
+
+SCENES.scope = (sc, s, c) => {
+  header(sc, "OVERALL SCOPE", "Program-wide revision scope", s + 0.05);
+  const band = R(sc, 11, 400, 989, 163, "background:#F1F4F9");
+  fadeIn(band, s + 0.3);
+  const N = (x, col, key) => T(sc, x, 235, "0", `font-size:43px;font-weight:700;color:${col}`, { a: "c" });
+  const n140 = N(188, C.blue), n81 = N(407, C.cyan), n5 = N(626, C.orange), n226 = N(839, C.blue);
+  const op = [[295, "+"], [525, "+"], [724, "="]].map(([x, o]) => T(sc, x, 233, o, "font-size:44px;font-weight:300;color:#3A5BB8", { a: "c" }));
+  const lab = [[188, "Existing structure<br>maintained"], [407, "Sets revised and enhanced"], [626, "New sets added"], [839, "Total program sets"]]
+    .map(([x, t]) => T(sc, x, t.includes("<br>") ? 290 : 286, t, "font-size:15.5px;font-weight:700;line-height:1.3", { a: "c", w: 220 }));
+  const sv = svg(sc);
+  const br = line(sv, "M188,198 L188,171 L403,171 L403,198", C.navy, 1.2);
+  const brl = T(sc, 296, 147, `<span id="n221">0</span> Existing Sets`, "font-size:15px;font-weight:700", { a: "c" });
+  const n39 = T(sc, 282, 487, "0", "font-size:33px;font-weight:700;color:#4FA88A", { a: "c" });
+  const l39 = T(sc, 348, 485, "Additional CCSS codes Incorporated", "font-size:17px;font-weight:700");
+  const t1 = s + c.n140; pop(n140, t1, { from: 0.6 }); count(n140, 140, t1, 1.0); fadeUp(lab[0], t1 + 0.3, { y: 6 });
+  const t2 = s + c.n221; draw(br, t2, 0.6); fadeUp(brl, t2 + 0.2, { y: 6 }); count(brl.querySelector("#n221"), 221, t2 + 0.2, 0.9);
+  const t3 = s + c.n81; pop(op[0], t3 - 0.2, { from: 0 }); pop(n81, t3, { from: 0.6 }); count(n81, 81, t3, 0.8); fadeUp(lab[1], t3 + 0.3, { y: 6 });
+  const t4 = s + c.n5; pop(op[1], t4 - 0.2, { from: 0 }); pop(n5, t4, { from: 0.6 }); count(n5, 5, t4, 0.5); fadeUp(lab[2], t4 + 0.3, { y: 6 });
+  const t5 = s + c.n226; pop(op[2], t5 - 0.2, { from: 0 }); pop(n226, t5, { from: 0.6 }); count(n226, 226, t5, 1.0); fadeUp(lab[3], t5 + 0.3, { y: 6 });
+  pulse(n226, t5 + 1.1, 1.15);
+  const t6 = t5 + 1.3; pop(n39, t6, { from: 0.5 }); count(n39, 39, t6, 0.8); slideIn(l39, t6 + 0.2, { x: -14 });
+};
+
+SCENES.package = (sc, s, c) => {
+  header(sc, "SCHEDULE", "Each grade developed as one integrated unit", s + 0.05);
+  const rows = [["01", "Core workbook revision", C.blue, 190, c.p1], ["02", "System data updates", C.cyan, 272, c.p2], ["03", "Supplementary material development", C.green, 354, c.p3]];
+  const bars = [];
+  rows.forEach(([n, txt, col, y, t]) => {
+    const ne = T(sc, 87, y, n, `font-size:14px;font-weight:700;color:${col}`);
+    const te = T(sc, 140, y, txt, "font-size:19.5px;font-weight:700");
+    const b = R(sc, 699, y - 3, 196, 6, `background:${col}`);
+    bars.push(b);
+    fadeIn(ne, s + t); slideIn(te, s + t + 0.05, { x: -16 }); growX(b, s + t + 0.2, 0.7);
+  });
+  const frame = R(sc, 60, 155, 870, 236, "border:2px solid #3A5BB8;border-radius:10px;box-sizing:border-box");
+  const tagEl = R(sc, 740, 400, 190, 30, "background:#3A5BB8;color:#fff;border-radius:15px;font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:center", "One integrated package");
+  const tu = s + c.unit;
+  gsap.set(frame, { opacity: 0, scale: 1.04, transformOrigin: "50% 50%" });
+  tl.to(frame, { opacity: 1, scale: 1, duration: 0.6, ease: E.power }, tu);
+  pop(tagEl, tu + 0.4, { from: 0.5 });
+  tl.to(bars, { scaleY: 2.2, duration: 0.25, yoyo: true, repeat: 1, stagger: 0.12 }, tu + 0.3);
+};
+
+SCENES.outro = (sc, s, c) => {
+  const h = T(sc, 66, 110, "Improvement Aligned with Global Standards", "font-size:26px;font-weight:700;color:#fff");
+  const r = R(sc, 59, 154, 832, 1, "background:#4A5C7E");
+  const l = T(sc, 66, 187, "Through this improvement, students can:", "font-size:17px;color:#fff");
+  slideIn(h, s + 0.6, { x: -24, dur: 0.8 }); growX(r, s + 0.8, 0.9);
+  fadeUp(l, s + c.lead);
+  [["01", "Understand mathematical concepts more clearly", 273, c.o1], ["02", "Confidently extend learning to the next level", 341, c.o2]].forEach(([n, t, y, tt]) => {
+    const ne = T(sc, 68, y, n, "font-size:13px;font-weight:700;color:#A9C8FF");
+    const te = T(sc, 124, y, t, "font-size:18.5px;color:#fff");
+    pop(ne, s + tt, { from: 0.3 }); slideIn(te, s + tt + 0.1, { x: -16 });
+  });
+  const ty = T(sc, 66, 480, "Thank you", "font-size:19px;font-weight:700;color:#A9C8FF");
+  fadeUp(ty, s + c.thanks, { y: 10, dur: 0.8 });
+};
+
+/* ---------- 조립 ---------- */
+const DARK = new Set(["intro", "outro"]);
+const root = document.getElementById("scenes");
+gsap.set("#leftbar", { scaleY: 0, transformOrigin: "50% 0" });
+TL.scenes.forEach((info, idx) => {
+  const sc = el("div", root); sc.className = "scene"; sc.id = "sc-" + info.id;
+  const s = info.start, e = info.end;
+  CUR = { idx };
+  tl.set(sc, { visibility: "visible" }, s);
+  SCENES[info.id](sc, s, info.cues);
+  const last = idx === TL.scenes.length - 1;
+  if (!last) {
+    tl.to(sc, { opacity: 0, duration: 0.4, ease: "power1.in" }, e - 0.4);
+    tl.set(sc, { visibility: "hidden" }, e);
+  }
+  const next = TL.scenes[idx + 1];
+  if (next && DARK.has(info.id) && !DARK.has(next.id)) {          // 어두운 → 밝은
+    tl.to("#dark", { clipPath: "inset(0% 0% 100% 0%)", duration: 0.7, ease: "power3.inOut" }, e - 0.35);
+    tl.to("#topbar", { scaleX: 0, transformOrigin: "100% 0", duration: 0.5, ease: "power2.in" }, e - 0.45);
+    tl.to("#leftbar", { scaleY: 1, duration: 0.6, ease: "power3.out" }, e + 0.1);
+  }
+  if (next && !DARK.has(info.id) && DARK.has(next.id)) {          // 밝은 → 어두운
+    tl.fromTo("#dark", { clipPath: "inset(100% 0% 0% 0%)" }, { clipPath: "inset(0% 0% 0% 0%)", duration: 0.7, ease: "power3.inOut", immediateRender: false }, e - 0.3);
+    tl.fromTo("#topbar", { scaleX: 0, transformOrigin: "0% 0" }, { scaleX: 1, duration: 0.8, ease: "power2.inOut", immediateRender: false }, e + 0.3);
+  }
+});
+// 유지 요소: 마지막으로 쓰인 장면 끝에서 퇴장(다음이 어두운 장면이면 와이프가 덮으므로 그대로 둔다)
+PERSIST_ALL.forEach(({ els, last }) => {
+  const next = TL.scenes[last + 1];
+  if (!next || DARK.has(next.id)) return;
+  const e = TL.scenes[last].end;
+  tl.to(els, { opacity: 0, duration: 0.35, ease: "power1.in" }, e - 0.35);
+});
+// 끝부분 페이드아웃
+const END = TL.duration;
+gsap.set("#viewport", { opacity: 1 });
+const fade = el("div", document.getElementById("stage"), "position:absolute;inset:0;background:#000;opacity:0");
+tl.to(fade, { opacity: 1, duration: 0.8 }, END - 0.8);
+tl.set({}, {}, END);
+
+window.DURATION = END;
+window.seek = t => { tl.seek(t, false); };
+window.seek(0);
+window.READY = true;
+// 미리보기: ?t=12.3 또는 ?play
+const q = new URLSearchParams(location.search);
+if (q.has("t")) window.seek(parseFloat(q.get("t")));
+if (q.has("play")) {
+  const a = new Audio("narration.wav"); a.play();
+  (function loop() { window.seek(a.currentTime); requestAnimationFrame(loop); })();
+}
+</script>
+</body>
+</html>
