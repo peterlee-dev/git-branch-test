@@ -177,7 +177,7 @@ function tree(t, t0, dur, x0, y0) {
     line(px, py, lerp(px, x, k), lerp(py, y, k), col, chosen ? 6 : 3);
     circ(x, y, (l === 3 ? 12 : 18) * k, chosen ? col : rgba(K.card, 1), chosen ? null : rgba(K.dim, .6), 3);
   });
-  circ(x0, y0, 26, K.cyan); text('Q', x0, y0 + 1, { size: 26, color: K.bg1, weight: 800 });
+  const qk = eBack(p(t, t0 - .4, .5)); if (qk <= 0) return; circ(x0, y0, 26 * qk, K.cyan); text('Q', x0, y0 + 1, { size: 26 * qk, color: K.bg1, weight: 800 });
   // the orb walks the chosen path
   const ok = clamp((t - t0) / dur * 3, 0, 3), li = Math.min(2, Math.floor(ok)), f = eIO(ok - li);
   const a = lv[li][path[li]], b = lv[li + 1][path[li + 1]];
@@ -190,7 +190,7 @@ function sAdaptive(t) {
     headline(t, s0 + .1, '02 · THE NEW APPROACH', 'Adaptive Diagnostic Assessment');
     const kw = ['Responsive', 'High-precision', 'Real-time'];
     kw.forEach((w, i) => pill(w, 330 + i * 300, 300, 26, rgba(K.blue, .16), K.cyan, { alpha: eOut(p(t, st('l8', .02 + i * .1), .5)), stroke: rgba(K.cyan, .5) }));
-    tree(t, st('l8', .15), (st('l8', .9) - st('l8', .15)), 300, 640);
+    tree(t, st('l7', .35), (st('l8', .9) - st('l7', .35)), 300, 640);
     // legend
     const lk = p(t, st('l8', .3), .5);
     if (lk > 0) { panel(1430, 470, 400, 300, lk); line(1470, 545, 1530, 545, K.blue, 6, lk); text('Correct', 1550, 530, { size: 28, color: K.ink, weight: 700, align: 'left', alpha: lk }); text('→ harder question', 1550, 566, { size: 24, color: K.dim, weight: 400, align: 'left', alpha: lk });
@@ -227,7 +227,7 @@ function gauge(x, y, r, v, col, label, up, a) {
   ctx.strokeStyle = col; ctx.beginPath(); ctx.arc(x, y, r, Math.PI * .8, Math.PI * (.8 + 1.4 * v)); ctx.stroke();
   const ang = Math.PI * (.8 + 1.4 * v); glow(x + Math.cos(ang) * r, y + Math.sin(ang) * r, 90, col, .9);
   line(x, y, x + Math.cos(ang) * (r - 50), y + Math.sin(ang) * (r - 50), K.ink, 8); circ(x, y, 16, K.ink);
-  text(label, x, y + r * .72, { size: 32, color: K.ink, weight: 700, maxW: r * 2 }); upDown(x, y + r * .72 + 58, up, col, 1.1);
+  const lw = Math.min(measure(label, 32, 700), r * 2.2), ly = y + r + 50; text(label, x - 30, ly, { size: 32, color: K.ink, weight: 700, maxW: r * 2.2 }); upDown(x - 30 + lw / 2 + 36, ly + 2, up, col, 1);
   ctx.restore();
 }
 function sBenefit(t) {
@@ -235,8 +235,8 @@ function sBenefit(t) {
   withCam(drift(t, s0), 960, 560, () => {
     backdrop(t, K.mint);
     headline(t, s0 + .1, '02 · THE NEW APPROACH', 'What it improves');
-    gauge(620, 520, 190, lerp(.2, .9, eOut(p(t, st('l10', .1), 1.8))), K.mint, 'Efficiency & reliability', true, p(t, st('l10', 0), .5));
-    gauge(1300, 520, 190, lerp(.85, .25, eOut(p(t, st('l10', .55), 1.8))), K.cyan, 'Assessment time', false, p(t, st('l10', .45), .5));
+    gauge(620, 470, 180, lerp(.2, .9, eOut(p(t, st('l10', .1), 1.8))), K.mint, 'Efficiency & reliability', true, p(t, st('l10', 0), .5));
+    gauge(1300, 470, 180, lerp(.85, .25, eOut(p(t, st('l10', .55), 1.8))), K.cyan, 'Assessment time', false, p(t, st('l10', .45), .5));
     const q = p(t, st('l11', .1), .7);
     if (q > 0) { rise('Less burden.', 960, 800, t, st('l11', .1), { size: 56, color: K.ink, weight: 800 }); }
     if (p(t, st('l11', .55), .7) > 0) rise('A precise starting point.', 960, 875, t, st('l11', .55), { size: 56, color: K.cyan, weight: 800 });
@@ -268,9 +268,11 @@ function sHow(t) {
 }
 // 8. path — the 9-rung difficulty ladder. Step times match the sound cues in make_audio.py (steps(l15, .6, .8), steps(l16, 1.2, .8))
 const RX = 640, RY = i => 900 - (i - 1) * 74;
-function steps(id, a, b) { const l = L(id); return [0, 1, 2].map(k => lerp(l.start + a, l.end - b, k / 2)); }
+// step times as fractions of the narration line (also used for the sound cues in tools/make_mix.py)
+const STEPS = { l15: [.2, .5, .66], l16: [.3, .5, .64] };
+function steps(id) { return STEPS[id].map(f => st(id, f)); }
 function sPath(t) {
-  const s0 = S('path').start, dn = steps('l15', .6, .8), up = steps('l16', 1.2, .8), caseUp = t > st('l16', 0) - .2, sum = eOut(p(t, st('l17', 0), .8));
+  const s0 = S('path').start, dn = steps('l15'), up = steps('l16'), caseUp = t > st('l16', .2), sum = eOut(p(t, st('l17', .3), .8));
   withCam(drift(t, s0), 960, 560, () => {
     backdrop(t);
     headline(t, s0 + .1, '03 · OPERATING PRINCIPLE', 'Walking the difficulty ladder');
@@ -279,8 +281,8 @@ function sPath(t) {
     // rails
     line(RX, RY(1) + 30, RX, RY(9) - 30, rgba(K.dim, .3), 6);
     // sequential sweep that gets crossed out
-    const sw = p(t, st('l14', .05), st('l14', .4) - st('l14', .05)), swOut = p(t, st('l14', .5), .4);
-    if (sw > 0 && swOut < 1) { line(RX - 70, RY(1), RX - 70, lerp(RY(1), RY(9), sw), rgba(K.dim, .8 * (1 - swOut)), 4, 1, [10, 10]); text('1 → 9 in order?', RX - 230, RY(5), { size: 28, color: K.dim, weight: 600, alpha: (1 - swOut) * p(t, st('l14', .1), .3) }); cross(RX - 230, RY(5) + 50, 36, K.orange, p(t, st('l14', .45), .4) * (1 - swOut), 6); }
+    const sw = p(t, st('l14', .05), st('l14', .4) - st('l14', .05)), swOut = p(t, st('l14', .9), .6);
+    if (sw > 0 && swOut < 1) { line(RX - 70, RY(1), RX - 70, lerp(RY(1), RY(9), sw), rgba(K.dim, .8 * (1 - swOut)), 4, 1, [10, 10]); text('1 → 9 in order?', RX - 230, RY(5), { size: 28, color: K.dim, weight: 600, alpha: (1 - swOut) * p(t, st('l14', .1), .3) }); cross(RX - 230, RY(5) + 50, 36, K.orange, p(t, st('l14', .42), .4), 6); }
     const state = {};
     if (!caseUp) { if (t > dn[0]) state[5] = 'x'; if (t > dn[1]) state[3] = 'x'; if (t > dn[2]) { state[1] = 'o'; state[2] = 'need'; } }
     else { if (t > up[0]) state[5] = 'o'; if (t > up[1]) state[7] = 'o'; if (t > up[2]) { state[9] = 'x'; state[8] = 'need'; } }
@@ -294,20 +296,21 @@ function sPath(t) {
     // orb position
     const seq = caseUp ? [[5, up[0]], [7, up[1]], [9, up[2]], [8, up[2] + .7]] : [[5, dn[0]], [3, dn[1]], [1, dn[2]], [2, dn[2] + .7]];
     const startT = st('l14', .65); let pos = 5;
-    if (t > startT) { for (let j = 0; j < seq.length; j++) { const [lvl, tt] = seq[j]; if (j === 0) continue; const prev = seq[j - 1][0], k = eIO(p(t, seq[j - 1][1] + .25, .55)); if (k > 0) pos = lerp(prev, lvl, k); } if (caseUp && t < st('l16', 0) + .2) pos = 5; orb(RX - 70, lerp(RY(1), RY(9), (pos - 1) / 8), 14, t); }
+    if (t > startT) { for (let j = 0; j < seq.length; j++) { const [lvl, tt] = seq[j]; if (j === 0) continue; const prev = seq[j - 1][0], k = eIO(p(t, seq[j - 1][1] + .25, .55)); if (k > 0) pos = lerp(prev, lvl, k); } if (caseUp && t < up[0]) pos = 5; orb(RX - 70, lerp(RY(1), RY(9), (pos - 1) / 8), 14, t); }
     if (t > startT && t < dn[0]) pill('start: representative core question', RX + 260, RY(5) - 60, 22, rgba(K.cyan, .15), K.cyan, { alpha: p(t, startT, .4), stroke: rgba(K.cyan, .5) });
     // bracket for the result
-    const bk = p(t, (caseUp ? up[2] : dn[2]) + .5, .5);
+    const bk = p(t, (caseUp ? up[2] : dn[2]) + .15, .45);
     if (bk > 0 && sum < 1) { const a = caseUp ? 8 : 1, b = caseUp ? 9 : 2, yA = RY(a), yB = RY(b), bx = RX + 330; line(bx, yA, bx, yB, K.mint, 4, bk); line(bx - 14, yA, bx, yA, K.mint, 4, bk); line(bx - 14, yB, bx, yB, K.mint, 4, bk); text(caseUp ? 'how far understanding reaches' : 'where the learning gap begins', bx + 24, (yA + yB) / 2, { size: 26, color: K.mint, weight: 700, align: 'left', alpha: bk, maxW: 560 }); }
     ctx.restore();
     // right: case caption
-    const capA = !caseUp ? p(t, st('l15', 0), .5) : p(t, st('l16', 0), .5);
+    const capA = !caseUp ? p(t, st('l15', 0), .5) : p(t, st('l16', .2), .5);
     if (sum < 1 && t > st('l15', 0) - .1) {
       const a = capA * (1 - sum), col = caseUp ? K.blue : K.orange, title = caseUp ? 'If the learner answers correctly' : 'If the learner answers incorrectly', line2 = caseUp ? '5  →  7  →  9' : '5  →  3  →  1';
-      panel(1180, 330, 600, 230, a, col); text(title, 1480, 395, { size: 32, color: K.ink, weight: 800, alpha: a, maxW: 540 }); text(line2, 1480, 470, { size: 46, color: col, weight: 800, alpha: a }); text(caseUp ? 'probe higher achievement' : 'probe underlying gaps', 1480, 522, { size: 24, color: K.dim, weight: 400, alpha: a, maxW: 540 });
+      const py = caseUp ? 640 : 330;   // panel sits on the opposite side of the result bracket
+      panel(1180, py, 600, 230, a, col); text(title, 1480, py + 65, { size: 32, color: K.ink, weight: 800, alpha: a, maxW: 540 }); text(line2, 1480, py + 140, { size: 46, color: col, weight: 800, alpha: a }); text(caseUp ? 'probe higher achievement' : 'probe underlying gaps', 1480, py + 192, { size: 24, color: K.dim, weight: 400, alpha: a, maxW: 540 });
     }
     // summary
-    if (sum > 0) { panel(1100, 380, 700, 380, sum, K.cyan); rise('Fewer questions.', 1450, 500, t, st('l17', .05), { size: 54, color: K.ink }); rise('Precise ability level.', 1450, 590, t, st('l17', .45), { size: 54, color: K.cyan, maxW: 640 }); text('※ representative items: 1, 3, 5, 7, 9', 1450, 690, { size: 24, color: K.dim, weight: 400, alpha: p(t, st('l17', .6), .5) }); }
+    if (sum > 0) { panel(1100, 380, 700, 380, sum, K.cyan); rise('Fewer questions.', 1450, 500, t, st('l17', .32), { size: 54, color: K.ink }); rise('Precise ability level.', 1450, 590, t, st('l17', .55), { size: 54, color: K.cyan, maxW: 640 }); text('※ representative items: 1, 3, 5, 7, 9', 1450, 690, { size: 24, color: K.dim, weight: 400, alpha: p(t, st('l17', .6), .5) }); }
   });
 }
 // 9. validate — representative + 2 similar items, 2 of 3 rule. Stamps match the sound cues (l20 +0.8 ding, +3.4 boop)

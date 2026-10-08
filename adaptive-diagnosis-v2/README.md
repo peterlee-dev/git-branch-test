@@ -25,7 +25,7 @@
 
 ## 고치기·렌더링
 
-- 내레이션·자막·시각: `../adaptive-diagnosis/tools/make_audio.py`에서 고친 뒤 `tools/sync_narration.sh`로 `timeline.js`와 `audio/mix.wav`를 복사
+- 내레이션·자막·시각: `../adaptive-diagnosis/tools/make_audio.py`에서 고친 뒤 `tools/sync_narration.sh`로 `timeline.js`를 복사하고 `python3 tools/make_mix.py`로 소리를 다시 섞음 (정답·오답 효과음은 v2의 사다리 단계 시각 `STEPS`에 맞춤)
 - 장면: `index.html`의 `sIntro` ~ `sOutro`, 색·제목: `content.js` (영상 편집기에서도 수정 가능)
 
 ```bash
