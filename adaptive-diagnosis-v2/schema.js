@@ -17,7 +17,7 @@ window.SCHEMA = {
    { path: 'title.sub', label: 'Subtitle', type: 'text' }, { path: 'title.team', label: 'Team / year', type: 'text' }] },
   ...TL.scenes.map(s => ({ tab: 'subs', title: s.label, note: 'Only the subtitle changes; the voice stays the same.',
    fields: TL.order.filter(id => TL.lines[id].scene === s.id).map(id => ({ path: `subs.${id}`, label: id, type: 'text', at: (TL.lines[id].start + TL.lines[id].end) / 2 })) })),
-  { tab: 'color', title: 'Colours', fields: [col('colors.bg1', 'Background top', 20), col('colors.bg2', 'Background bottom', 20), col('colors.cyan', 'Highlight', 20), col('colors.blue', 'Correct / main blue', 130), col('colors.orange', 'Incorrect', 130), col('colors.mint', 'Positive', 90)] },
+  { tab: 'color', title: 'Colours', fields: [col('colors.paper', 'Paper', 20), col('colors.grid', 'Graph-paper lines', 20), col('colors.ink', 'Ink (text)', 20), col('colors.pen', "Teacher's red pen", 20), col('colors.blue', 'Correct / main blue', 130), col('colors.orange', 'Incorrect', 130), col('colors.green', 'Positive', 90), col('colors.subBox', 'Subtitle box', 20)] },
  ],
  locked: 'Narration and timing are shared with ../adaptive-diagnosis (tools/sync_narration.sh). Every animation is keyed to a narration line.',
  warnings: [],

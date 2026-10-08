@@ -3,8 +3,8 @@
 window.CONTENT = {
  "title": { "kicker": "SELF-LEARNING JEI MATH  ·  MATH ONLINE", "words": ["Adaptive", "Diagnostic", "Assessment"], "sub": "Development direction & expected benefits", "team": "2026  ·  Mathematics Team" },
  "colors": {
-  "bg1": "#0A1330", "bg2": "#111F4A", "ink": "#EAF0FF", "dim": "#8E9CC4", "blue": "#4D8DFF", "cyan": "#5CE1E6",
-  "orange": "#FF9147", "mint": "#43E0A0", "card": "#16264F", "cardLine": "#2A3D73"
+  "paper": "#F7F9FC", "grid": "#E2E9F3", "ink": "#18264A", "muted": "#66748F",
+  "blue": "#2B59E0", "pen": "#E0362C", "orange": "#EE8A23", "green": "#1D9A60", "teal": "#14A0A6", "subBox": "#18264A"
  },
  "subs": Object.fromEntries(window.TL.order.map(id => [id, window.TL.lines[id].text]))
 };

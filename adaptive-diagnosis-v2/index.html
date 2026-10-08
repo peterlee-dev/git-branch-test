@@ -5,9 +5,9 @@
 <title>Adaptive Diagnostic Assessment v2</title>
 <style>
   @font-face { font-family: 'Noto Sans KR'; src: url('fonts/NotoSansKR.ttf') format('truetype'); font-weight: 100 900; font-display: block; }
-  html, body { margin: 0; background: #05091a; }
-  body { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 12px; font-family: 'Noto Sans KR', sans-serif; color: #ddd; }
-  canvas { width: min(100%, 1280px); aspect-ratio: 16 / 9; display: block; background: #0A1330; }
+  html, body { margin: 0; background: #0E1424; }
+  body { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 12px; font-family: 'Avenir Next', 'Noto Sans KR', sans-serif; color: #ddd; }
+  canvas { width: min(100%, 1280px); aspect-ratio: 16 / 9; display: block; background: #F7F9FC; }
   .bar { display: flex; gap: 12px; align-items: center; width: min(100%, 1280px); }
   .bar input { flex: 1; }
   body.render { padding: 0; gap: 0; }
@@ -27,17 +27,20 @@
 </div>
 <script>
 // ------------------------------------------------------------
-// Adaptive Diagnostic Assessment — v2: a fresh visual take on the same narration.
-// Dark "night-sky" canvas, a glowing orb = the learner, kinetic headlines, and one recurring visual metaphor:
-// a vertical DIFFICULTY LADDER the orb climbs (correct) or steps down (incorrect).
+// Adaptive Diagnostic Assessment — v2: the same narration, drawn as one continuous sheet of graph paper
+// (same concept as ../math-di-improvement-v2). Each scene is a workbook page; the camera slides sideways between pages
+// (in time with the whoosh in the mix) and stays still while the page is read. Teacher's-pen marks: circles, checks,
+// crosses, highlighter, sticky notes, stamps. The difficulty ladder (1–9) is the recurring picture of how it works.
 // Timing: timeline.js (same narration/timing as ../adaptive-diagnosis). draw(t) is a pure function of time.
-// Layout rule: every label is measured (measure / fitText / pill) so text never spills out of its box.
+// Sound cues baked into audio/mix.wav: path scene steps(l15/l16), validate l20 +0.8 / +3.4, outro l31 −0.3.
 // ------------------------------------------------------------
 const W = 1920, H = 1080, TL = window.TL, DURATION = TL.duration;
 const cv = document.getElementById('c'), ctx = cv.getContext('2d');
 const DEFAULT_CONTENT = JSON.parse(JSON.stringify(window.CONTENT));
 let C = window.CONTENT, K = C.colors;
-const FONT = "'Noto Sans KR', sans-serif";
+const SANS = "'Avenir Next', 'Noto Sans KR', 'Helvetica Neue', sans-serif";
+const HAND = "'Noteworthy', 'Bradley Hand', 'Marker Felt', 'Noto Sans KR', cursive";
+const LINE = '#D5DDEA', HI = 'rgba(255,212,40,.5)', STICKY = '#FFE47A';
 
 // ---------- basics ----------
 const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
@@ -45,399 +48,442 @@ const lerp = (a, b, k) => a + (b - a) * k;
 const p = (t, s, d) => clamp((t - s) / d);
 const eOut = x => 1 - Math.pow(1 - x, 3), eIO = x => x < .5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
 const eBack = x => { const c1 = 1.7, c3 = c1 + 1; return x <= 0 ? 0 : 1 + c3 * Math.pow(x - 1, 3) + c1 * Math.pow(x - 1, 2); };
-function rng(seed) { return () => (seed = (seed * 16807) % 2147483647) / 2147483647; }
+const nz = (i, s = 1) => { const v = Math.sin(i * 12.9898 + s * 78.233) * 43758.5453; return v - Math.floor(v) - .5; };   // fixed jitter (no flicker)
 function rgba(hex, a) { const n = parseInt(hex.slice(1), 16); return `rgba(${n >> 16 & 255},${n >> 8 & 255},${n & 255},${a})`; }
 const L = id => TL.lines[id] || { start: 0, end: 0 };
 const S = id => TL.scenes.find(s => s.id === id) || { start: 0, end: 0 };
 const st = (id, f = 0) => L(id).start + (L(id).end - L(id).start) * f;   // f: 0 = start of the narration line, 1 = end
 const en = (id, d = 0) => L(id).end + d;
+
 function rr(x, y, w, h, r, fill, stroke, lw = 2, a = 1) { if (a <= 0) return; ctx.save(); ctx.globalAlpha *= a; ctx.beginPath(); ctx.roundRect(x, y, w, h, r); if (fill) { ctx.fillStyle = fill; ctx.fill(); } if (stroke) { ctx.lineWidth = lw; ctx.strokeStyle = stroke; ctx.stroke(); } ctx.restore(); }
-function circ(x, y, r, fill, stroke, lw = 3, a = 1) { if (a <= 0 || r <= 0) return; ctx.save(); ctx.globalAlpha *= a; ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); if (fill) { ctx.fillStyle = fill; ctx.fill(); } if (stroke) { ctx.lineWidth = lw; ctx.strokeStyle = stroke; ctx.stroke(); } ctx.restore(); }
-function line(x1, y1, x2, y2, c, lw = 3, a = 1, dash) { if (a <= 0) return; ctx.save(); ctx.globalAlpha *= a; ctx.strokeStyle = c; ctx.lineWidth = lw; ctx.lineCap = 'round'; if (dash) ctx.setLineDash(dash); ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke(); ctx.restore(); }
-function measure(str, size, weight = 600) { ctx.save(); ctx.font = `${weight} ${size}px ${FONT}`; const w = ctx.measureText(str).width; ctx.restore(); return w; }
-function text(str, x, y, { size = 40, color = K.ink, weight = 500, align = 'center', alpha = 1, maxW, spacing = 0 } = {}) {
+function circle(x, y, r, fill, stroke, lw = 3, a = 1) { if (r <= 0 || a <= 0) return; ctx.save(); ctx.globalAlpha *= a; ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); if (fill) { ctx.fillStyle = fill; ctx.fill(); } if (stroke) { ctx.lineWidth = lw; ctx.strokeStyle = stroke; ctx.stroke(); } ctx.restore(); }
+function line0(x1, y1, x2, y2, c, lw = 3) { ctx.save(); ctx.strokeStyle = c; ctx.lineWidth = lw; ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke(); ctx.restore(); }
+function card(x, y, w, h, { fill = '#FFFFFF', stroke = LINE, r = 16, a = 1, shadow = true, lw = 2 } = {}) {
+  if (a <= 0) return; ctx.save(); ctx.globalAlpha *= a;
+  if (shadow) { ctx.shadowColor = 'rgba(24,38,74,.10)'; ctx.shadowBlur = 22; ctx.shadowOffsetY = 8; }
+  ctx.beginPath(); ctx.roundRect(x, y, w, h, r); ctx.fillStyle = fill; ctx.fill(); ctx.shadowColor = 'transparent';
+  if (stroke) { ctx.lineWidth = lw; ctx.strokeStyle = stroke; ctx.stroke(); } ctx.restore();
+}
+function measure(str, size, weight = 600, fam = SANS) { ctx.save(); ctx.font = `${weight} ${size}px ${fam}`; const w = ctx.measureText(str).width; ctx.restore(); return w; }
+function text(str, x, y, { size = 36, weight = 600, fam = SANS, color = K.ink, align = 'left', alpha = 1, maxW, spacing = 0 } = {}) {
   if (alpha <= 0 || !str) return; ctx.save(); ctx.globalAlpha *= alpha;
-  let sz = size; if (maxW) { const w = measure(str, size, weight) + spacing * str.length; if (w > maxW) sz = size * maxW / w; }
-  ctx.font = `${weight} ${sz}px ${FONT}`; ctx.textAlign = align; ctx.textBaseline = 'middle'; ctx.fillStyle = color;
-  if (spacing) ctx.letterSpacing = spacing * sz / size + 'px';
+  let sz = size; if (maxW) { const w = measure(str, size, weight, fam) + spacing * str.length; if (w > maxW) sz = size * maxW / w; }
+  ctx.font = `${weight} ${sz}px ${fam}`; ctx.textAlign = align; ctx.textBaseline = 'middle'; ctx.fillStyle = color;
+  if (spacing) ctx.letterSpacing = spacing + 'px';
   ctx.fillText(str, x, y); ctx.restore();
 }
-// pill: rounded label whose width follows its text
-function pill(str, x, y, size, fill, color, { pad = 28, weight = 700, stroke, alpha = 1 } = {}) { const w = measure(str, size, weight) + pad * 2, h = size * 1.9; rr(x - w / 2, y - h / 2, w, h, h / 2, fill, stroke, 2, alpha); text(str, x, y + 1, { size, color, weight, alpha }); return w; }
-function glow(x, y, r, col, a = 1) { if (a <= 0 || r <= 0) return; const g = ctx.createRadialGradient(x, y, 0, x, y, r); g.addColorStop(0, rgba(col, .55 * a)); g.addColorStop(.4, rgba(col, .18 * a)); g.addColorStop(1, rgba(col, 0)); ctx.fillStyle = g; ctx.fillRect(x - r, y - r, r * 2, r * 2); }
-function orb(x, y, r, t, col = K.cyan, a = 1) { glow(x, y, r * 4, col, a); circ(x, y, r, '#FFFFFF', null, 0, a); circ(x, y, r * 1.5 + Math.sin(t * 4) * 2, null, rgba(col, .7), 3, a); }
-function check(x, y, s, c, k = 1, lw = 7) { if (k <= 0) return; ctx.save(); ctx.strokeStyle = c; ctx.lineWidth = lw; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.beginPath(); const P = [[-.5, 0], [-.15, .35], [.55, -.4]]; ctx.moveTo(x + P[0][0] * s, y + P[0][1] * s); const k1 = clamp(k * 2), k2 = clamp(k * 2 - 1); ctx.lineTo(x + lerp(P[0][0], P[1][0], k1) * s, y + lerp(P[0][1], P[1][1], k1) * s); if (k2 > 0) ctx.lineTo(x + lerp(P[1][0], P[2][0], k2) * s, y + lerp(P[1][1], P[2][1], k2) * s); ctx.stroke(); ctx.restore(); }
-function cross(x, y, s, c, k = 1, lw = 7) { if (k <= 0) return; const k1 = clamp(k * 2), k2 = clamp(k * 2 - 1); line(x - s / 2, y - s / 2, x - s / 2 + s * k1, y - s / 2 + s * k1, c, lw); if (k2 > 0) line(x + s / 2, y - s / 2, x + s / 2 - s * k2, y - s / 2 + s * k2, c, lw); }
-function arrowHead(x, y, ang, s, c) { ctx.save(); ctx.translate(x, y); ctx.rotate(ang); ctx.fillStyle = c; ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(-s, -s * .6); ctx.lineTo(-s, s * .6); ctx.closePath(); ctx.fill(); ctx.restore(); }
-function upDown(x, y, up, c, s = 1, a = 1) { if (a <= 0) return; ctx.save(); ctx.globalAlpha *= a; ctx.translate(x, y); ctx.scale(s, up ? -s : s); ctx.fillStyle = c; ctx.beginPath(); ctx.moveTo(-8, -20); ctx.lineTo(8, -20); ctx.lineTo(8, 2); ctx.lineTo(18, 2); ctx.lineTo(0, 22); ctx.lineTo(-18, 2); ctx.lineTo(-8, 2); ctx.closePath(); ctx.fill(); ctx.restore(); }
-// card: glassy panel
-function panel(x, y, w, h, a = 1, accent) { if (a <= 0) return; rr(x, y, w, h, 22, rgba(K.card, .82), rgba(accent || K.cardLine, accent ? .9 : 1), 2, a); }
-
-// ---------- backdrop: night gradient, dot grid, drifting particles ----------
-function backdrop(t, tint = K.blue) {
-  const g = ctx.createLinearGradient(0, 0, 0, H); g.addColorStop(0, K.bg1); g.addColorStop(1, K.bg2); ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
-  glow(1500, 180, 700, tint, .35); glow(300, 950, 600, K.cyan, .18);
-  ctx.save(); ctx.fillStyle = 'rgba(160,190,255,.10)'; for (let x = 60; x < W; x += 60) for (let y = 60; y < H; y += 60) ctx.fillRect(x - 1, y - 1, 2, 2); ctx.restore();
-  const r = rng(7); for (let i = 0; i < 46; i++) { const x = (r() * W + t * (8 + r() * 14)) % W, y = (r() * H - t * (4 + r() * 6) % H + H) % H, s = 1 + r() * 2.2; circ(x, y, s, 'rgba(200,220,255,.55)', null, 0, .3 + .5 * Math.abs(Math.sin(t * .7 + i))); }
+// entrance: fade + rise (+ optional pop around ox, oy). Moves only while entering, then stays put
+function enter(t, t0, fn, { d = .55, dy = 26, pop = false, ox = 960, oy = 540 } = {}) {
+  const k = p(t, t0, d); if (k <= 0) return 0;
+  ctx.save(); ctx.globalAlpha *= clamp(k * 1.5);
+  if (pop) { const s = lerp(.5, 1, eBack(k)); ctx.translate(ox, oy); ctx.scale(s, s); ctx.translate(-ox, -oy); }
+  else ctx.translate(0, (1 - eOut(k)) * dy);
+  fn(k); ctx.restore(); return k;
 }
-// section chip + headline (top-left), slides in
-function headline(t, t0, chip, title, sub) {
-  const k = eOut(p(t, t0, .7)); if (k <= 0) return;
-  ctx.save(); ctx.globalAlpha *= k; ctx.translate((1 - k) * -40, 0);
-  const w = measure(chip, 22, 700) + 40; rr(96, 72, w, 40, 20, rgba(K.blue, .18), rgba(K.blue, .6), 2); text(chip, 96 + w / 2, 93, { size: 22, color: K.cyan, weight: 700 });
-  text(title, 96, 162, { size: 54, color: K.ink, weight: 800, align: 'left', maxW: 1700 });
-  if (sub) text(sub, 98, 218, { size: 28, color: K.dim, weight: 400, align: 'left', maxW: 1700 });
+
+// ---------- teacher's pen ----------
+function strokePts(pts, k, color, lw = 5, a = 1, dash) {
+  if (k <= 0 || a <= 0 || pts.length < 2) return;
+  let tot = 0; const seg = []; for (let i = 1; i < pts.length; i++) { const d = Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]); seg.push(d); tot += d; }
+  let left = tot * clamp(k);
+  ctx.save(); ctx.globalAlpha *= a; ctx.strokeStyle = color; ctx.lineWidth = lw; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; if (dash) ctx.setLineDash(dash);
+  ctx.beginPath(); ctx.moveTo(pts[0][0], pts[0][1]);
+  for (let i = 1; i < pts.length && left > 0; i++) { const f = Math.min(1, left / seg[i - 1]); ctx.lineTo(lerp(pts[i - 1][0], pts[i][0], f), lerp(pts[i - 1][1], pts[i][1], f)); left -= seg[i - 1]; }
+  ctx.stroke(); ctx.restore();
+}
+function wobble(x1, y1, x2, y2, seed = 1, amp = 1.6, n = 14) {
+  const dx = x2 - x1, dy = y2 - y1, len = Math.hypot(dx, dy) || 1, nx = -dy / len, ny = dx / len, pts = [];
+  for (let i = 0; i <= n; i++) { const f = i / n, j = (i === 0 || i === n) ? 0 : nz(i, seed) * amp * 2; pts.push([x1 + dx * f + nx * j, y1 + dy * f + ny * j]); }
+  return pts;
+}
+const pen = (x1, y1, x2, y2, k, c = K.pen, lw = 5, seed = 1, a = 1, dash) => strokePts(wobble(x1, y1, x2, y2, seed), k, c, lw, a, dash);
+function penCircle(cx, cy, rx, ry, k, c = K.pen, lw = 5, seed = 1, a = 1) {
+  const pts = [], a0 = -2.3 + nz(1, seed) * .4, n = 56;
+  for (let i = 0; i <= n; i++) { const ang = a0 + (i / n) * Math.PI * 2.12, r = 1 + nz(i, seed) * .05 + (i / n) * .06; pts.push([cx + Math.cos(ang) * rx * r, cy + Math.sin(ang) * ry * r]); }
+  strokePts(pts, k, c, lw, a);
+}
+function penArrow(x1, y1, x2, y2, k, c = K.pen, lw = 5, seed = 1, a = 1) {
+  pen(x1, y1, x2, y2, clamp(k / .8), c, lw, seed, a);
+  const hk = clamp((k - .75) / .25); if (hk <= 0) return;
+  const ang = Math.atan2(y2 - y1, x2 - x1), s = 18 + lw;
+  pen(x2, y2, x2 - Math.cos(ang - .5) * s, y2 - Math.sin(ang - .5) * s, hk, c, lw, seed + 3, a);
+  pen(x2, y2, x2 - Math.cos(ang + .5) * s, y2 - Math.sin(ang + .5) * s, hk, c, lw, seed + 5, a);
+}
+function penCurve(x1, y1, cx, cy, x2, y2, k, c = K.pen, lw = 5, a = 1, arrow = false) {
+  const pts = []; for (let i = 0; i <= 30; i++) { const f = i / 30; pts.push([(1 - f) * (1 - f) * x1 + 2 * (1 - f) * f * cx + f * f * x2, (1 - f) * (1 - f) * y1 + 2 * (1 - f) * f * cy + f * f * y2]); }
+  strokePts(pts, arrow ? clamp(k / .85) : k, c, lw, a);
+  if (arrow) { const hk = clamp((k - .8) / .2); if (hk > 0) { const ang = Math.atan2(y2 - cy, x2 - cx), s = 16 + lw; pen(x2, y2, x2 - Math.cos(ang - .5) * s, y2 - Math.sin(ang - .5) * s, hk, c, lw, 7, a); pen(x2, y2, x2 - Math.cos(ang + .5) * s, y2 - Math.sin(ang + .5) * s, hk, c, lw, 9, a); } }
+}
+function check(x, y, s, k, c = K.green, lw = 7) { strokePts([[x - s * .5, y], [x - s * .12, y + s * .38], [x + s * .55, y - s * .45]], k, c, lw); }
+function crossMark(x, y, s, k, c = K.pen, lw = 6) { pen(x - s / 2, y - s / 2, x + s / 2, y + s / 2, clamp(k * 2), c, lw, 2); pen(x + s / 2, y - s / 2, x - s / 2, y + s / 2, clamp(k * 2 - 1), c, lw, 4); }
+function hiLite(x, y, w, h, k, c = HI) { if (k <= 0) return; const e = eOut(k); ctx.save(); ctx.fillStyle = c; ctx.beginPath(); ctx.moveTo(x, y + 4); ctx.lineTo(x + w * e, y); ctx.lineTo(x + w * e - 6, y + h); ctx.lineTo(x - 4, y + h - 3); ctx.closePath(); ctx.fill(); ctx.restore(); }
+function hbox(x, y, w, h, k, c = K.ink, lw = 4, seed = 3) { strokePts([...wobble(x, y, x + w, y, seed, 1), ...wobble(x + w, y, x + w, y + h, seed + 1, 1).slice(1), ...wobble(x + w, y + h, x, y + h, seed + 2, 1).slice(1), ...wobble(x, y + h, x, y, seed + 3, 1).slice(1)], k, c, lw); }
+function sticky(x, y, w, h, rot, k, lines, { size = 32, color = K.ink } = {}) {
+  if (k <= 0) return; const s = lerp(.6, 1, eBack(k));
+  ctx.save(); ctx.globalAlpha *= clamp(k * 2); ctx.translate(x + w / 2, y + h / 2); ctx.rotate(rot); ctx.scale(s, s);
+  ctx.shadowColor = 'rgba(24,38,74,.18)'; ctx.shadowBlur = 16; ctx.shadowOffsetY = 8; ctx.fillStyle = STICKY; ctx.fillRect(-w / 2, -h / 2, w, h); ctx.shadowColor = 'transparent';
+  ctx.fillStyle = 'rgba(0,0,0,.05)'; ctx.fillRect(-w / 2, -h / 2, w, 26);
+  lines.forEach((l, i) => text(l, 0, (i - (lines.length - 1) / 2) * size * 1.25 + 8, { size, weight: 700, fam: HAND, color, align: 'center', maxW: w - 30 }));
   ctx.restore();
 }
-// kinetic word: rises from a mask line
-function rise(str, x, y, t, t0, { size = 90, color = K.ink, weight = 800, align = 'center', maxW } = {}) {
-  const k = p(t, t0, .6); if (k <= 0) return; const e = eOut(k);
-  ctx.save(); ctx.beginPath(); ctx.rect(0, y - size * .75, W, size * 1.5); ctx.clip(); text(str, x, y + (1 - e) * size, { size, color, weight, align, maxW }); ctx.restore();
+// rectangular rubber stamp (UNDERSTOOD / NOT UNDERSTOOD), lands from a bigger size
+function stamp(str, x, y, k, c, rot = -.08, size = 34) {
+  if (k <= 0) return; const s = lerp(1.8, 1, eOut(k)), w = measure(str, size, 800) + 2 * str.length + 60;
+  ctx.save(); ctx.globalAlpha *= clamp(k * 3) * .92; ctx.translate(x, y); ctx.rotate(rot); ctx.scale(s, s);
+  ctx.strokeStyle = c; ctx.lineWidth = 6; ctx.strokeRect(-w / 2, -size, w, size * 2); ctx.lineWidth = 2.5; ctx.strokeRect(-w / 2 + 8, -size + 8, w - 16, size * 2 - 16);
+  text(str, 0, 2, { size, weight: 800, color: c, align: 'center', spacing: 2 }); ctx.restore();
+}
+function chip(str, x, y, { size = 22, fill = K.blue, color = '#FFFFFF', a = 1, pad = 16, weight = 700, spacing = 1.5, align = 'left' } = {}) {
+  if (a <= 0) return 0; const w = measure(str, size, weight) + spacing * str.length + pad * 2, h = size * 1.8, x0 = align === 'center' ? x - w / 2 : x;
+  rr(x0, y - h / 2, w, h, h / 2, fill, null, 0, a); text(str, x0 + pad, y + 1, { size, weight, color, alpha: a, spacing }); return w;
+}
+function sheet(x, y, w, h, rot = 0, a = 1, lines = 5) {
+  if (a <= 0) return; ctx.save(); ctx.globalAlpha *= a; ctx.translate(x, y); ctx.rotate(rot);
+  ctx.shadowColor = 'rgba(24,38,74,.12)'; ctx.shadowBlur = 12; ctx.shadowOffsetY = 5; ctx.fillStyle = '#FFFFFF'; ctx.fillRect(-w / 2, -h / 2, w, h); ctx.shadowColor = 'transparent';
+  ctx.strokeStyle = LINE; ctx.lineWidth = 2; ctx.strokeRect(-w / 2, -h / 2, w, h);
+  ctx.strokeStyle = '#C9D3E3'; ctx.lineWidth = 4; for (let i = 0; i < lines; i++) { const yy = -h / 2 + h * .2 + i * h * .7 / lines; ctx.beginPath(); ctx.moveTo(-w / 2 + w * .14, yy); ctx.lineTo(w / 2 - w * (i % 2 ? .3 : .14), yy); ctx.stroke(); }
+  ctx.restore();
 }
 
-// ============================================================
-// scenes
-// ============================================================
-// 1. title — particles converge into a ring, title words rise
-function sIntro(t) {
-  backdrop(t);
-  const ring = eOut(p(t, .2, 2.4)), r = rng(3);
-  for (let i = 0; i < 90; i++) { const a = i / 90 * Math.PI * 2 + t * .15, sx = r() * W, sy = r() * H, tx = 1440 + Math.cos(a) * 250, ty = 520 + Math.sin(a) * 250; circ(lerp(sx, tx, ring), lerp(sy, ty, ring), 2.6, i % 3 ? '#BFD4FF' : K.cyan, null, 0, .4 + .6 * ring); }
-  glow(1440, 520, 380, K.blue, ring); orb(1440, 520, 26 * eBack(p(t, 1.6, .8)), t, K.cyan, ring);
-  text(C.title.kicker, 140, 300, { size: 26, color: K.cyan, weight: 700, align: 'left', alpha: eOut(p(t, .6, .6)), spacing: 3, maxW: 900 });
-  C.title.words.forEach((w, i) => rise(w, 136, 400 + i * 118, t, .9 + i * .3, { size: 112, color: i === 0 ? K.cyan : K.ink, weight: 800, align: 'left', maxW: 1050 }));
-  text(C.title.sub, 140, 780, { size: 32, color: K.dim, weight: 400, align: 'left', alpha: eOut(p(t, 2.2, .6)), maxW: 1000 });
-  line(140, 840, 140 + 420 * eOut(p(t, 2.5, .8)), 840, rgba(K.cyan, .8), 3);
-  text(C.title.team, 140, 885, { size: 26, color: K.ink, weight: 500, align: 'left', alpha: eOut(p(t, 2.8, .6)) });
+// ---------- page furniture ----------
+function paper(cam) {
+  ctx.fillStyle = K.paper; ctx.fillRect(0, 0, W, H);
+  const minor = ((cam % 40) + 40) % 40, major = ((cam % 200) + 200) % 200;
+  [[40, minor, K.grid], [200, major, rgba(K.blue, .14)]].forEach(([step, off, col]) => {
+    ctx.lineWidth = 1; ctx.strokeStyle = col; ctx.beginPath();
+    for (let x = -off; x <= W; x += step) { ctx.moveTo(Math.round(x) + .5, 0); ctx.lineTo(Math.round(x) + .5, H); }
+    for (let y = 0; y <= H; y += step) { ctx.moveTo(0, y + .5); ctx.lineTo(W, y + .5); }
+    ctx.stroke();
+  });
 }
-// 2. what — three stations on a path, the orb travels through them
-function sWhat(t) {
-  const s0 = S('what').start;
-  {
-    backdrop(t);
-    headline(t, s0 + .1, '01 · BACKGROUND', 'What is a diagnostic assessment?');
-    const xs = [420, 960, 1500], y = 560, times = [st('l3', 0), st('l3', .28), st('l3', .62)];
-    const labs = [['Before learning', 'starts'], ["Find the learner's", 'current level'], ['Prescribe a', 'personalized program']];
-    const head = ['ASSESS', 'DIAGNOSE', 'PRESCRIBE'];
-    const pathK = eOut(p(t, times[0], times[2] - times[0] + .6));
-    line(xs[0], y, xs[2], y, rgba(K.dim, .35), 6); line(xs[0], y, lerp(xs[0], xs[2], pathK), y, K.cyan, 6);
-    xs.forEach((x, i) => {
-      const k = eBack(p(t, times[i], .6)); if (k <= 0) return;
-      glow(x, y, 200, i === 2 ? K.mint : K.blue, k * .8);
-      circ(x, y, 92 * k, rgba(K.card, .95), i === 2 ? K.mint : K.blue, 5);
-      text(String(i + 1), x, y - 6, { size: 66 * k, color: K.ink, weight: 800 });
-      text(head[i], x, y + 150, { size: 30, color: i === 2 ? K.mint : K.cyan, weight: 800, alpha: k, spacing: 4 });
-      labs[i].forEach((s, j) => text(s, x, y + 196 + j * 40, { size: 30, color: K.ink, weight: 500, alpha: k, maxW: 440 }));
+function pageFurniture(i) {
+  ctx.save(); ctx.strokeStyle = rgba(K.pen, .4); ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(150, 0); ctx.lineTo(150, H); ctx.stroke(); ctx.restore();
+  text(`p. ${i + 1}`, 1800, 92, { size: 26, weight: 700, fam: HAND, color: K.muted, align: 'right' });
+}
+// section tab + title (top-left). Slides in once, then stays still
+function header(t, t0, tab, title, col = K.blue) {
+  const k1 = eOut(p(t, t0, .5)), k2 = eOut(p(t, t0 + .15, .6));
+  if (k1 > 0) { ctx.save(); ctx.translate((1 - k1) * -30, 0); chip(tab, 210, 92, { size: 18, fill: col, a: k1, spacing: 2.5 }); ctx.restore(); }
+  if (k2 > 0) { ctx.save(); ctx.translate((1 - k2) * -30, 0); text(title, 210, 160, { size: 56, weight: 700, alpha: k2, maxW: 1500 }); ctx.restore(); }
+}
+const H0 = id => S(id).start + .15;   // header time for a scene
+
+// ============================================================
+// scenes (absolute time t)
+// ============================================================
+const SC = {};
+
+// 1. title — the title, and a diagnostic test being marked by the teacher's pen
+SC.intro = t => {
+  chip(C.title.kicker, 210, 262, { size: 18, fill: K.ink, a: eOut(p(t, .4, .5)), spacing: 2.5 });
+  hiLite(200, 334, measure(C.title.words[0], 104, 800) + 22, 78, p(t, 1.6, .7));
+  C.title.words.forEach((w, i) => enter(t, .7 + i * .25, () => text(w, 210, 374 + i * 112, { size: 104, weight: 800, color: i === 0 ? K.blue : K.ink, maxW: 960 })));
+  enter(t, 1.8, () => text(C.title.sub, 214, 708, { size: 34, weight: 500, color: K.muted, maxW: 900 }));
+  text(C.title.team, 214, 790, { size: 32, weight: 700, fam: HAND, color: K.pen, alpha: p(t, 2.3, .5) });
+  // test paper on the right
+  enter(t, .6, () => {
+    card(1260, 230, 480, 640, { r: 8 }); text('Diagnostic test', 1300, 290, { size: 30, weight: 700 }); line0(1300, 322, 1700, 322, LINE, 2);
+    for (let i = 0; i < 6; i++) { const y = 372 + i * 68; text(`Q${i + 1}`, 1300, y, { size: 24, weight: 700, color: K.muted }); rr(1360, y - 6, 220 - (i % 3) * 40, 12, 6, '#DCE3EE'); }
+  });
+  [1, 1, 0, 1, 0, 1].forEach((ok, i) => { const y = 372 + i * 68, k = p(t, 2.2 + i * .35, .35); if (ok) check(1665, y, 40, k, K.pen, 6); else crossMark(1665, y, 30, k, K.pen, 6); });
+  penCircle(1640, 820, 70, 34, p(t, 4.6, .7), K.pen, 4, 5); text('4 / 6', 1640, 822, { size: 34, weight: 700, fam: HAND, color: K.pen, align: 'center', alpha: p(t, 4.5, .4) });
+  text('Find the starting point', 1300, 822, { size: 24, weight: 600, color: K.muted, alpha: p(t, 4.8, .5) });
+};
+
+// 2. what — three steps of a diagnostic assessment
+SC.what = t => {
+  header(t, H0('what'), '01  ·  BACKGROUND', 'What is a diagnostic assessment?');
+  const times = [st('l3', 0), st('l3', .28), st('l3', .62)];
+  const lab = [['Before learning starts', 'take a short assessment'], ["Find the learner's", 'current level'], ['Prescribe a', 'personalized program']], head = ['ASSESS', 'DIAGNOSE', 'PRESCRIBE'], cols = [K.blue, K.teal, K.green];
+  times.forEach((t0, i) => {
+    const x = 210 + i * 560;
+    enter(t, t0, () => {
+      card(x, 300, 480, 470);
+      circle(x + 60, 360, 30, cols[i]); text(String(i + 1), x + 60, 362, { size: 32, weight: 700, color: '#FFFFFF', align: 'center' });
+      text(head[i], x + 110, 362, { size: 26, weight: 800, color: cols[i], spacing: 3 });
+      lab[i].forEach((s, j) => text(s, x + 40, 650 + j * 44, { size: 32, weight: 700, maxW: 400 }));
+      if (i === 0) { sheet(x + 240, 510, 150, 180, -.04); }
+      if (i === 1) { [3, 5, 7, 9].forEach((h, j) => rr(x + 150 + j * 50, 600 - h * 18, 34, h * 18, [6, 6, 0, 0], j === 2 ? K.teal : rgba(K.teal, .25))); }
+      if (i === 2) { rr(x + 160, 420, 160, 190, 8, '#FFFFFF', K.green, 3); for (let j = 0; j < 3; j++) { rr(x + 182, 452 + j * 50, 24, 24, 4, null, K.green, 3); line0(x + 222, 464 + j * 50, x + 296, 464 + j * 50, '#C9D3E3', 5); } }
     });
-    const ox = lerp(xs[0], xs[2], pathK); if (pathK > 0) orb(ox, y - 130, 14, t);
-    if (pathK > 0) line(ox, y - 112, ox, y - 96, rgba(K.cyan, .7), 3);
-  }
-}
-// 3. problem — everyone gets the same 91 questions: meters for accuracy / burden / efficiency
+    if (i === 1) penCircle(x + 325, 438, 34, 34, p(t, t0 + .6, .5), K.pen, 4, 11);
+    if (i === 2) [0, 1, 2].forEach(j => check(x + 194, 464 + j * 50, 26, p(t, t0 + .5 + j * .2, .3), K.green, 5));
+    if (i) penArrow(x - 70, 535, x - 12, 535, p(t, t0 - .2, .4), K.ink, 4, 12 + i);
+  });
+};
+
+// 3. problem — a pile of 91 identical questions; accuracy ↑ BUT burden ↑, efficiency ↓
 function meter(x, y, h, v, col, label, sub, a, up) {
   if (a <= 0) return; ctx.save(); ctx.globalAlpha *= a;
-  rr(x - 46, y - h, 92, h, 18, rgba(K.card, .9), K.cardLine, 2); rr(x - 34, y - 12 - (h - 24) * v, 68, (h - 24) * v, 12, col);
-  glow(x, y - 12 - (h - 24) * v, 120, col, .6);
-  text(label, x, y + 44, { size: 28, color: K.ink, weight: 700, maxW: 260 }); text(sub, x, y + 82, { size: 22, color: K.dim, weight: 400, maxW: 260 });
-  if (up !== undefined) upDown(x + 80, y - 12 - (h - 24) * v, up, col, .9);
+  rr(x - 44, y - h, 88, h, 12, '#FFFFFF', LINE, 2); rr(x - 32, y - 12 - (h - 24) * v, 64, (h - 24) * v, 8, col);
+  text(label, x, y + 40, { size: 28, weight: 700, align: 'center', maxW: 240 }); text(sub, x, y + 76, { size: 21, weight: 500, color: K.muted, align: 'center', maxW: 250 });
+  text(up ? '↑' : '↓', x + 72, y - 12 - (h - 24) * v, { size: 44, weight: 800, color: col, align: 'center' });
   ctx.restore();
 }
-function sProblem(t) {
-  const s0 = S('problem').start;
-  {
-    backdrop(t, K.orange);
-    headline(t, s0 + .1, '01 · BACKGROUND', 'The problem today', 'Every learner answers the same set of questions');
-    // left: a tall stack of identical question tiles piling onto the learner orb
-    const px = 520, py = 860, pk = p(t, st('l4', .1), 4.5), n = Math.floor(pk * 12);
-    for (let i = 0; i < n; i++) { const yy = py - 40 - i * 30, drop = clamp((pk * 12 - i) * 1.5); rr(px - 110 + Math.sin(i * 1.7) * 10, yy - (1 - eOut(drop)) * 200, 220, 26, 8, i % 2 ? rgba(K.blue, .9) : rgba(K.cyan, .75)); }
-    orb(px, py, 22, t, K.orange, eOut(p(t, s0 + .4, .5)));
-    const cnt = Math.round(lerp(1, 91, eOut(pk)));
-    text(cnt + ' questions', px, 300, { size: 48, color: K.ink, weight: 800, alpha: p(t, st('l4', .1), .4) });
-    text('for every learner', px, 352, { size: 26, color: K.dim, weight: 400, alpha: p(t, st('l4', .1), .4) });
-    // right: meters
-    const accV = eOut(p(t, st('l5', .05), 1.2)) * .78, burV = eOut(p(t, st('l5', .5), 1.4)) * .95, effV = lerp(.7, .22, eOut(p(t, st('l6', .1), 1.6)));
-    meter(1050, 760, 400, accV, K.blue, 'Accuracy', 'more questions help', p(t, st('l5', 0), .5), true);
-    meter(1350, 760, 400, burV, K.orange, 'Burden', 'on learners', p(t, st('l5', .45), .5), true);
-    meter(1650, 760, 400, effV, K.mint, 'Efficiency', 'finding the start point', p(t, st('l6', 0), .5), false);
-    const bk = p(t, st('l5', .4), .4); if (bk > 0) pill('BUT', 1200, 330, 26, rgba(K.orange, .2), K.orange, { alpha: bk, stroke: K.orange });
-  }
-}
-// 4. adaptive — branching tree grows in real time
-function tree(t, tq, t0, dur, x0, y0) {   // tq: the root Q pops in, t0: branches start growing
-  // binary tree: level 0 root; up = harder (correct), down = easier (incorrect). Chosen path: ✓ ✗ ✓
+SC.problem = t => {
+  header(t, H0('problem'), '01  ·  BACKGROUND', 'The problem today');
+  text('Every learner answers the same set of questions', 210, 232, { size: 28, weight: 500, color: K.muted, alpha: p(t, H0('problem') + .4, .5) });
+  const pk = p(t, st('l4', .1), 4.5), n = Math.floor(pk * 14);
+  for (let i = 0; i < n; i++) { const drop = eOut(clamp((pk * 14 - i) * 1.5)); sheet(520 + nz(i, 3) * 30, 830 - i * 26 - (1 - drop) * 160, 300, 64, nz(i, 5) * .08, clamp(drop * 2), 2); }
+  const cnt = Math.round(lerp(1, 91, eOut(pk)));
+  text(`${cnt} questions`, 520, 330, { size: 56, weight: 800, align: 'center', alpha: p(t, st('l4', .1), .4) });
+  text('for every learner', 520, 384, { size: 30, weight: 700, fam: HAND, color: K.pen, align: 'center', alpha: p(t, st('l4', .3), .4) });
+  const accV = eOut(p(t, st('l5', .05), 1.2)) * .78, burV = eOut(p(t, st('l5', .5), 1.4)) * .95, effV = lerp(.7, .22, eOut(p(t, st('l6', .1), 1.6)));
+  meter(1060, 760, 380, accV, K.blue, 'Accuracy', 'more questions help', p(t, st('l5', 0), .5), true);
+  meter(1360, 760, 380, burV, K.pen, 'Burden', 'on learners', p(t, st('l5', .45), .5), true);
+  meter(1660, 760, 380, effV, K.orange, 'Efficiency', 'finding the start point', p(t, st('l6', 0), .5), false);
+  const bk = p(t, st('l5', .4), .4);
+  text('BUT', 1210, 330, { size: 40, weight: 700, fam: HAND, color: K.pen, align: 'center', alpha: bk }); penCircle(1210, 332, 56, 34, p(t, st('l5', .45), .5), K.pen, 4, 21);
+};
+
+// 4. adaptive — a branching tree drawn in pen: correct = up (blue), incorrect = down (orange)
+function tree(t, tq, t0, dur, x0, y0) {
   const lv = [[[x0, y0]], [[x0 + 330, y0 - 170], [x0 + 330, y0 + 170]], [[x0 + 660, y0 - 260], [x0 + 660, y0 - 80], [x0 + 660, y0 + 80], [x0 + 660, y0 + 260]],
     [[x0 + 990, y0 - 300], [x0 + 990, y0 - 220], [x0 + 990, y0 - 120], [x0 + 990, y0 - 40], [x0 + 990, y0 + 40], [x0 + 990, y0 + 120], [x0 + 990, y0 + 220], [x0 + 990, y0 + 300]]];
-  const path = [0, 0, 1, 2];   // indices of chosen nodes per level
+  const path = [0, 0, 1, 2];   // chosen node per level: ✓ ✗ ✓
   for (let l = 1; l < lv.length; l++) lv[l].forEach(([x, y], i) => {
-    const [px, py] = lv[l - 1][Math.floor(i / 2)], k = eOut(p(t, t0 + dur * (l - 1) / 3, dur / 3)); if (k <= 0) return;
-    const chosen = path[l] === i && path[l - 1] === Math.floor(i / 2), up = i % 2 === 0;
-    const col = chosen ? (up ? K.blue : K.orange) : rgba(K.dim, .35);
-    line(px, py, lerp(px, x, k), lerp(py, y, k), col, chosen ? 6 : 3);
-    circ(x, y, (l === 3 ? 12 : 18) * k, chosen ? col : rgba(K.card, 1), chosen ? null : rgba(K.dim, .6), 3);
+    const [px, py] = lv[l - 1][Math.floor(i / 2)], k = p(t, t0 + dur * (l - 1) / 3, dur / 3); if (k <= 0) return;
+    const chosen = path[l] === i && path[l - 1] === Math.floor(i / 2), up = i % 2 === 0, col = chosen ? (up ? K.blue : K.orange) : rgba(K.muted, .45);
+    pen(px, py, x, y, eOut(k), col, chosen ? 6 : 3, 30 + l * 10 + i);
+    circle(x, y, (l === 3 ? 12 : 18) * eBack(clamp(k * 2 - 1)), chosen ? col : '#FFFFFF', chosen ? null : rgba(K.muted, .7), 3);
+    if (chosen && l < 3) { const mk = p(t, t0 + dur * l / 3 - .2, .4); if (up) check(x + 34, y - 30, 30, mk, K.blue, 5); else crossMark(x + 34, y - 30, 22, mk, K.orange, 5); }
   });
-  const qk = eBack(p(t, tq, .5)); if (qk > 0) { glow(x0, y0, 120, K.cyan, qk * .6); circ(x0, y0, 26 * qk, K.cyan); text('Q', x0, y0 + 1, { size: 26 * qk, color: K.bg1, weight: 800 }); }
-  // the orb walks the chosen path
-  const ok = clamp((t - t0) / dur * 3, 0, 3), li = Math.min(2, Math.floor(ok)), f = eIO(ok - li);
-  const a = lv[li][path[li]], b = lv[li + 1][path[li + 1]];
-  if (t > t0) orb(lerp(a[0], b[0], ok >= 3 ? 1 : f), lerp(a[1], b[1], ok >= 3 ? 1 : f), 12, t);
+  const qk = eBack(p(t, tq, .5)); if (qk > 0) { circle(x0, y0, 30 * qk, K.ink); text('Q', x0, y0 + 2, { size: 30 * qk, weight: 700, color: '#FFFFFF', align: 'center' }); }
 }
-function sAdaptive(t) {
-  const s0 = S('adaptive').start;
-  {
-    backdrop(t);
-    headline(t, s0 + .1, '02 · THE NEW APPROACH', 'Adaptive Diagnostic Assessment');
-    const kw = ['Responsive', 'High-precision', 'Real-time'];
-    kw.forEach((w, i) => pill(w, 330 + i * 300, 300, 26, rgba(K.blue, .16), K.cyan, { alpha: eOut(p(t, st('l8', .02 + i * .1), .5)), stroke: rgba(K.cyan, .5) }));
-    tree(t, st('l7', .3), st('l7', .65), st('l8', .9) - st('l7', .65), 300, 640);
-    // legend
-    const lk = p(t, st('l8', .3), .5);
-    if (lk > 0) { panel(1430, 470, 400, 300, lk); line(1470, 545, 1530, 545, K.blue, 6, lk); text('Correct', 1550, 530, { size: 28, color: K.ink, weight: 700, align: 'left', alpha: lk }); text('→ harder question', 1550, 566, { size: 24, color: K.dim, weight: 400, align: 'left', alpha: lk });
-      line(1470, 685, 1530, 685, K.orange, 6, lk); text('Incorrect', 1550, 670, { size: 28, color: K.ink, weight: 700, align: 'left', alpha: lk }); text('→ easier question', 1550, 706, { size: 24, color: K.dim, weight: 400, align: 'left', alpha: lk }); }
+SC.adaptive = t => {
+  header(t, H0('adaptive'), '02  ·  THE NEW APPROACH', 'Adaptive Diagnostic Assessment');
+  let x = 210; ['Responsive', 'High-precision', 'Real-time'].forEach((w, i) => { x += chip(w, x, 262, { size: 22, fill: rgba(K.blue, .12), color: K.blue, a: eOut(p(t, st('l8', .02 + i * .1), .5)) }) + 14; });
+  tree(t, st('l7', .3), st('l7', .65), st('l8', .9) - st('l7', .65), 300, 620);
+  enter(t, st('l8', .3), () => { card(1430, 470, 380, 300);
+    line0(1470, 545, 1530, 545, K.blue, 6); text('Correct', 1550, 530, { size: 28, weight: 700 }); text('→ harder question', 1550, 566, { size: 22, weight: 500, color: K.muted });
+    line0(1470, 685, 1530, 685, K.orange, 6); text('Incorrect', 1550, 670, { size: 28, weight: 700 }); text('→ easier question', 1550, 706, { size: 22, weight: 500, color: K.muted }); });
+};
+
+// 5. necessary — a worksheet of 20 questions; the pen keeps 5 and crosses out the rest
+SC.necessary = t => {
+  header(t, H0('necessary'), '02  ·  THE NEW APPROACH', 'Only the questions that matter');
+  const keep = [3, 9, 12, 14, 16], cut = st('l9', .45);
+  enter(t, H0('necessary') + .2, () => card(210, 260, 900, 600, { r: 8 }));
+  for (let i = 0; i < 20; i++) {
+    const r = Math.floor(i / 5), c = i % 5, x = 250 + c * 170, y = 300 + r * 140, on = keep.includes(i + 1), k = p(t, H0('necessary') + .3 + i * .03, .4);
+    const fade = on ? 1 : 1 - .6 * p(t, cut + 1.2, .6);
+    rr(x, y, 150, 110, 10, on && t > cut + .3 ? rgba(K.blue, .12) : '#F4F7FB', null, 0, k * fade);
+    text('Q' + (i + 1), x + 75, y + 56, { size: 32, weight: 700, color: on && t > cut + .3 ? K.blue : K.ink, align: 'center', alpha: k * fade });
+    if (on) penCircle(x + 75, y + 56, 64, 44, p(t, cut + keep.indexOf(i + 1) * .15, .4), K.pen, 4, 40 + i);
+    else { const j = i - keep.filter(q => q <= i).length; crossMark(x + 75, y + 56, 60, p(t, cut + .4 + j * .04, .25), rgba(K.muted, .9), 4); }
   }
-}
-// 5. necessary — 20 tiles scanned, only 5 remain
-function sNecessary(t) {
-  const s0 = S('necessary').start, keep = [3, 9, 12, 14, 16];
-  {
-    backdrop(t);
-    headline(t, s0 + .1, '02 · THE NEW APPROACH', 'Only the questions that matter');
-    const gx = 260, gy = 330, scan = p(t, st('l9', .15), 1.6), cut = p(t, st('l9', .5), .8);
-    for (let i = 0; i < 20; i++) {
-      const r = Math.floor(i / 5), c = i % 5, x = gx + c * 170, y = gy + r * 120, on = keep.includes(i + 1), k = eOut(p(t, s0 + .3 + i * .03, .4));
-      const fade = on ? 1 : 1 - .82 * cut, lit = on && cut > 0;
-      rr(x, y, 150, 96, 16, lit ? K.blue : rgba(K.card, .95), lit ? K.cyan : K.cardLine, 2, k * fade);
-      if (lit) glow(x + 75, y + 48, 130, K.blue, cut * .7);
-      text('Q' + (i + 1), x + 75, y + 49, { size: 32, color: K.ink, weight: 700, alpha: k * fade });
-    }
-    if (scan > 0 && scan < 1) { const sx = gx - 20 + (5 * 170 + 20) * scan; line(sx, gy - 20, sx, gy + 4 * 120, K.cyan, 4, .9); glow(sx, gy + 220, 260, K.cyan, .5); }
-    // counter 20 → 5
-    const cx = 1500, n = Math.round(lerp(20, 5, eOut(cut)));
-    panel(1260, 330, 480, 460, p(t, s0 + .4, .5));
-    text(String(n), cx, 520, { size: 190, color: cut > .5 ? K.cyan : K.ink, weight: 800, alpha: p(t, s0 + .4, .5) });
-    text('questions to answer', cx, 670, { size: 32, color: K.dim, weight: 500, alpha: p(t, s0 + .4, .5), maxW: 420 });
-    text('based on each response', cx, 720, { size: 26, color: K.dim, weight: 400, alpha: cut, maxW: 420 });
-  }
-}
-// 6. benefit — two gauges
-function gauge(x, y, r, v, col, label, up, a) {
-  if (a <= 0) return; ctx.save(); ctx.globalAlpha *= a;
-  ctx.lineCap = 'round'; ctx.lineWidth = 26; ctx.strokeStyle = rgba(K.dim, .25); ctx.beginPath(); ctx.arc(x, y, r, Math.PI * .8, Math.PI * 2.2); ctx.stroke();
-  ctx.strokeStyle = col; ctx.beginPath(); ctx.arc(x, y, r, Math.PI * .8, Math.PI * (.8 + 1.4 * v)); ctx.stroke();
-  const ang = Math.PI * (.8 + 1.4 * v); glow(x + Math.cos(ang) * r, y + Math.sin(ang) * r, 90, col, .9);
-  line(x, y, x + Math.cos(ang) * (r - 50), y + Math.sin(ang) * (r - 50), K.ink, 8); circ(x, y, 16, K.ink);
-  // label sits below the arc's open ends, arrow beside it (not squeezed into the gap)
-  const ly = y + r + 50, lw = Math.min(measure(label, 32, 700), r * 2);
-  text(label, x - 24, ly, { size: 32, color: K.ink, weight: 700, maxW: r * 2 }); upDown(x - 24 + lw / 2 + 36, ly, up, col, .9);
+  const n = Math.round(lerp(20, 5, eOut(p(t, cut, 1.4))));
+  enter(t, H0('necessary') + .4, () => { text(String(n), 1460, 520, { size: 200, weight: 800, color: n === 5 ? K.blue : K.ink, align: 'center' }); text('questions to answer', 1460, 660, { size: 32, weight: 600, color: K.muted, align: 'center' }); });
+  text('based on each response', 1460, 720, { size: 32, weight: 700, fam: HAND, color: K.pen, align: 'center', alpha: p(t, cut + 1, .5) });
+};
+
+// 6. benefit — efficiency & reliability ↑, assessment time ↓
+SC.benefit = t => {
+  header(t, H0('benefit'), '02  ·  THE NEW APPROACH', 'What it improves', K.green);
+  const B = [[210, 'Efficiency & reliability', K.green, true, st('l10', 0), lerp(.25, .9, eOut(p(t, st('l10', .1), 1.8)))], [1010, 'Assessment time', K.orange, false, st('l10', .45), lerp(.85, .3, eOut(p(t, st('l10', .55), 1.8)))]];
+  B.forEach(([x, lab, col, up, t0, v]) => enter(t, t0, () => {
+    card(x, 270, 700, 330); text(lab, x + 40, 330, { size: 34, weight: 700 }); text(up ? '↑' : '↓', x + 60 + measure(lab, 34, 700), 330, { size: 40, weight: 800, color: col });
+    for (let i = 0; i <= 10; i++) line0(x + 40 + i * 62, 410, x + 40 + i * 62, 420, LINE, 2);
+    rr(x + 40, 440, 620, 44, 22, rgba(col, .15)); rr(x + 40, 440, 620 * v, 44, 22, col);
+    text(up ? 'higher' : 'shorter', x + 40, 540, { size: 28, weight: 700, fam: HAND, color: col });
+  }));
+  hiLite(200, 720, measure('Less burden.', 60, 800) + 20, 66, p(t, st('l11', .3), .6));
+  enter(t, st('l11', .1), () => text('Less burden.', 210, 752, { size: 60, weight: 800 }));
+  enter(t, st('l11', .55), () => text('A precise starting point.', 210, 852, { size: 60, weight: 800, color: K.blue }));
+  pen(210, 896, 210 + measure('A precise starting point.', 60, 800), 892, p(t, st('l11', .75), .6), K.pen, 5, 60);
+};
+
+// 7. how — the big question, then one rule on a ladder
+SC.how = t => {
+  const out = p(t, en('l12', .15), .6);
+  if (out < 1) { ctx.save(); ctx.globalAlpha *= 1 - out; enter(t, st('l12', 0), () => text('How does it', 960, 440, { size: 110, weight: 800, align: 'center' })); enter(t, st('l12', .2), () => text('actually work?', 960, 570, { size: 110, weight: 800, color: K.blue, align: 'center' }));
+    penCircle(1335, 572, 70, 70, p(t, st('l12', .6), .5), K.pen, 5, 70); ctx.restore(); }
+  if (out <= 0) return;
+  ctx.save(); ctx.globalAlpha *= eOut(out);
+  header(t, en('l12', .15), '03  ·  OPERATING PRINCIPLE', 'One simple rule');
+  const ys = [800, 690, 580, 470, 360], x = 960;
+  pen(x - 70, 840, x - 70, 320, 1, K.ink, 5, 80); pen(x + 70, 840, x + 70, 320, 1, K.ink, 5, 81); ys.forEach((y, i) => pen(x - 70, y, x + 70, y, 1, K.ink, 4, 82 + i));
+  text('EASIER', x, 880, { size: 22, weight: 800, color: K.muted, align: 'center', spacing: 3 }); text('HARDER', x, 290, { size: 22, weight: 800, color: K.muted, align: 'center', spacing: 3 });
+  const upT = st('l13', .2), dnT = st('l13', .55); let oy = ys[2];
+  if (t > upT) oy = lerp(ys[2], ys[3], eBack(p(t, upT + .3, .6)));
+  if (t > dnT) oy = lerp(ys[3], ys[1], eIO(p(t, dnT + .3, .8)));
+  circle(x, oy - 26, 20, K.pen);
+  const ka = p(t, upT, .5), kb = p(t, dnT, .5);
+  if (ka > 0) { card(1150, 330, 600, 200, { a: ka, stroke: K.blue }); check(1220, 430, 50, ka, K.blue); text('Correct answer', 1280, 400, { size: 34, weight: 800, alpha: ka }); text('move UP to a harder question', 1280, 452, { size: 26, weight: 600, color: K.blue, alpha: ka }); }
+  if (kb > 0) { card(170, 610, 600, 200, { a: kb, stroke: K.orange }); crossMark(240, 710, 40, kb, K.orange, 7); text('Incorrect answer', 300, 680, { size: 34, weight: 800, alpha: kb }); text('move DOWN to find missing concepts', 300, 732, { size: 24, weight: 600, color: K.orange, alpha: kb, maxW: 440 }); }
   ctx.restore();
-}
-function sBenefit(t) {
-  const s0 = S('benefit').start;
-  {
-    backdrop(t, K.mint);
-    headline(t, s0 + .1, '02 · THE NEW APPROACH', 'What it improves');
-    gauge(620, 490, 190, lerp(.2, .9, eOut(p(t, st('l10', .1), 1.8))), K.mint, 'Efficiency & reliability', true, p(t, st('l10', 0), .5));
-    gauge(1300, 490, 190, lerp(.85, .25, eOut(p(t, st('l10', .55), 1.8))), K.cyan, 'Assessment time', false, p(t, st('l10', .45), .5));
-    const q = p(t, st('l11', .1), .7);
-    if (q > 0) { rise('Less burden.', 960, 835, t, st('l11', .1), { size: 56, color: K.ink, weight: 800 }); }
-    if (p(t, st('l11', .55), .7) > 0) rise('A precise starting point.', 960, 905, t, st('l11', .55), { size: 56, color: K.cyan, weight: 800 });
-  }
-}
-// 7. how — question, then the up/down rule on a small ladder
-function ladder(x, ys, t, a = 1) { ys.forEach((y, i) => { line(x - 70, y, x + 70, y, rgba(K.dim, .45), 4, a); }); line(x - 70, ys[0] + 30, x - 70, ys[ys.length - 1] - 30, rgba(K.dim, .35), 4, a); line(x + 70, ys[0] + 30, x + 70, ys[ys.length - 1] - 30, rgba(K.dim, .35), 4, a); }
-function sHow(t) {
-  const s0 = S('how').start, q = p(t, st('l12', 0), .7), out = p(t, en('l12', .15), .6);
-  {
-    backdrop(t);
-    if (out < 1) { ctx.save(); ctx.globalAlpha *= 1 - out; rise('How does it', 960, 470, t, st('l12', 0), { size: 100, color: K.ink }); rise('actually work?', 960, 590, t, st('l12', .2), { size: 100, color: K.cyan }); ctx.restore(); }
-    if (out > 0) {
-      ctx.save(); ctx.globalAlpha *= eOut(out);
-      headline(t, en('l12', .15), '03 · OPERATING PRINCIPLE', 'One simple rule');
-      const ys = [800, 690, 580, 470, 360], x = 960; ladder(x, ys, t);
-      text('EASIER', x, 860, { size: 22, color: K.dim, weight: 700, spacing: 3 }); text('HARDER', x, 300, { size: 22, color: K.dim, weight: 700, spacing: 3 });
-      const upT = st('l13', .2), dnT = st('l13', .55);
-      let oy = ys[2];
-      if (t > upT) oy = lerp(ys[2], ys[3], eBack(p(t, upT + .3, .6)));
-      if (t > dnT) oy = lerp(ys[3], ys[1], eIO(p(t, dnT + .3, .8)));
-      orb(x, oy, 18, t);
-      const ka = p(t, upT, .5), kb = p(t, dnT, .5);
-      if (ka > 0) { panel(1150, 330, 560, 200, ka, K.blue); check(1220, 430, 50, K.blue, ka); text('Correct answer', 1280, 400, { size: 34, color: K.ink, weight: 800, align: 'left', alpha: ka, maxW: 400 }); text('move UP to a harder question', 1280, 452, { size: 26, color: K.cyan, weight: 500, align: 'left', alpha: ka, maxW: 400 }); }
-      if (kb > 0) { panel(210, 610, 560, 200, kb, K.orange); cross(280, 710, 44, K.orange, kb, 8); text('Incorrect answer', 340, 680, { size: 34, color: K.ink, weight: 800, align: 'left', alpha: kb, maxW: 400 }); text('move DOWN to find missing concepts', 340, 732, { size: 24, color: K.orange, weight: 500, align: 'left', alpha: kb, maxW: 410 }); }
-      ctx.restore();
-    }
-  }
-}
-// 8. path — the 9-rung difficulty ladder. Step times match the sound cues in make_audio.py (steps(l15, .6, .8), steps(l16, 1.2, .8))
-const RX = 640, RY = i => 900 - (i - 1) * 74;
+};
+
+// 8. path — the 1–9 ladder. Step times match the sound cues in make_audio.py (steps(l15, .6, .8), steps(l16, 1.2, .8))
+const RX = 640, RY = i => 880 - (i - 1) * 72;
 function steps(id, a, b) { const l = L(id); return [0, 1, 2].map(k => lerp(l.start + a, l.end - b, k / 2)); }
-function sPath(t) {
+SC.path = t => {
   // the summary waits a moment so the "how far understanding reaches" result can be read first
-  const s0 = S('path').start, dn = steps('l15', .6, .8), up = steps('l16', 1.2, .8), caseUp = t > st('l16', 0) - .2, sum = eOut(p(t, st('l17', .3), .8));
-  {
-    backdrop(t);
-    headline(t, s0 + .1, '03 · OPERATING PRINCIPLE', 'Walking the difficulty ladder');
-    const shift = sum * -200;
-    ctx.save(); ctx.translate(shift, 0);
-    // rails
-    line(RX, RY(1) + 30, RX, RY(9) - 30, rgba(K.dim, .3), 6);
-    // sequential sweep that gets crossed out
-    // the ✗ is drawn as the sweep ends and stays until the orb takes its place at No. 5
-    const sw = p(t, st('l14', .05), st('l14', .4) - st('l14', .05)), swOut = p(t, st('l14', .7), .5);
-    if (sw > 0 && swOut < 1) { line(RX - 70, RY(1), RX - 70, lerp(RY(1), RY(9), sw), rgba(K.dim, .8 * (1 - swOut)), 4, 1, [10, 10]); text('1 → 9 in order?', RX - 230, RY(5), { size: 28, color: K.dim, weight: 600, alpha: (1 - swOut) * p(t, st('l14', .1), .3) }); cross(RX - 230, RY(5) + 50, 36, K.orange, p(t, st('l14', .4), .4) * (1 - swOut), 6); }
-    // "incorrect" case on the lower rungs, "correct" case on the upper rungs. When the correct case starts, the incorrect
-    // result stays on rungs 1–3 (dimmed) instead of vanishing; only rung 5 is shared and switches to the new case
-    const down = {}, upS = {};
-    if (t > dn[0]) down[5] = 'x'; if (t > dn[1]) down[3] = 'x'; if (t > dn[2]) { down[1] = 'o'; down[2] = 'need'; }
-    if (t > up[0]) upS[5] = 'o'; if (t > up[1]) upS[7] = 'o'; if (t > up[2]) { upS[9] = 'x'; upS[8] = 'need'; }
-    const dim = caseUp ? 1 - .6 * eOut(p(t, st('l16', 0) - .2, .8)) : 1;
-    for (let i = 1; i <= 9; i++) {
-      const k = eBack(p(t, st('l14', .02) + i * .05, .4)), rep = i % 2 === 1, y = RY(i); if (k <= 0) continue;
-      const mine = caseUp && (i >= 5), s = mine ? upS[i] : down[i], a = mine ? 1 : dim;
-      const col = s === 'o' ? K.blue : s === 'x' ? K.orange : s === 'need' ? K.mint : rep ? K.ink : K.dim;
-      ctx.save(); ctx.globalAlpha *= s ? a : 1;
-      circ(RX, y, (rep ? 26 : 18) * k, s ? rgba(col, .25) : rgba(K.card, 1), col, rep ? 4 : 3);
-      text(String(i), RX, y + 1, { size: rep ? 26 : 20, color: col, weight: 800, alpha: k });
-      const lab = { o: 'correct', x: 'incorrect', need: 'check this one' }[s]; if (lab) pill(lab, RX + 140, y, 20, rgba(col, .18), col, { pad: 16 });
-      ctx.restore();
-    }
-    // orb position
-    const seq = caseUp ? [[5, up[0]], [7, up[1]], [9, up[2]], [8, up[2] + .7]] : [[5, dn[0]], [3, dn[1]], [1, dn[2]], [2, dn[2] + .7]];
-    const startT = st('l14', .65); let pos = 5;
-    if (t > startT) { for (let j = 0; j < seq.length; j++) { const [lvl, tt] = seq[j]; if (j === 0) continue; const prev = seq[j - 1][0], k = eIO(p(t, seq[j - 1][1] + .25, .55)); if (k > 0) pos = lerp(prev, lvl, k); } if (caseUp && t < st('l16', 0) + .2) pos = 5; orb(RX - 70, lerp(RY(1), RY(9), (pos - 1) / 8), 14, t); }
-    if (t > startT && t < dn[0]) pill('start: representative core question', RX + 260, RY(5) - 60, 22, rgba(K.cyan, .15), K.cyan, { alpha: p(t, startT, .4), stroke: rgba(K.cyan, .5) });
-    // bracket for the result
-    // brackets appear with the result cue and fade out only when the summary comes in
-    const bracket = (a, b, label, bk) => { if (bk <= 0) return; const yA = RY(a), yB = RY(b), bx = RX + 330; line(bx, yA, bx, yB, K.mint, 4, bk); line(bx - 14, yA, bx, yA, K.mint, 4, bk); line(bx - 14, yB, bx, yB, K.mint, 4, bk); text(label, bx + 24, (yA + yB) / 2, { size: 26, color: K.mint, weight: 700, align: 'left', alpha: bk, maxW: 560 }); };
-    bracket(1, 2, 'where the learning gap begins', eOut(p(t, dn[2], .4)) * dim * (1 - sum));
-    bracket(8, 9, 'how far understanding reaches', eOut(p(t, up[2], .4)) * (1 - sum));
+  const dn = steps('l15', .6, .8), up = steps('l16', 1.2, .8), caseUp = t > st('l16', 0) - .2, sum = eOut(p(t, st('l17', .3), .8));
+  header(t, H0('path'), '03  ·  OPERATING PRINCIPLE', 'Walking the difficulty ladder');
+  ctx.save(); ctx.translate(sum * -200, 0);
+  pen(RX, RY(1) + 30, RX, RY(9) - 30, 1, rgba(K.ink, .35), 5, 90);
+  // sequential sweep 1 → 9 that gets crossed out; the ✗ stays until the orb takes its place at No. 5
+  const sw = p(t, st('l14', .05), st('l14', .4) - st('l14', .05)), swOut = p(t, st('l14', .7), .5);
+  if (sw > 0 && swOut < 1) { pen(RX - 70, RY(1), RX - 70, lerp(RY(1), RY(9), sw), sw, rgba(K.muted, .9 * (1 - swOut)), 4, 91, 1, [10, 10]); text('1 → 9 in order?', RX - 250, RY(5), { size: 30, weight: 700, fam: HAND, color: K.muted, align: 'center', alpha: (1 - swOut) * p(t, st('l14', .1), .3) }); crossMark(RX - 250, RY(5) + 56, 44, p(t, st('l14', .4), .4), rgba(K.pen, 1 - swOut), 7); }
+  // incorrect case on the lower rungs, correct case on the upper rungs; when the correct case starts the incorrect result stays (dimmed)
+  const down = {}, upS = {};
+  if (t > dn[0]) down[5] = 'x'; if (t > dn[1]) down[3] = 'x'; if (t > dn[2]) { down[1] = 'o'; down[2] = 'need'; }
+  if (t > up[0]) upS[5] = 'o'; if (t > up[1]) upS[7] = 'o'; if (t > up[2]) { upS[9] = 'x'; upS[8] = 'need'; }
+  const dim = caseUp ? 1 - .6 * eOut(p(t, st('l16', 0) - .2, .8)) : 1;
+  for (let i = 1; i <= 9; i++) {
+    const k = eBack(p(t, st('l14', .02) + i * .05, .4)), rep = i % 2 === 1, y = RY(i); if (k <= 0) continue;
+    const mine = caseUp && i >= 5, s = mine ? upS[i] : down[i], a = mine ? 1 : dim;
+    const col = s === 'o' ? K.blue : s === 'x' ? K.orange : s === 'need' ? K.green : rep ? K.ink : K.muted;
+    ctx.save(); ctx.globalAlpha *= s ? a : 1;
+    circle(RX, y, (rep ? 26 : 18) * k, s ? rgba(col, .15) : '#FFFFFF', col, rep ? 4 : 3);
+    text(String(i), RX, y + 1, { size: rep ? 26 : 20, weight: 800, color: col, align: 'center', alpha: k });
+    if (s === 'o') check(RX + 52, y, 30, 1, K.blue, 5); if (s === 'x') crossMark(RX + 52, y, 22, 1, K.orange, 5);
+    const lab = { o: 'correct', x: 'incorrect', need: 'check this one' }[s]; if (lab) chip(lab, RX + 84, y, { size: 20, fill: rgba(col, .14), color: col, pad: 14 });
     ctx.restore();
-    // right: case caption
-    const capA = !caseUp ? p(t, st('l15', 0), .5) : p(t, st('l16', 0), .5);
-    if (sum < 1 && t > st('l15', 0) - .1) {
-      const a = capA * (1 - sum), col = caseUp ? K.blue : K.orange, title = caseUp ? 'If the learner answers correctly' : 'If the learner answers incorrectly', line2 = caseUp ? '5  →  7  →  9' : '5  →  3  →  1';
-      const py = caseUp ? 560 : 330;   // keep clear of the result bracket (top rungs when correct, bottom rungs when incorrect)
-      panel(1180, py, 600, 230, a, col); text(title, 1480, py + 65, { size: 32, color: K.ink, weight: 800, alpha: a, maxW: 540 }); text(line2, 1480, py + 140, { size: 46, color: col, weight: 800, alpha: a }); text(caseUp ? 'probe higher achievement' : 'probe underlying gaps', 1480, py + 192, { size: 24, color: K.dim, weight: 400, alpha: a, maxW: 540 });
-    }
-    // summary
-    if (sum > 0) { panel(1100, 380, 700, 380, sum, K.cyan); rise('Fewer questions.', 1450, 500, t, st('l17', .35), { size: 54, color: K.ink }); rise('Precise ability level.', 1450, 590, t, st('l17', .6), { size: 54, color: K.cyan, maxW: 640 }); text('※ representative items: 1, 3, 5, 7, 9', 1450, 690, { size: 24, color: K.dim, weight: 400, alpha: p(t, st('l17', .75), .5) }); }
   }
-}
-// 9. validate — representative + 2 similar items, 2 of 3 rule. Stamps match the sound cues (l20 +0.8 ding, +3.4 boop)
-function miniCard(x, y, lab, res, k, kRes) { rr(x - 90, y - 70, 180, 140, 18, rgba(K.card, .95), K.cardLine, 2, k); text(lab, x, y - 34, { size: 22, color: K.dim, weight: 600, alpha: k, maxW: 160 }); if (res === 'o') check(x, y + 20, 44, K.blue, kRes); if (res === 'x') cross(x, y + 20, 36, K.orange, kRes, 8); }
-function stamp(str, x, y, col, k) { if (k <= 0) return; const s = lerp(2, 1, eOut(k)); ctx.save(); ctx.translate(x, y); ctx.rotate(-.08); ctx.scale(s, s); ctx.globalAlpha *= clamp(k * 3); const w = measure(str, 34, 800) + 56; rr(-w / 2, -34, w, 68, 12, rgba(col, .12), col, 4); text(str, 0, 0, { size: 34, color: col, weight: 800 }); ctx.restore(); }
-function sValidate(t) {
-  const s0 = S('validate').start, sw = p(t, st('l20', 0) - .3, .6);
-  {
-    backdrop(t);
-    headline(t, s0 + .1, '03 · OPERATING PRINCIPLE', 'A built-in validation step');
-    const labs = ['Representative', 'Similar 1', 'Similar 2'];
-    if (sw < 1) {
-      ctx.save(); ctx.globalAlpha *= 1 - sw;
-      pill('one learning objective', 960, 330, 26, rgba(K.cyan, .14), K.cyan, { alpha: p(t, st('l19', .1), .5), stroke: rgba(K.cyan, .5) });
-      labs.forEach((l, i) => { const k = eBack(p(t, i === 0 ? st('l18', .5) : st('l19', .5 + i * .12), .6)); if (k <= 0) return; ctx.save(); ctx.translate(660 + i * 300, 560); ctx.rotate((1 - k) * .4); ctx.scale(k, k); rr(-120, -150, 240, 300, 24, rgba(K.card, .95), i === 0 ? K.cyan : K.cardLine, 3); text(i === 0 ? 'Representative' : 'Similar', 0, -60, { size: 28, color: K.ink, weight: 800, maxW: 200 }); text(i === 0 ? 'item' : 'item ' + i, 0, -20, { size: 28, color: K.ink, weight: 800 }); text('?', 0, 70, { size: 90, color: rgba(K.dim, .6), weight: 800 }); ctx.restore(); });
-      ctx.restore();
-    }
-    if (sw > 0) {
-      ctx.save(); ctx.globalAlpha *= eOut(sw);
-      const a0 = st('l20', 0) + .8, b0 = st('l20', 0) + 3.4;
-      [['o', 'x', 'o', a0, 'UNDERSTOOD', K.blue, 420], ['o', 'x', 'x', b0, 'NOT UNDERSTOOD', K.orange, 680]].forEach(([r1, r2, r3, ts, word, col, y]) => {
-        [r1, r2, r3].forEach((r, i) => miniCard(380 + i * 220, y, labs[i], r, 1, p(t, ts - .7 + i * .2, .3)));
-        text('=', 1080, y, { size: 60, color: K.dim, weight: 700, alpha: p(t, ts - .1, .3) });
-        stamp(word, 1420, y, col, p(t, ts, .35));
-      });
-      text('2 of 3 correct', 1420, 495, { size: 24, color: K.blue, weight: 700, alpha: p(t, a0 + .4, .4) });
-      text('fewer than 2 correct', 1420, 755, { size: 24, color: K.orange, weight: 700, alpha: p(t, b0 + .4, .4) });
-      const q = p(t, st('l21', .1), .6); if (q > 0) text('Fewer questions, without losing reliability.', 960, 880, { size: 40, color: K.ink, weight: 800, alpha: eOut(q), maxW: 1500 });
-      ctx.restore();
-    }
+  // the learner's pencil mark moves along the ladder
+  const seq = caseUp ? [[5, up[0]], [7, up[1]], [9, up[2]], [8, up[2] + .7]] : [[5, dn[0]], [3, dn[1]], [1, dn[2]], [2, dn[2] + .7]];
+  const startT = st('l14', .65); let pos = 5;
+  if (t > startT) { for (let j = 1; j < seq.length; j++) { const k = eIO(p(t, seq[j - 1][1] + .25, .55)); if (k > 0) pos = lerp(seq[j - 1][0], seq[j][0], k); } if (caseUp && t < st('l16', 0) + .2) pos = 5; circle(RX - 70, lerp(RY(1), RY(9), (pos - 1) / 8), 15, K.pen, null, 0, p(t, startT, .3)); }
+  if (t > startT && t < dn[0]) { const ka = p(t, startT, .4); text('start: a representative core question', RX + 84, RY(5) - 64, { size: 28, weight: 700, fam: HAND, color: K.pen, alpha: ka }); }
+  // brackets appear with the result cue and fade out only when the summary comes in
+  const bracket = (a, b, label, bk) => { if (bk <= 0) return; const yA = RY(a), yB = RY(b), bx = RX + 330; strokePts([[bx - 14, yA], [bx, yA], [bx, yB], [bx - 14, yB]], 1, K.green, 4, bk); text(label, bx + 24, (yA + yB) / 2, { size: 28, weight: 700, color: K.green, alpha: bk, maxW: 560 }); };
+  bracket(1, 2, 'where the learning gap begins', eOut(p(t, dn[2], .4)) * dim * (1 - sum));
+  bracket(8, 9, 'how far understanding reaches', eOut(p(t, up[2], .4)) * (1 - sum));
+  ctx.restore();
+  // case caption (kept clear of the bracket: top when incorrect, lower when correct)
+  if (sum < 1 && t > st('l15', 0) - .1) {
+    const a = (caseUp ? p(t, st('l16', 0), .5) : p(t, st('l15', 0), .5)) * (1 - sum), col = caseUp ? K.blue : K.orange, py = caseUp ? 560 : 300;
+    card(1180, py, 600, 230, { a, stroke: col }); text(caseUp ? 'If the learner answers correctly' : 'If the learner answers incorrectly', 1480, py + 62, { size: 30, weight: 800, align: 'center', alpha: a, maxW: 540 });
+    text(caseUp ? '5  →  7  →  9' : '5  →  3  →  1', 1480, py + 136, { size: 48, weight: 800, color: col, align: 'center', alpha: a }); text(caseUp ? 'probe higher achievement' : 'probe underlying gaps', 1480, py + 190, { size: 24, weight: 500, color: K.muted, align: 'center', alpha: a });
   }
-}
-// 10. quick — ring with the Numbers & Operations segment first, quick report, consultation
-function sQuick(t) {
-  const s0 = S('quick').start;
-  {
-    backdrop(t, K.orange);
-    headline(t, s0 + .1, '04 · QUICK DIAGNOSIS', 'Use it right away, on site');
-    const cx = 560, cy = 580, R = 220, seg = .32;
-    const k0 = p(t, st('l22', .3), .5), kNum = eOut(p(t, st('l23', .05), 3)), kRest = eIO(p(t, st('l24', .3), 7));
-    if (k0 > 0) {
-      ctx.save(); ctx.globalAlpha *= k0; ctx.lineCap = 'round'; ctx.lineWidth = 34; ctx.strokeStyle = rgba(K.dim, .2); ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI * 2); ctx.stroke();
-      const a0 = -Math.PI / 2; ctx.strokeStyle = K.orange; ctx.beginPath(); ctx.arc(cx, cy, R, a0, a0 + Math.PI * 2 * seg * kNum); ctx.stroke();
-      if (kRest > 0) { ctx.strokeStyle = rgba(K.blue, .8); ctx.beginPath(); ctx.arc(cx, cy, R, a0 + Math.PI * 2 * seg + .06, a0 + Math.PI * 2 * (seg + (1 - seg) * kRest)); ctx.stroke(); }
-      ctx.restore();
-      text('Numbers &', cx, cy - 30, { size: 40, color: K.ink, weight: 800, alpha: k0 }); text('Operations', cx, cy + 22, { size: 40, color: K.ink, weight: 800, alpha: k0 }); text('diagnosed first', cx, cy + 74, { size: 24, color: K.orange, weight: 600, alpha: p(t, st('l23', .1), .5) });
-      if (kRest > 0) text('other areas continue…', cx + R + 50, cy + R - 10, { size: 22, color: K.dim, weight: 500, align: 'left', alpha: kRest });
-    }
-    // quick report card
-    const rk = eOut(p(t, st('l23', .7), .7));
-    if (rk > 0) { const x = lerp(1900, 1080, rk); panel(x, 330, 640, 300, 1, K.orange); pill('QUICK REPORT', x + 120, 380, 20, K.orange, K.bg1, { pad: 18, weight: 800 }); text('Numbers & Operations', x + 40, 445, { size: 32, color: K.ink, weight: 800, align: 'left', maxW: 560 });
-      [['Number sense', .82], ['Addition & subtraction', .64], ['Multiplication', .41]].forEach(([n, v], i) => { const y = 500 + i * 38; text(n, x + 40, y, { size: 20, color: K.dim, weight: 500, align: 'left', maxW: 250 }); rr(x + 310, y - 8, 290, 16, 8, rgba(K.dim, .2)); rr(x + 310, y - 8, 290 * v * eOut(p(t, st('l23', .85) + i * .2, .8)), 16, 8, i === 2 ? K.orange : K.blue); }); }
-    // consultation bubbles
-    const ck = p(t, st('l24', .35), .6);
-    if (ck > 0) { [[1130, 720, 'Where is the learner now?', K.blue], [1300, 810, "Let's plan the next steps.", K.mint]].forEach(([x, y, s, col], i) => { const k = eBack(p(t, st('l24', .35) + i * .6, .5)); if (k <= 0) return; ctx.save(); ctx.translate(x, y); ctx.scale(k, k); const w = measure(s, 26, 600) + 56; rr(0, -34, w, 68, 34, rgba(col, .2), col, 2); text(s, w / 2, 0, { size: 26, color: K.ink, weight: 600 }); ctx.restore(); }); }
+  if (sum > 0) { card(1100, 360, 700, 400, { a: sum });
+    enter(t, st('l17', .35), () => text('Fewer questions.', 1450, 480, { size: 56, weight: 800, align: 'center' }));
+    enter(t, st('l17', .6), () => text('Precise ability level.', 1450, 580, { size: 56, weight: 800, color: K.blue, align: 'center', maxW: 640 }));
+    pen(1190, 622, 1710, 618, p(t, st('l17', .7), .5), K.pen, 5, 95);
+    text('representative items: 1, 3, 5, 7, 9', 1450, 690, { size: 24, weight: 500, color: K.muted, align: 'center', alpha: p(t, st('l17', .75), .5) }); }
+};
+
+// 9. validate — representative + 2 similar items; 2 of 3 → stamped. Stamps match the sound cues (l20 +0.8 ding, +3.4 boop)
+function miniSheet(x, y, lab, res, kRes) { card(x - 90, y - 70, 180, 140, { r: 8 }); text(lab, x, y - 36, { size: 20, weight: 700, color: K.muted, align: 'center', maxW: 160 }); if (res === 'o') check(x, y + 18, 50, kRes, K.blue, 7); if (res === 'x') crossMark(x, y + 18, 38, kRes, K.orange, 7); }
+SC.validate = t => {
+  header(t, H0('validate'), '03  ·  OPERATING PRINCIPLE', 'A built-in validation step');
+  const sw = p(t, st('l20', 0) - .3, .6), labs = ['Representative', 'Similar 1', 'Similar 2'];
+  if (sw < 1) {
+    ctx.save(); ctx.globalAlpha *= 1 - sw;
+    chip('one learning objective', 960, 290, { size: 24, fill: rgba(K.teal, .14), color: K.teal, a: p(t, st('l19', .1), .5), align: 'center' });
+    labs.forEach((l, i) => { const t0 = i === 0 ? st('l18', .5) : st('l19', .5 + i * .12), k = eBack(p(t, t0, .6)); if (k <= 0) return;
+      ctx.save(); ctx.translate(660 + i * 300, 580); ctx.rotate((1 - k) * .3 + (i - 1) * .03); ctx.scale(k, k);
+      card(-120, -170, 240, 340, { r: 8, stroke: i === 0 ? K.blue : LINE, lw: i === 0 ? 4 : 2 });
+      text(i === 0 ? 'Representative' : 'Similar', 0, -110, { size: 26, weight: 800, align: 'center', maxW: 200 }); text(i === 0 ? 'item' : 'item ' + i, 0, -74, { size: 26, weight: 800, align: 'center' });
+      text('?', 0, 50, { size: 110, weight: 700, fam: HAND, color: rgba(K.muted, .6), align: 'center' }); ctx.restore(); });
+    penArrow(800, 420, 1080, 420, p(t, st('l19', .8), .5), K.teal, 4, 100);
+    ctx.restore();
   }
-}
-// 11. effects — 91 → 3, workload ↓ / efficiency ↑, hub to other subjects
-function sEffects(t) {
-  const s0 = S('effects').start;
-  {
-    backdrop(t, K.mint);
-    headline(t, s0 + .1, '05 · EXPECTED EFFECTS', 'What changes in practice');
-    const hubOn = p(t, st('l29', 0), .6), A = 1 - hubOn;
-    if (A > 0) {
-      ctx.save(); ctx.globalAlpha *= A;
-      // counter
-      const ck = p(t, st('l26', .55), 1.6), n = Math.round(lerp(91, 3, eOut(ck)));
-      panel(200, 320, 640, 480, p(t, st('l26', 0), .5));
-      text('questions to answer', 520, 400, { size: 30, color: K.dim, weight: 500, alpha: p(t, st('l26', 0), .5) });
-      text(String(n), 520, 560, { size: 210, color: ck > .5 ? K.cyan : K.ink, weight: 800, alpha: p(t, st('l26', 0), .5) });
-      text(ck > .9 ? 'e.g. Q3 · Q57 · Q80' : 'Q1 ~ Q91', 520, 720, { size: 28, color: K.dim, weight: 500, alpha: p(t, st('l26', .1), .5) });
-      // bars
-      const wk = p(t, st('l27', .05), .5), ek = p(t, st('l28', .05), .5);
-      const bar = (y, label, sub, v, col, upArrow, a) => { if (a <= 0) return; text(label, 960, y - 40, { size: 32, color: K.ink, weight: 800, align: 'left', alpha: a, maxW: 640 }); text(sub, 960, y, { size: 22, color: K.dim, weight: 400, align: 'left', alpha: a, maxW: 640 }); rr(960, y + 30, 640, 30, 15, rgba(K.dim, .2), null, 0, a); rr(960, y + 30, 640 * v, 30, 15, col, null, 0, a); upDown(1660, y + 45, upArrow, col, 1, a); };
-      bar(440, 'Workload', 'for learners & teachers', lerp(.9, .35, eOut(p(t, st('l27', .25), 1.5))), K.mint, false, wk);
-      bar(660, 'Efficiency', 'of consultations & class operations', lerp(.4, .92, eOut(p(t, st('l28', .2), 1.5))), K.cyan, true, ek);
-      ctx.restore();
-    }
-    if (hubOn > 0) {
-      const cx = 960, cy = 580, k = eOut(hubOn), r = rng(5);
-      for (let i = 0; i < 5; i++) { const a = -Math.PI / 2 + (i - 2) * .55 + Math.PI, kk = eOut(p(t, st('l29', .45) + i * .15, .6)); if (kk <= 0) continue; const x = cx + Math.cos(a) * 470, y = cy + Math.sin(a) * 300 * -1; line(cx, cy, lerp(cx, x, kk), lerp(cy, y, kk), rgba(K.cyan, .5), 3, 1, [12, 10]); circ(x, y, 52 * kk, rgba(K.card, .95), rgba(K.cyan, .6), 3); text('+', x, y - 2, { size: 46, color: K.cyan, weight: 700, alpha: kk }); }
-      glow(cx, cy, 300, K.blue, k); circ(cx, cy, 120 * eBack(hubOn), K.blue, K.cyan, 5);
-      text('Self-Learning', cx, cy - 22, { size: 28, color: K.ink, weight: 700, alpha: k }); text('JEI Math', cx, cy + 18, { size: 36, color: K.ink, weight: 800, alpha: k });
-      text('applied first', cx, cy + 170, { size: 28, color: K.cyan, weight: 700, alpha: k });
-      text('then scalable to other subjects', cx, 835, { size: 32, color: K.ink, weight: 700, alpha: p(t, st('l29', .5), .6) });
-    }
+  if (sw > 0) {
+    ctx.save(); ctx.globalAlpha *= eOut(sw);
+    const a0 = st('l20', 0) + .8, b0 = st('l20', 0) + 3.4;
+    [['o', 'x', 'o', a0, 'UNDERSTOOD', K.blue, 400, '2 of 3 correct'], ['o', 'x', 'x', b0, 'NOT UNDERSTOOD', K.orange, 660, 'fewer than 2 correct']].forEach(([r1, r2, r3, ts, word, col, y, note]) => {
+      [r1, r2, r3].forEach((r, i) => miniSheet(380 + i * 220, y, labs[i], r, p(t, ts - .7 + i * .2, .3)));
+      text('=', 1080, y, { size: 64, weight: 700, color: K.muted, align: 'center', alpha: p(t, ts - .1, .3) });
+      stamp(word, 1430, y - 6, p(t, ts, .35), col, -.06);
+      text(note, 1430, y + 66, { size: 28, weight: 700, fam: HAND, color: col, align: 'center', alpha: p(t, ts + .4, .4) });
+    });
+    const q = p(t, st('l21', .1), .6);
+    hiLite(340, 846, 1240, 58, p(t, st('l21', .3), .7));
+    text('Fewer questions, without losing reliability.', 960, 876, { size: 40, weight: 800, align: 'center', alpha: eOut(q), maxW: 1400 });
+    ctx.restore();
   }
-}
+};
+
+// 10. quick — Numbers & Operations first, a quick report, then a consultation
+SC.quick = t => {
+  header(t, H0('quick'), '04  ·  QUICK DIAGNOSIS', 'Use it right away, on site', K.orange);
+  const cx = 540, cy = 580, R = 210, seg = .32;
+  const k0 = p(t, st('l22', .3), .5), kNum = eOut(p(t, st('l23', .05), 3)), kRest = eIO(p(t, st('l24', .3), 7));
+  if (k0 > 0) {
+    ctx.save(); ctx.globalAlpha *= k0; ctx.lineCap = 'round'; ctx.lineWidth = 34; ctx.strokeStyle = rgba(K.muted, .15); ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI * 2); ctx.stroke();
+    const a0 = -Math.PI / 2; ctx.strokeStyle = K.orange; ctx.beginPath(); ctx.arc(cx, cy, R, a0, a0 + Math.PI * 2 * seg * kNum); ctx.stroke();
+    if (kRest > 0) { ctx.strokeStyle = rgba(K.blue, .75); ctx.beginPath(); ctx.arc(cx, cy, R, a0 + Math.PI * 2 * seg + .08, a0 + Math.PI * 2 * (seg + (1 - seg) * kRest) - .04); ctx.stroke(); }
+    ctx.restore();
+    text('Numbers &', cx, cy - 30, { size: 40, weight: 800, align: 'center', alpha: k0 }); text('Operations', cx, cy + 20, { size: 40, weight: 800, align: 'center', alpha: k0 });
+    text('diagnosed first', cx, cy + 74, { size: 28, weight: 700, fam: HAND, color: K.orange, align: 'center', alpha: p(t, st('l23', .1), .5) });
+    if (kRest > 0) text('other areas continue…', cx + R + 40, cy + R - 10, { size: 24, weight: 600, color: K.muted, alpha: kRest });
+  }
+  const rk = eOut(p(t, st('l23', .7), .7));
+  if (rk > 0) { const x = lerp(1900, 1080, rk); card(x, 290, 680, 320, { r: 8, stroke: K.orange }); chip('QUICK REPORT', x + 40, 340, { size: 18, fill: K.orange, spacing: 2 }); text('Numbers & Operations', x + 40, 402, { size: 32, weight: 800, maxW: 600 });
+    [['Number sense', .82], ['Addition & subtraction', .64], ['Multiplication', .41]].forEach(([n, v], i) => { const y = 462 + i * 46; text(n, x + 40, y, { size: 21, weight: 600, color: K.muted, maxW: 260 }); rr(x + 330, y - 9, 300, 18, 9, rgba(K.muted, .15)); rr(x + 330, y - 9, 300 * v * eOut(p(t, st('l23', .85) + i * .2, .8)), 18, 9, i === 2 ? K.orange : K.blue); });
+    penCircle(x + 480, 554, 170, 26, p(t, st('l24', .1), .6), K.pen, 4, 110); }
+  [[1080, 720, 'Where is the learner now?', K.blue], [1260, 820, "Let's plan the next steps.", K.green]].forEach(([x, y, s, col], i) => { const k = eBack(p(t, st('l24', .35) + i * .6, .5)); if (k <= 0) return;
+    ctx.save(); ctx.translate(x, y); ctx.scale(k, k); const w = measure(s, 28, 600) + 60; rr(0, -36, w, 72, 36, '#FFFFFF', col, 3); ctx.fillStyle = col; ctx.beginPath(); ctx.moveTo(30, 30); ctx.lineTo(18, 52); ctx.lineTo(52, 33); ctx.fill(); text(s, w / 2, 0, { size: 28, weight: 600, align: 'center' }); ctx.restore(); });
+};
+
+// 11. effects — 91 → 3 questions, workload ↓ / efficiency ↑, then other subjects
+SC.effects = t => {
+  header(t, H0('effects'), '05  ·  EXPECTED EFFECTS', 'What changes in practice', K.green);
+  const hubOn = p(t, st('l29', 0), .6), A = 1 - hubOn;
+  if (A > 0) {
+    ctx.save(); ctx.globalAlpha *= A;
+    const ck = p(t, st('l26', .55), 1.6), n = Math.round(lerp(91, 3, eOut(ck))), k0 = p(t, st('l26', 0), .5);
+    card(210, 290, 640, 520, { a: k0 });
+    text('questions to answer', 530, 360, { size: 30, weight: 600, color: K.muted, align: 'center', alpha: k0 });
+    text(String(n), 530, 520, { size: 210, weight: 800, color: ck > .5 ? K.blue : K.ink, align: 'center', alpha: k0 });
+    if (ck < .9) text('Q1  ~  Q91', 530, 700, { size: 30, weight: 600, color: K.muted, align: 'center', alpha: p(t, st('l26', .1), .5) });
+    else ['Q3', 'Q57', 'Q80'].forEach((q, i) => { const x = 400 + i * 130; text(q, x, 700, { size: 32, weight: 700, color: K.blue, align: 'center' }); penCircle(x, 702, 52, 32, p(t, st('l26', .55) + 1.5 + i * .2, .4), K.pen, 4, 120 + i); });
+    const bar = (y, label, sub, v, col, upA, a) => { if (a <= 0) return; text(label, 960, y - 44, { size: 34, weight: 800, alpha: a }); text(sub, 960, y - 6, { size: 22, weight: 500, color: K.muted, alpha: a }); rr(960, y + 26, 680, 34, 17, rgba(col, .15), null, 0, a); rr(960, y + 26, 680 * v, 34, 17, col, null, 0, a); text(upA ? '↑' : '↓', 1690, y + 42, { size: 44, weight: 800, color: col, align: 'center', alpha: a }); };
+    bar(420, 'Workload', 'for learners & teachers', lerp(.9, .35, eOut(p(t, st('l27', .25), 1.5))), K.green, false, p(t, st('l27', .05), .5));
+    bar(640, 'Efficiency', 'of consultations & class operations', lerp(.4, .92, eOut(p(t, st('l28', .2), 1.5))), K.blue, true, p(t, st('l28', .05), .5));
+    ctx.restore();
+  }
+  if (hubOn > 0) {
+    const cx = 960, cy = 560, k = eOut(hubOn);
+    for (let i = 0; i < 5; i++) { const a = Math.PI / 2 + (i - 2) * .55, kk = p(t, st('l29', .45) + i * .15, .6); if (kk <= 0) continue; const x = cx + Math.cos(a) * 470, y = cy - Math.sin(a) * 280;
+      pen(cx, cy, lerp(cx, x, eOut(kk)), lerp(cy, y, eOut(kk)), 1, rgba(K.blue, .6), 3, 130 + i, 1, [12, 10]); circle(x, y, 50 * eBack(kk), '#FFFFFF', rgba(K.blue, .6), 3); text('+', x, y - 2, { size: 46, weight: 700, color: K.blue, align: 'center', alpha: kk }); }
+    circle(cx, cy, 130 * eBack(hubOn), K.blue);
+    text('Self-Learning', cx, cy - 24, { size: 28, weight: 700, color: '#FFFFFF', align: 'center', alpha: k }); text('JEI Math', cx, cy + 20, { size: 38, weight: 800, color: '#FFFFFF', align: 'center', alpha: k });
+    text('applied first', cx, cy + 180, { size: 32, weight: 700, fam: HAND, color: K.pen, align: 'center', alpha: k });
+    text('then scalable to other subjects', cx, 860, { size: 34, weight: 700, align: 'center', alpha: p(t, st('l29', .5), .6) });
+  }
+};
+
 // 12. outro
-function sOutro(t) {
-  const s0 = S('outro').start;
-  backdrop(t);
-  const k = eOut(p(t, s0 + .2, 2)), r = rng(11);
-  for (let i = 0; i < 90; i++) { const a = i / 90 * Math.PI * 2 - t * .12, sx = r() * W, sy = r() * H; circ(lerp(sx, 960 + Math.cos(a) * 420, k), lerp(sy, 480 + Math.sin(a) * 420, k), 2.6, i % 3 ? '#BFD4FF' : K.cyan, null, 0, .35 + .5 * k); }
-  glow(960, 470, 420, K.blue, k * .8);
-  text(C.title.words.join(' '), 960, 385, { size: 38, color: K.cyan, weight: 700, alpha: p(t, st('l30', .2), .6), maxW: 600 });
-  rise('Thank you', 960, 500, t, st('l31', 0) - .3, { size: 130, color: K.ink });
-  text('SELF-LEARNING JEI MATH', 960, 620, { size: 24, color: K.dim, weight: 700, alpha: p(t, st('l31', 0), .6), spacing: 4 });
-  const f = p(t, DURATION - 1.2, 1.2); if (f > 0) { ctx.fillStyle = `rgba(5,9,26,${eIO(f)})`; ctx.fillRect(0, 0, W, H); }
-}
-// ---------- subtitles (lower third) ----------
+SC.outro = t => {
+  enter(t, st('l30', .1), () => text(C.title.words.join(' '), 960, 330, { size: 44, weight: 700, color: K.blue, align: 'center', maxW: 1400 }));
+  text(C.title.kicker, 960, 400, { size: 22, weight: 700, color: K.muted, align: 'center', spacing: 3, alpha: p(t, st('l30', .4), .5) });
+  text('Thank you', 960, 600, { size: 150, weight: 700, fam: HAND, align: 'center', alpha: p(t, st('l31', 0) - .3, .5) });
+  pen(680, 690, 1240, 682, p(t, st('l31', 0) + .1, .6), K.pen, 7, 140);
+  check(1290, 600, 70, p(t, st('l31', 0) + .5, .4), K.pen, 8);
+};
+
+// ---------- subtitles: the current chunk of the current line ----------
 function subtitle(t) {
   const id = TL.order.find(i => { const l = TL.lines[i]; return t >= l.start - .1 && t < l.end + .3; }); if (!id) return;
   const l = TL.lines[id], cs = l.chunks || [{ text: l.text, start: l.start }];
   let ci = 0; for (let i = 0; i < cs.length; i++) if (t >= cs[i].start - .05) ci = i;
   const str = (C.subs && C.subs[id] && C.subs[id] !== l.text) ? C.subs[id] : cs[ci].text;
   const a = Math.min(eOut(p(t, l.start - .1, .2)), 1 - p(t, l.end + .1, .2));
-  const w = Math.min(1720, measure(str, 36, 500) + 80);
-  rr(960 - w / 2, 974, w, 68, 34, 'rgba(5,9,26,.72)', rgba(K.cyan, .25), 2, a);
-  text(str, 960, 1009, { size: 36, color: K.ink, weight: 500, alpha: a, maxW: 1640 });
+  const w = Math.min(1720, measure(str, 34, 500) + 80);
+  rr(960 - w / 2, 964, w, 66, 14, rgba(K.subBox, .9), null, 0, a);
+  text(str, 960, 998, { size: 34, weight: 500, color: '#FFFFFF', align: 'center', alpha: a, maxW: 1640 });
+}
+
+// ============================================================
+// compositor: slide between pages (with the whoosh), then hold still
+// ============================================================
+const TR = .8;
+function frame(i, t, ox) {
+  if (Math.abs(ox) >= W) return; const s = TL.scenes[i];
+  ctx.save(); ctx.translate(Math.round(ox), 0); pageFurniture(i); SC[s.id](t); ctx.restore();
 }
 function draw(t) {
   ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalAlpha = 1;
-  const sc = TL.scenes.find(s => t >= s.start && t < s.end) || TL.scenes[TL.scenes.length - 1];
-  ({ intro: sIntro, what: sWhat, problem: sProblem, adaptive: sAdaptive, necessary: sNecessary, benefit: sBenefit, how: sHow, path: sPath, validate: sValidate, quick: sQuick, effects: sEffects, outro: sOutro })[sc.id](t);
-  const fi = 1 - p(t, sc.start, .45), fo = p(t, sc.end - .35, .35);
-  if (sc.id !== 'intro' && fi > 0) { ctx.fillStyle = `rgba(5,9,26,${fi})`; ctx.fillRect(0, 0, W, H); }
-  if (sc.id !== 'outro' && fo > 0) { ctx.fillStyle = `rgba(5,9,26,${fo})`; ctx.fillRect(0, 0, W, H); }
+  const SCN = TL.scenes; let i = SCN.findIndex(s => t < s.end); if (i < 0) i = SCN.length - 1;
+  const k = i > 0 ? eIO(p(t, SCN[i].start - .15, TR)) : 1;
+  paper(i > 0 ? Math.round((i - 1 + k) * W) : 0);
+  if (k < 1) frame(i - 1, t, -k * W);
+  frame(i, t, (1 - k) * W);
+  const f = p(t, DURATION - 1.2, 1.2); if (f > 0) { ctx.fillStyle = rgba(K.paper, eIO(f)); ctx.fillRect(0, 0, W, H); }
   subtitle(t);
 }
 

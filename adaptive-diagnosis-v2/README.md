@@ -1,36 +1,37 @@
-# Adaptive Diagnostic Assessment — v2 (새 구성)
+# Adaptive Diagnostic Assessment — v2 (모눈종이 워크북)
 
-`../adaptive-diagnosis`와 **같은 내레이션(받은 음성 샘플을 복제한 Qwen3-TTS)과 같은 시각표**를 쓰고, 화면은 장표를 따라 하지 않고 처음부터 새로 구성한 버전이에요. 기존 버전은 그대로 두었어요.
+`../adaptive-diagnosis`와 **같은 내레이션(받은 음성 샘플을 복제한 Qwen3-TTS)과 같은 시각표**를 쓰고, 화면은 `../math-di-improvement-v2`와 같은 콘셉트로 새로 그린 버전이에요. 기존 장표 버전(v1)은 그대로 두었어요. 이전의 밤하늘 버전은 git 기록(`8e14945`)에 남아 있어요.
 
-- 어두운 밤하늘 배경 + 떠다니는 빛 입자, 빛나는 구슬 = 학습자
-- 큰 제목 글자가 아래에서 솟아오르는 키네틱 타이포
-- 하나의 시각 은유로 끝까지: **난이도 사다리** — 맞히면 한 칸 위로, 틀리면 한 칸 아래로
-- 1920×1080, 30fps, 폰트 Noto Sans KR. 배경음악 없음 (내레이션 + 정답·오답 효과음)
-- 모든 글자는 폭을 재서(`measure`, `maxW`, `pill`) 상자 밖으로 넘치지 않게 배치
+- **모눈종이 워크북 한 장**: 장면마다 한 쪽(p. 1 ~ p. 12). 장면이 바뀔 때 종이 위를 옆으로 넘어가고(믹스의 휙 소리와 같은 때), 읽는 동안은 화면이 움직이지 않아요(카메라 줌 없음)
+- 선생님 펜 표시: 빨간 동그라미·체크·가위표·밑줄, 형광펜, 도장(UNDERSTOOD / NOT UNDERSTOOD)
+- 되풀이되는 그림: **난이도 사다리 1~9** — 맞히면 위로, 틀리면 아래로
+- 1920×1080, 30fps. 글꼴은 macOS 시스템 글꼴 Avenir Next(본문)·Noteworthy(손글씨), 한글은 Noto Sans KR로 대신 그려요. 배경음악 없음 (내레이션 + 정답·오답·장면 전환 효과음)
+- 자막은 아래쪽 남색 상자
 
-| 장면 | 구성 |
-|---|---|
-| Title | 빛 입자가 모여 고리가 되고 제목 세 단어가 솟아오름 |
-| What is a diagnostic assessment? | 1 ASSESS → 2 DIAGNOSE → 3 PRESCRIBE 정거장을 구슬이 지나감 |
-| The problem today | 문제 타일이 학습자 위에 쌓이며 91문항 카운터, 정확도↑·부담↑(BUT)·효율↓ 막대 |
-| Adaptive Diagnostic Assessment | 실시간으로 자라는 분기 나무: 맞으면 위(파랑), 틀리면 아래(주황) |
-| Only the questions that matter | 20문항을 빛이 훑고 5문항만 남음, 20 → 5 카운터 |
-| What it improves | 효율·신뢰도 게이지↑, 진단 시간 게이지↓, "Less burden. A precise starting point." |
-| One simple rule | 사다리에서 정답이면 위로, 오답이면 아래로 |
-| Walking the difficulty ladder | 1~9 사다리: 오답 5→3→1(학습 공백 시작), 정답 5→7→9(이해가 닿는 곳), 효과음과 같은 시각 |
-| A built-in validation step | 카드 3장(대표+유사 2) → ✓✗✓ = UNDERSTOOD 도장, ✓✗✗ = NOT UNDERSTOOD 도장 |
-| Use it right away, on site | 수와 연산 구간이 먼저 차는 고리, 빠른 리포트 카드, 상담 말풍선 |
-| What changes in practice | 91 → 3 카운터, 부담↓·효율↑ 막대, JEI Math 허브에서 다른 과목으로 뻗는 선 |
-| Thank you | 입자 고리 안의 Thank you |
+| p. | 장면 | 구성 |
+|---|---|---|
+| 1 | Title | 제목 형광펜, 선생님이 채점하는 진단 시험지(4 / 6) |
+| 2 | What is a diagnostic assessment? | 1 ASSESS → 2 DIAGNOSE → 3 PRESCRIBE 카드 |
+| 3 | The problem today | 쌓이는 문제지와 91문항 카운터, 정확도↑ BUT 부담↑, 효율↓ 막대 |
+| 4 | Adaptive Diagnostic Assessment | 펜으로 자라는 분기 나무: 맞으면 위(파랑 ✓), 틀리면 아래(주황 ✗) |
+| 5 | Only the questions that matter | 20문항 문제지에서 5문항만 동그라미, 나머지 가위표, 20 → 5 |
+| 6 | What it improves | 효율·신뢰도↑, 진단 시간↓ 막대, "Less burden. A precise starting point." |
+| 7 | One simple rule | 큰 질문 → 사다리: 정답이면 위로, 오답이면 아래로 |
+| 8 | Walking the difficulty ladder | 1~9 사다리: 오답 5→3→1, 정답 5→7→9, 효과음과 같은 시각. 오답 결과는 정답 경우 동안 흐리게 남음 |
+| 9 | A built-in validation step | 대표+유사 2문항 → ✓✗✓ = UNDERSTOOD 도장, ✓✗✗ = NOT UNDERSTOOD 도장 |
+| 10 | Use it right away, on site | 수와 연산 구간이 먼저 차는 고리, 빠른 리포트, 상담 말풍선 |
+| 11 | What changes in practice | 91 → 3 (Q3 · Q57 · Q80에 동그라미), 부담↓·효율↑, JEI Math에서 다른 과목으로 |
+| 12 | Thank you | 손글씨 Thank you |
 
 ## 고치기·렌더링
 
 - 내레이션·자막·시각: `../adaptive-diagnosis/tools/make_audio.py`에서 고친 뒤 `tools/sync_narration.sh`로 `timeline.js`와 `audio/mix.wav`를 복사
-- 장면: `index.html`의 `sIntro` ~ `sOutro`, 색·제목: `content.js` (영상 편집기에서도 수정 가능)
+- 장면: `index.html`의 `SC.intro` ~ `SC.outro`, 색·제목: `content.js` (영상 편집기에서도 수정 가능)
 
 ```bash
 npm install
 tools/sync_narration.sh
 export FFMPEG=$(python3 -c "import imageio_ffmpeg as i; print(i.get_ffmpeg_exe())")
-node render.mjs        # out/adaptive_diagnosis_v2.mp4
+export CHROMIUM="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"   # macOS
+node render.mjs --workers 6   # out/adaptive_diagnosis_v2.mp4 (브라우저 6개가 나눠 그려요)
 ```
