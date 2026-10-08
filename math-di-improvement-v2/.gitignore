@@ -1,0 +1,10 @@
+node_modules/
+chunks/
+stills/
+__pycache__/
+.DS_Store
+# 소리·영상 결과물은 저장소에 올리지 않음 (다른 영상 폴더와 같은 규칙). tts/ 는 문장별 음성 캐시
+tts/
+*.wav
+*.mp4
+out/

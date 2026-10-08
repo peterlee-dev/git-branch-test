@@ -1,0 +1,128 @@
+1
+00:00:01,800 --> 00:00:06,440
+This video introduces the improvement plan for JEI Math Grades D through I.
+
+2
+00:00:06,840 --> 00:00:14,830
+We will explore the three key directions for improvement, the detailed changes for each grade, and how the supplementary materials will be utilized.
+
+3
+00:00:16,730 --> 00:00:22,970
+Currently, approximately 80 percent of our total members are concentrated in Grades D through I.
+
+4
+00:00:23,370 --> 00:00:38,190
+Therefore, based on JEI's unique and systematic learning structure, we have selected these grades as our top priority for improvement, with the goal of strengthening alignment with the Common Core State Standards, CCSS, and optimizing the learner experience.
+
+5
+00:00:40,090 --> 00:00:44,850
+The first area of improvement is to strengthen the incorporation of the CCSS.
+
+6
+00:00:45,250 --> 00:00:52,640
+When comparing JEI's learning sequence with the CCSS progression, the timing and progression of learning do not always align.
+
+7
+00:00:53,040 --> 00:00:58,550
+In particular, we will closely review the timing and progression of learning and CCSS alignment.
+
+8
+00:01:00,450 --> 00:01:11,190
+Building on JEI's systematic learning roadmap, we aim to further enhance alignment with grade-level standards in the U.S., maximizing both the timeliness and completeness of learning.
+
+9
+00:01:13,090 --> 00:01:22,150
+For example, in Grade D, we have strengthened students' understanding of the relational meaning of the equal sign, emphasizing that both sides represent equal quantities.
+
+10
+00:01:22,550 --> 00:01:30,600
+We have also added word problems involving three numbers to further develop students' ability to apply mathematical concepts to real-life situations.
+
+11
+00:01:32,500 --> 00:01:44,120
+In Grade I, we have newly introduced the coordinate plane and strengthened learning related to comparing integers and understanding absolute value, allowing students to progress naturally toward more advanced concepts.
+
+12
+00:01:46,020 --> 00:01:55,830
+Through these changes, we will connect JEI's strong learning system more closely with the local curriculum and further strengthen the natural connections between concepts across grades.
+
+13
+00:01:58,430 --> 00:02:03,040
+The second direction is to improve page structure based on the amount of learning content.
+
+14
+00:02:03,440 --> 00:02:11,610
+The existing pages provided 12 to 24 calculation practice problems, offering students valuable opportunities for practice and mastery.
+
+15
+00:02:12,010 --> 00:02:19,550
+However, to reduce learner fatigue and help students focus more deeply on concepts, we have reorganized the content more efficiently.
+
+16
+00:02:19,950 --> 00:02:31,700
+Accordingly, the main textbook has been redesigned around conceptual understanding and representative problems, allowing students to focus on key learning objectives while providing sufficient space for solving problems.
+
+17
+00:02:34,900 --> 00:02:42,170
+The repetitive practice problems reduced from the main textbook will be reorganized into supplementary materials, customized for each set.
+
+18
+00:02:42,570 --> 00:02:50,810
+When students need additional practice after completing the main textbook, centers will be able to download, print, and provide the appropriate materials.
+
+19
+00:02:52,710 --> 00:03:04,780
+This approach reduces unnecessary learning burden in the main textbook while still providing sufficient opportunities for mastery through supplementary materials directly connected to each target set, ultimately supporting mastery learning.
+
+20
+00:03:06,680 --> 00:03:12,190
+The third direction is to strengthen the connection between prerequisite concepts and subsequent learning.
+
+21
+00:03:12,590 --> 00:03:24,660
+Building on JEI's strong conceptual structure, we have further subdivided the learning steps so that students can transition more easily to higher-level concepts such as equations, fractions, and decimals.
+
+22
+00:03:26,560 --> 00:03:32,190
+In Grade F, we have designed the concept of equal partitioning to naturally lead into fraction notation.
+
+23
+00:03:32,590 --> 00:03:39,970
+We have also introduced the use of variables progressively according to students' grade levels to support intuitive understanding of equations.
+
+24
+00:03:41,870 --> 00:03:55,540
+In Grades G and H, we have strengthened the use of visual models, such as number lines, area models, and grouping models, so that students can develop a more intuitive understanding of rounding and the principles of multiplying and dividing fractions.
+
+25
+00:03:57,440 --> 00:04:07,150
+Furthermore, in Grade I, these foundations are systematically extended so that relationships between two variables naturally progress from equations to tables and then to graphs.
+
+26
+00:04:10,150 --> 00:04:16,500
+Along with the evolution of these learning objectives, we are also redesigning the diagnostic assessment and system data.
+
+27
+00:04:16,900 --> 00:04:27,910
+Based on the revised standards, the system will not only accurately identify each student's starting point but also automatically connect the results to personalized supplementary-material recommendations.
+
+28
+00:04:28,310 --> 00:04:32,950
+This will create a more complete learning cycle from diagnosis to prescription to learning.
+
+29
+00:04:34,850 --> 00:04:45,080
+Through these improvements, 140 of the 221 existing sets will maintain their current structure, while 81 sets will be revised and enhanced and 5 new sets will be added.
+
+30
+00:04:49,280 --> 00:04:58,610
+For each grade, we will comprehensively implement the main textbook revision, system data updates, and supplementary-material development as one integrated package.
+
+31
+00:05:01,210 --> 00:05:10,830
+Through this improvement aligned with global standards, we aim to help students understand mathematical concepts more clearly and confidently extend their learning to the next level.
+
+32
+00:05:11,230 --> 00:05:11,800
+Thank you.
+
