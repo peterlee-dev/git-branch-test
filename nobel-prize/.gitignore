@@ -1,0 +1,8 @@
+node_modules/
+audio/*
+!audio/.gitkeep
+!audio/voice_ref.wav
+!audio/voice_ref.txt
+out/*
+!out/.gitkeep
+__pycache__/
