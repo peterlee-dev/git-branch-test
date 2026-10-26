@@ -1,0 +1,126 @@
+{
+ "text": "The assessment will first be applied to Self-Learning JEI Math, with the potential to expand to other subjects in the future.",
+ "tts": "The assessment will first be applied to Self-Learning J.E.I. Math, with the potential to expand to other subjects in the future.",
+ "voice": "Qwen3-TTS clone of audio/narration.mp3 (ref 14.1-28.7 s, l3-l4)",
+ "pick": {
+  "try": 7,
+  "cer": 0.0,
+  "sim": 0.8502651453018188,
+  "dur": 6.485333333333333,
+  "wps": 3.2380756578947367,
+  "hyp": "The assessment will first be applied to self-learning JEI math with the potential to expand to other subjects in the future."
+ },
+ "tempo": 0.9259,
+ "words": [
+  {
+   "w": " The",
+   "s": 0.0,
+   "e": 0.12
+  },
+  {
+   "w": " assessment",
+   "s": 0.12,
+   "e": 0.52
+  },
+  {
+   "w": " will",
+   "s": 0.52,
+   "e": 0.74
+  },
+  {
+   "w": " first",
+   "s": 0.74,
+   "e": 1.04
+  },
+  {
+   "w": " be",
+   "s": 1.04,
+   "e": 1.22
+  },
+  {
+   "w": " applied",
+   "s": 1.22,
+   "e": 1.56
+  },
+  {
+   "w": " to",
+   "s": 1.56,
+   "e": 1.76
+  },
+  {
+   "w": " self",
+   "s": 1.76,
+   "e": 2.08
+  },
+  {
+   "w": " -learning",
+   "s": 2.08,
+   "e": 2.46
+  },
+  {
+   "w": " JEI",
+   "s": 2.46,
+   "e": 3.2
+  },
+  {
+   "w": " math",
+   "s": 3.2,
+   "e": 3.48
+  },
+  {
+   "w": " with",
+   "s": 3.48,
+   "e": 4.08
+  },
+  {
+   "w": " the",
+   "s": 4.08,
+   "e": 4.2
+  },
+  {
+   "w": " potential",
+   "s": 4.2,
+   "e": 4.62
+  },
+  {
+   "w": " to",
+   "s": 4.62,
+   "e": 4.88
+  },
+  {
+   "w": " expand",
+   "s": 4.88,
+   "e": 5.26
+  },
+  {
+   "w": " to",
+   "s": 5.26,
+   "e": 5.52
+  },
+  {
+   "w": " other",
+   "s": 5.52,
+   "e": 5.78
+  },
+  {
+   "w": " subjects",
+   "s": 5.82,
+   "e": 6.14
+  },
+  {
+   "w": " in",
+   "s": 6.14,
+   "e": 6.38
+  },
+  {
+   "w": " the",
+   "s": 6.38,
+   "e": 6.46
+  },
+  {
+   "w": " future.",
+   "s": 6.46,
+   "e": 6.96
+  }
+ ]
+}

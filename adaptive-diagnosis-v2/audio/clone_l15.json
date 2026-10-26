@@ -1,0 +1,156 @@
+{
+ "text": "If the learner answers incorrectly, the system moves down to lower-level concepts, such as No. 3 and then No. 1, to trace where the learning gap begins.",
+ "tts": "If the learner answers incorrectly, the system moves down to lower-level concepts, such as number three and then number one, to trace where the learning gap begins.",
+ "voice": "Qwen3-TTS clone of audio/narration.mp3 (ref 14.1-28.7 s, l3-l4)",
+ "pick": {
+  "try": 3,
+  "cer": 0.0,
+  "sim": 0.8854369521141052,
+  "dur": 8.938666666666666,
+  "wps": 3.020584725536993,
+  "hyp": "If the learner answers incorrectly, the system moves down to lower level concepts such as number three and then number one to trace where the learning gap begins."
+ },
+ "tempo": 0.9429,
+ "words": [
+  {
+   "w": " If",
+   "s": 0.0,
+   "e": 0.16
+  },
+  {
+   "w": " the",
+   "s": 0.16,
+   "e": 0.3
+  },
+  {
+   "w": " learner",
+   "s": 0.3,
+   "e": 0.56
+  },
+  {
+   "w": " answers",
+   "s": 0.56,
+   "e": 1.04
+  },
+  {
+   "w": " incorrectly,",
+   "s": 1.04,
+   "e": 1.88
+  },
+  {
+   "w": " the",
+   "s": 1.88,
+   "e": 2.24
+  },
+  {
+   "w": " system",
+   "s": 2.24,
+   "e": 2.58
+  },
+  {
+   "w": " moves",
+   "s": 2.58,
+   "e": 2.94
+  },
+  {
+   "w": " down",
+   "s": 2.94,
+   "e": 3.16
+  },
+  {
+   "w": " to",
+   "s": 3.16,
+   "e": 3.34
+  },
+  {
+   "w": " lower",
+   "s": 3.34,
+   "e": 3.66
+  },
+  {
+   "w": " -level",
+   "s": 3.66,
+   "e": 3.96
+  },
+  {
+   "w": " concepts",
+   "s": 3.96,
+   "e": 4.52
+  },
+  {
+   "w": " such",
+   "s": 4.52,
+   "e": 4.88
+  },
+  {
+   "w": " as",
+   "s": 4.88,
+   "e": 5.04
+  },
+  {
+   "w": " number",
+   "s": 5.24,
+   "e": 5.26
+  },
+  {
+   "w": " 3",
+   "s": 5.26,
+   "e": 5.68
+  },
+  {
+   "w": " and",
+   "s": 5.68,
+   "e": 6.1
+  },
+  {
+   "w": " then",
+   "s": 6.1,
+   "e": 6.24
+  },
+  {
+   "w": " number",
+   "s": 6.24,
+   "e": 6.52
+  },
+  {
+   "w": " 1",
+   "s": 6.52,
+   "e": 6.9
+  },
+  {
+   "w": " to",
+   "s": 6.9,
+   "e": 7.38
+  },
+  {
+   "w": " trace",
+   "s": 7.38,
+   "e": 7.7
+  },
+  {
+   "w": " where",
+   "s": 7.7,
+   "e": 8.08
+  },
+  {
+   "w": " the",
+   "s": 8.08,
+   "e": 8.26
+  },
+  {
+   "w": " learning",
+   "s": 8.26,
+   "e": 8.54
+  },
+  {
+   "w": " gap",
+   "s": 8.54,
+   "e": 8.8
+  },
+  {
+   "w": " begins.",
+   "s": 8.8,
+   "e": 9.44
+  }
+ ]
+}

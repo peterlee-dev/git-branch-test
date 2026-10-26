@@ -1,0 +1,86 @@
+{
+ "text": "With fewer questions, both learners and teachers can expect a lighter workload during diagnosis.",
+ "tts": "With fewer questions, both learners and teachers can expect a lighter workload during diagnosis.",
+ "voice": "Qwen3-TTS clone of audio/narration.mp3 (ref 14.1-28.7 s, l3-l4)",
+ "pick": {
+  "try": 6,
+  "cer": 0.0,
+  "sim": 0.8866653442382812,
+  "dur": 5.248,
+  "wps": 2.667682926829268,
+  "hyp": "With fewer questions, both learners and teachers can expect a lighter workload during diagnosis."
+ },
+ "tempo": 0.9626,
+ "words": [
+  {
+   "w": " With",
+   "s": 0.0,
+   "e": 0.16
+  },
+  {
+   "w": " fewer",
+   "s": 0.16,
+   "e": 0.48
+  },
+  {
+   "w": " questions,",
+   "s": 0.48,
+   "e": 1.3
+  },
+  {
+   "w": " both",
+   "s": 1.3,
+   "e": 1.58
+  },
+  {
+   "w": " learners",
+   "s": 1.58,
+   "e": 1.92
+  },
+  {
+   "w": " and",
+   "s": 1.92,
+   "e": 2.3
+  },
+  {
+   "w": " teachers",
+   "s": 2.3,
+   "e": 2.64
+  },
+  {
+   "w": " can",
+   "s": 2.64,
+   "e": 2.96
+  },
+  {
+   "w": " expect",
+   "s": 2.96,
+   "e": 3.3
+  },
+  {
+   "w": " a",
+   "s": 3.3,
+   "e": 3.48
+  },
+  {
+   "w": " lighter",
+   "s": 3.48,
+   "e": 3.76
+  },
+  {
+   "w": " workload",
+   "s": 3.76,
+   "e": 4.26
+  },
+  {
+   "w": " during",
+   "s": 4.26,
+   "e": 4.56
+  },
+  {
+   "w": " diagnosis.",
+   "s": 4.56,
+   "e": 5.42
+  }
+ ]
+}

@@ -1,0 +1,171 @@
+{
+ "text": "It is a responsive, high-precision diagnostic system in which the next question is adjusted in real time based on whether the learner answers correctly or incorrectly within each learning objective.",
+ "tts": "It is a responsive, high-precision diagnostic system in which the next question is adjusted in real time based on whether the learner answers correctly or incorrectly within each learning objective.",
+ "voice": "Qwen3-TTS clone of audio/narration.mp3 (ref 14.1-28.7 s, l3-l4)",
+ "pick": {
+  "try": 6,
+  "cer": 0.0,
+  "sim": 0.897347629070282,
+  "dur": 10.858666666666666,
+  "wps": 2.762770137524558,
+  "hyp": "It is a responsive, high-precision diagnostic system in which the next question is adjusted in real-time, based on whether the learner answers correctly or incorrectly within each learning objective."
+ },
+ "tempo": 0.97,
+ "words": [
+  {
+   "w": " It",
+   "s": 0.0,
+   "e": 0.1
+  },
+  {
+   "w": " is",
+   "s": 0.1,
+   "e": 0.22
+  },
+  {
+   "w": " a",
+   "s": 0.22,
+   "e": 0.36
+  },
+  {
+   "w": " responsive,",
+   "s": 0.36,
+   "e": 1.14
+  },
+  {
+   "w": " high",
+   "s": 1.14,
+   "e": 1.32
+  },
+  {
+   "w": " -precision",
+   "s": 1.32,
+   "e": 1.78
+  },
+  {
+   "w": " diagnostic",
+   "s": 1.78,
+   "e": 2.2
+  },
+  {
+   "w": " system",
+   "s": 2.2,
+   "e": 2.86
+  },
+  {
+   "w": " in",
+   "s": 2.86,
+   "e": 3.4
+  },
+  {
+   "w": " which",
+   "s": 3.4,
+   "e": 3.56
+  },
+  {
+   "w": " the",
+   "s": 3.56,
+   "e": 3.74
+  },
+  {
+   "w": " next",
+   "s": 3.74,
+   "e": 4.0
+  },
+  {
+   "w": " question",
+   "s": 4.0,
+   "e": 4.44
+  },
+  {
+   "w": " is",
+   "s": 4.44,
+   "e": 4.8
+  },
+  {
+   "w": " adjusted",
+   "s": 4.8,
+   "e": 5.22
+  },
+  {
+   "w": " in",
+   "s": 5.22,
+   "e": 5.52
+  },
+  {
+   "w": " real",
+   "s": 5.52,
+   "e": 5.82
+  },
+  {
+   "w": " time",
+   "s": 5.82,
+   "e": 6.16
+  },
+  {
+   "w": " based",
+   "s": 6.16,
+   "e": 6.78
+  },
+  {
+   "w": " on",
+   "s": 6.78,
+   "e": 7.0
+  },
+  {
+   "w": " whether",
+   "s": 7.0,
+   "e": 7.22
+  },
+  {
+   "w": " the",
+   "s": 7.22,
+   "e": 7.46
+  },
+  {
+   "w": " learner",
+   "s": 7.46,
+   "e": 7.7
+  },
+  {
+   "w": " answers",
+   "s": 7.7,
+   "e": 8.14
+  },
+  {
+   "w": " correctly",
+   "s": 8.14,
+   "e": 8.62
+  },
+  {
+   "w": " or",
+   "s": 8.62,
+   "e": 8.94
+  },
+  {
+   "w": " incorrectly",
+   "s": 8.94,
+   "e": 9.52
+  },
+  {
+   "w": " within",
+   "s": 9.52,
+   "e": 9.88
+  },
+  {
+   "w": " each",
+   "s": 9.88,
+   "e": 10.26
+  },
+  {
+   "w": " learning",
+   "s": 10.26,
+   "e": 10.52
+  },
+  {
+   "w": " objective.",
+   "s": 10.52,
+   "e": 11.16
+  }
+ ]
+}

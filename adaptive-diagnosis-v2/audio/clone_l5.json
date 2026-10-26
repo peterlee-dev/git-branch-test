@@ -1,0 +1,121 @@
+{
+ "text": "While using a large number of questions can make the results more exact, it also places a significant burden on learners.",
+ "tts": "While using a large number of questions can make the results more exact, it also places a significant burden on learners.",
+ "voice": "Qwen3-TTS clone of audio/narration.mp3 (ref 14.1-28.7 s, l3-l4)",
+ "pick": {
+  "try": 4,
+  "cer": 0.0,
+  "sim": 0.8813890814781189,
+  "dur": 6.144,
+  "wps": 3.41796875,
+  "hyp": "While using a large number of questions can make the results more exact, it also places a significant burden on learners."
+ },
+ "tempo": 0.9,
+ "words": [
+  {
+   "w": " While",
+   "s": 0.0,
+   "e": 0.14
+  },
+  {
+   "w": " using",
+   "s": 0.14,
+   "e": 0.48
+  },
+  {
+   "w": " a",
+   "s": 0.48,
+   "e": 0.66
+  },
+  {
+   "w": " large",
+   "s": 0.66,
+   "e": 1.0
+  },
+  {
+   "w": " number",
+   "s": 1.0,
+   "e": 1.3
+  },
+  {
+   "w": " of",
+   "s": 1.3,
+   "e": 1.46
+  },
+  {
+   "w": " questions",
+   "s": 1.46,
+   "e": 1.82
+  },
+  {
+   "w": " can",
+   "s": 2.08,
+   "e": 2.14
+  },
+  {
+   "w": " make",
+   "s": 2.14,
+   "e": 2.32
+  },
+  {
+   "w": " the",
+   "s": 2.32,
+   "e": 2.44
+  },
+  {
+   "w": " results",
+   "s": 2.44,
+   "e": 2.76
+  },
+  {
+   "w": " more",
+   "s": 2.76,
+   "e": 3.02
+  },
+  {
+   "w": " exact,",
+   "s": 3.02,
+   "e": 3.76
+  },
+  {
+   "w": " it",
+   "s": 4.02,
+   "e": 4.1
+  },
+  {
+   "w": " also",
+   "s": 4.1,
+   "e": 4.36
+  },
+  {
+   "w": " places",
+   "s": 4.36,
+   "e": 4.76
+  },
+  {
+   "w": " a",
+   "s": 4.76,
+   "e": 4.98
+  },
+  {
+   "w": " significant",
+   "s": 4.98,
+   "e": 5.52
+  },
+  {
+   "w": " burden",
+   "s": 5.52,
+   "e": 5.86
+  },
+  {
+   "w": " on",
+   "s": 5.86,
+   "e": 6.16
+  },
+  {
+   "w": " learners.",
+   "s": 6.16,
+   "e": 6.8
+  }
+ ]
+}

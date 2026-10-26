@@ -1,0 +1,131 @@
+{
+ "text": "The Quick Diagnosis starts with Numbers and Operations, a foundational area of mathematics, and then provides a quick report on Numbers and Operations.",
+ "tts": "The Quick Diagnosis starts with Numbers and Operations, a foundational area of mathematics, and then provides a quick report on Numbers and Operations.",
+ "voice": "Qwen3-TTS clone of audio/narration.mp3 (ref 14.1-28.7 s, l3-l4)",
+ "pick": {
+  "try": 7,
+  "cer": 0.0,
+  "sim": 0.87663733959198,
+  "dur": 7.786666666666667,
+  "wps": 2.953767123287671,
+  "hyp": "The quick diagnosis starts with numbers and operations, a foundational area of mathematics, and then provides a quick report on numbers and operations."
+ },
+ "tempo": 0.9,
+ "words": [
+  {
+   "w": " The",
+   "s": 0.0,
+   "e": 0.12
+  },
+  {
+   "w": " quick",
+   "s": 0.12,
+   "e": 0.36
+  },
+  {
+   "w": " diagnosis",
+   "s": 0.36,
+   "e": 0.92
+  },
+  {
+   "w": " starts",
+   "s": 0.92,
+   "e": 1.36
+  },
+  {
+   "w": " with",
+   "s": 1.36,
+   "e": 1.58
+  },
+  {
+   "w": " numbers",
+   "s": 1.58,
+   "e": 2.0
+  },
+  {
+   "w": " and",
+   "s": 2.0,
+   "e": 2.2
+  },
+  {
+   "w": " operations,",
+   "s": 2.2,
+   "e": 2.92
+  },
+  {
+   "w": " a",
+   "s": 2.92,
+   "e": 3.46
+  },
+  {
+   "w": " foundational",
+   "s": 3.46,
+   "e": 3.96
+  },
+  {
+   "w": " area",
+   "s": 3.96,
+   "e": 4.48
+  },
+  {
+   "w": " of",
+   "s": 4.48,
+   "e": 4.72
+  },
+  {
+   "w": " mathematics,",
+   "s": 4.72,
+   "e": 5.44
+  },
+  {
+   "w": " and",
+   "s": 5.6,
+   "e": 5.7
+  },
+  {
+   "w": " then",
+   "s": 5.7,
+   "e": 5.88
+  },
+  {
+   "w": " provides",
+   "s": 5.88,
+   "e": 6.32
+  },
+  {
+   "w": " a",
+   "s": 6.32,
+   "e": 6.46
+  },
+  {
+   "w": " quick",
+   "s": 6.46,
+   "e": 6.68
+  },
+  {
+   "w": " report",
+   "s": 6.68,
+   "e": 7.04
+  },
+  {
+   "w": " on",
+   "s": 7.04,
+   "e": 7.3
+  },
+  {
+   "w": " numbers",
+   "s": 7.3,
+   "e": 7.64
+  },
+  {
+   "w": " and",
+   "s": 7.64,
+   "e": 7.8
+  },
+  {
+   "w": " operations.",
+   "s": 7.8,
+   "e": 8.62
+  }
+ ]
+}

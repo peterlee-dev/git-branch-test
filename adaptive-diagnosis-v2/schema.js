@@ -10,16 +10,14 @@ window.SCHEMA = {
  audioFade: { in: 0, out: 1 },
  scenes: TL.scenes.map(s => ({ start: s.start, end: s.end, label: s.label })),
  sounds: [],
- tabs: [{ id: 'text', label: 'Text' }, { id: 'subs', label: 'Subtitles' }, { id: 'color', label: 'Colours' }],
+ tabs: [{ id: 'text', label: 'Text' }, { id: 'color', label: 'Colours' }],
  groups: [
   { tab: 'text', title: 'Title', at: 6, fields: [
    { path: 'title.kicker', label: 'Kicker', type: 'text' }, { path: 'title.words.0', label: 'Title word 1', type: 'text' }, { path: 'title.words.1', label: 'Title word 2', type: 'text' }, { path: 'title.words.2', label: 'Title word 3', type: 'text' },
    { path: 'title.sub', label: 'Subtitle', type: 'text' }, { path: 'title.team', label: 'Team / year', type: 'text' }] },
-  ...TL.scenes.map(s => ({ tab: 'subs', title: s.label, note: 'Only the subtitle changes; the voice stays the same.',
-   fields: TL.order.filter(id => TL.lines[id].scene === s.id).map(id => ({ path: `subs.${id}`, label: id, type: 'text', at: (TL.lines[id].start + TL.lines[id].end) / 2 })) })),
-  { tab: 'color', title: 'Colours', fields: [col('colors.paper', 'Paper', 20), col('colors.grid', 'Graph-paper lines', 20), col('colors.ink', 'Ink (text)', 20), col('colors.pen', "Teacher's red pen", 20), col('colors.blue', 'Correct / main blue', 130), col('colors.orange', 'Incorrect', 130), col('colors.green', 'Positive', 90), col('colors.subBox', 'Subtitle box', 20)] },
+  { tab: 'color', title: 'Colours', fields: [col('colors.paper', 'Paper', 20), col('colors.grid', 'Graph-paper lines', 20), col('colors.ink', 'Ink (text)', 20), col('colors.red', "Main red: correct · up · teacher's pen", 130), col('colors.navy', 'Navy: incorrect · down', 130), col('colors.blue', 'Blue: 2nd of a comparison', 20), col('colors.mint', 'Mint: check this one', 130)] },
  ],
- locked: 'Narration and timing are shared with ../adaptive-diagnosis (tools/sync_narration.sh). Every animation is keyed to a narration line.',
+ locked: 'Narration: the recorded reading audio/narration.mp3, cut into lines and timed by tools/make_audio.py. Every animation is keyed to a narration line or a spoken word.',
  warnings: [],
 };
 })();

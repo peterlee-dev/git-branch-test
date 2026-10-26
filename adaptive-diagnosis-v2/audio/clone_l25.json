@@ -1,0 +1,71 @@
+{
+ "text": "Now, let's look at how this assessment can help in practice.",
+ "tts": "Now, let's look at how this assessment can help in practice.",
+ "voice": "Qwen3-TTS clone of audio/narration.mp3 (ref 14.1-28.7 s, l3-l4)",
+ "pick": {
+  "try": 0,
+  "cer": 0.0,
+  "sim": 0.8554898500442505,
+  "dur": 3.456,
+  "wps": 3.1828703703703702,
+  "hyp": "Now, let's look at how this assessment can help in practice."
+ },
+ "tempo": 0.9369,
+ "words": [
+  {
+   "w": " Now,",
+   "s": 0.0,
+   "e": 0.7
+  },
+  {
+   "w": " let's",
+   "s": 0.7,
+   "e": 1.22
+  },
+  {
+   "w": " look",
+   "s": 1.22,
+   "e": 1.38
+  },
+  {
+   "w": " at",
+   "s": 1.38,
+   "e": 1.5
+  },
+  {
+   "w": " how",
+   "s": 1.5,
+   "e": 1.64
+  },
+  {
+   "w": " this",
+   "s": 1.64,
+   "e": 1.86
+  },
+  {
+   "w": " assessment",
+   "s": 1.86,
+   "e": 2.3
+  },
+  {
+   "w": " can",
+   "s": 2.3,
+   "e": 2.54
+  },
+  {
+   "w": " help",
+   "s": 2.54,
+   "e": 2.82
+  },
+  {
+   "w": " in",
+   "s": 2.82,
+   "e": 2.98
+  },
+  {
+   "w": " practice.",
+   "s": 2.98,
+   "e": 3.66
+  }
+ ]
+}

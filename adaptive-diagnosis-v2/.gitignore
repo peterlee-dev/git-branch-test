@@ -1,6 +1,9 @@
 node_modules/
 audio/*
 !audio/.gitkeep
+!audio/narration.mp3
+!audio/narration_words.json
+!audio/clone_*
 out/*
 !out/.gitkeep
-__pycache__/
+.venv/

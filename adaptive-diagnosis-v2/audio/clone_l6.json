@@ -1,0 +1,106 @@
+{
+ "text": "As a result, the process can become less effective at identifying each learner's true starting point for learning.",
+ "tts": "As a result, the process can become less effective at identifying each learner's true starting point for learning.",
+ "voice": "Qwen3-TTS clone of audio/narration.mp3 (ref 14.1-28.7 s, l3-l4)",
+ "pick": {
+  "try": 5,
+  "cer": 0.0,
+  "sim": 0.8830121159553528,
+  "dur": 5.317333333333333,
+  "wps": 3.3851554663991976,
+  "hyp": "As a result, the process can become less effective at identifying each learner's true starting point for learning."
+ },
+ "tempo": 0.9314,
+ "words": [
+  {
+   "w": " As",
+   "s": 0.0,
+   "e": 0.18
+  },
+  {
+   "w": " a",
+   "s": 0.18,
+   "e": 0.26
+  },
+  {
+   "w": " result,",
+   "s": 0.26,
+   "e": 0.72
+  },
+  {
+   "w": " the",
+   "s": 0.72,
+   "e": 0.82
+  },
+  {
+   "w": " process",
+   "s": 0.82,
+   "e": 1.2
+  },
+  {
+   "w": " can",
+   "s": 1.2,
+   "e": 1.44
+  },
+  {
+   "w": " become",
+   "s": 1.44,
+   "e": 1.7
+  },
+  {
+   "w": " less",
+   "s": 1.7,
+   "e": 2.02
+  },
+  {
+   "w": " effective",
+   "s": 2.02,
+   "e": 2.48
+  },
+  {
+   "w": " at",
+   "s": 2.48,
+   "e": 2.8
+  },
+  {
+   "w": " identifying",
+   "s": 2.8,
+   "e": 3.38
+  },
+  {
+   "w": " each",
+   "s": 3.38,
+   "e": 3.68
+  },
+  {
+   "w": " learner's",
+   "s": 3.68,
+   "e": 4.14
+  },
+  {
+   "w": " true",
+   "s": 4.14,
+   "e": 4.44
+  },
+  {
+   "w": " starting",
+   "s": 4.44,
+   "e": 4.86
+  },
+  {
+   "w": " point",
+   "s": 5.12,
+   "e": 5.16
+  },
+  {
+   "w": " for",
+   "s": 5.16,
+   "e": 5.34
+  },
+  {
+   "w": " learning.",
+   "s": 5.34,
+   "e": 5.68
+  }
+ ]
+}

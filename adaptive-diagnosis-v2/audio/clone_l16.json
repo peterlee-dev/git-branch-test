@@ -1,0 +1,156 @@
+{
+ "text": "On the other hand, if the learner answers correctly, the system moves up to No. 7 and then No. 9 to check how far the learner's understanding extends.",
+ "tts": "On the other hand, if the learner answers correctly, the system moves up to number seven and then number nine to check how far the learner's understanding extends.",
+ "voice": "Qwen3-TTS clone of audio/narration.mp3 (ref 14.1-28.7 s, l3-l4)",
+ "pick": {
+  "try": 1,
+  "cer": 0.0,
+  "sim": 0.8940111398696899,
+  "dur": 9.082666666666666,
+  "wps": 3.082795067527892,
+  "hyp": "On the other hand, if the learner answers correctly, the system moves up to number 7 and then number 9 to check how far the learner's understanding extends."
+ },
+ "tempo": 1.0069,
+ "words": [
+  {
+   "w": " On",
+   "s": 0.0,
+   "e": 0.38
+  },
+  {
+   "w": " the",
+   "s": 0.38,
+   "e": 0.48
+  },
+  {
+   "w": " other",
+   "s": 0.48,
+   "e": 0.66
+  },
+  {
+   "w": " hand,",
+   "s": 0.66,
+   "e": 1.14
+  },
+  {
+   "w": " if",
+   "s": 1.14,
+   "e": 1.44
+  },
+  {
+   "w": " the",
+   "s": 1.44,
+   "e": 1.56
+  },
+  {
+   "w": " learner",
+   "s": 1.56,
+   "e": 1.8
+  },
+  {
+   "w": " answers",
+   "s": 1.8,
+   "e": 2.26
+  },
+  {
+   "w": " correctly,",
+   "s": 2.26,
+   "e": 2.96
+  },
+  {
+   "w": " the",
+   "s": 2.96,
+   "e": 3.18
+  },
+  {
+   "w": " system",
+   "s": 3.18,
+   "e": 3.5
+  },
+  {
+   "w": " moves",
+   "s": 3.5,
+   "e": 3.82
+  },
+  {
+   "w": " up",
+   "s": 3.82,
+   "e": 3.98
+  },
+  {
+   "w": " to",
+   "s": 3.98,
+   "e": 4.14
+  },
+  {
+   "w": " number",
+   "s": 4.14,
+   "e": 4.36
+  },
+  {
+   "w": " 7",
+   "s": 4.36,
+   "e": 4.78
+  },
+  {
+   "w": " and",
+   "s": 4.78,
+   "e": 5.2
+  },
+  {
+   "w": " then",
+   "s": 5.2,
+   "e": 5.34
+  },
+  {
+   "w": " number",
+   "s": 5.34,
+   "e": 5.58
+  },
+  {
+   "w": " 9",
+   "s": 5.58,
+   "e": 5.96
+  },
+  {
+   "w": " to",
+   "s": 5.96,
+   "e": 6.52
+  },
+  {
+   "w": " check",
+   "s": 6.52,
+   "e": 6.74
+  },
+  {
+   "w": " how",
+   "s": 6.74,
+   "e": 6.94
+  },
+  {
+   "w": " far",
+   "s": 6.94,
+   "e": 7.2
+  },
+  {
+   "w": " the",
+   "s": 7.2,
+   "e": 7.38
+  },
+  {
+   "w": " learner's",
+   "s": 7.38,
+   "e": 7.76
+  },
+  {
+   "w": " understanding",
+   "s": 7.76,
+   "e": 8.32
+  },
+  {
+   "w": " extends.",
+   "s": 8.32,
+   "e": 9.06
+  }
+ ]
+}

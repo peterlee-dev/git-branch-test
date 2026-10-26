@@ -1,0 +1,92 @@
+[
+ {
+  "id": "l3",
+  "text": "A diagnostic assessment is used to determine a learner's current level before the learner begins studying, and to prescribe a personalized learning program.",
+  "tts": "A diagnostic assessment is used to determine a learner's current level before the learner begins studying, and to prescribe a personalized learning program.",
+  "wps": 2.662
+ },
+ {
+  "id": "l5",
+  "text": "While using a large number of questions can make the results more exact, it also places a significant burden on learners.",
+  "tts": "While using a large number of questions can make the results more exact, it also places a significant burden on learners.",
+  "wps": 2.77
+ },
+ {
+  "id": "l6",
+  "text": "As a result, the process can become less effective at identifying each learner's true starting point for learning.",
+  "tts": "As a result, the process can become less effective at identifying each learner's true starting point for learning.",
+  "wps": 3.153
+ },
+ {
+  "id": "l8",
+  "text": "It is a responsive, high-precision diagnostic system in which the next question is adjusted in real time based on whether the learner answers correctly or incorrectly within each learning objective.",
+  "tts": "It is a responsive, high-precision diagnostic system in which the next question is adjusted in real time based on whether the learner answers correctly or incorrectly within each learning objective.",
+  "wps": 2.68
+ },
+ {
+  "id": "l11",
+  "text": "In short, it lightens the burden of diagnosis while staying true to its core purpose: finding the learner's exact starting point for learning.",
+  "tts": "In short, it lightens the burden of diagnosis while staying true to its core purpose: finding the learner's exact starting point for learning.",
+  "wps": 2.772
+ },
+ {
+  "id": "l15",
+  "text": "If the learner answers incorrectly, the system moves down to lower-level concepts, such as No. 3 and then No. 1, to trace where the learning gap begins.",
+  "tts": "If the learner answers incorrectly, the system moves down to lower-level concepts, such as number three and then number one, to trace where the learning gap begins.",
+  "wps": 2.848
+ },
+ {
+  "id": "l16",
+  "text": "On the other hand, if the learner answers correctly, the system moves up to No. 7 and then No. 9 to check how far the learner's understanding extends.",
+  "tts": "On the other hand, if the learner answers correctly, the system moves up to number seven and then number nine to check how far the learner's understanding extends.",
+  "wps": 3.104
+ },
+ {
+  "id": "l17",
+  "text": "In this way, we can minimize the number of questions while still gauging the learner's actual ability level.",
+  "tts": "In this way, we can minimize the number of questions while still gauging the learner's actual ability level.",
+  "wps": 2.83
+ },
+ {
+  "id": "l21",
+  "text": "It is a mechanism that trims the question count without sacrificing the reliability of the result.",
+  "tts": "It is a mechanism that trims the question count without sacrificing the reliability of the result.",
+  "wps": 3.346
+ },
+ {
+  "id": "l22",
+  "text": "We also prepared a 'Quick Diagnosis' option for faster use in the field.",
+  "tts": "We also prepared a 'Quick Diagnosis' option for faster use in the field.",
+  "wps": 3.414
+ },
+ {
+  "id": "l23",
+  "text": "The Quick Diagnosis starts with Numbers and Operations, a foundational area of mathematics, and then provides a quick report on Numbers and Operations.",
+  "tts": "The Quick Diagnosis starts with Numbers and Operations, a foundational area of mathematics, and then provides a quick report on Numbers and Operations.",
+  "wps": 2.567
+ },
+ {
+  "id": "l25",
+  "text": "Now, let's look at how this assessment can help in practice.",
+  "tts": "Now, let's look at how this assessment can help in practice.",
+  "wps": 2.982
+ },
+ {
+  "id": "l27",
+  "text": "With fewer questions, both learners and teachers can expect a lighter workload during diagnosis.",
+  "tts": "With fewer questions, both learners and teachers can expect a lighter workload during diagnosis.",
+  "wps": 2.568
+ },
+ {
+  "id": "l28",
+  "text": "This should make consultations and class operations run more smoothly as well.",
+  "tts": "This should make consultations and class operations run more smoothly as well.",
+  "wps": 2.745
+ },
+ {
+  "id": "l29",
+  "text": "The assessment will first be applied to Self-Learning JEI Math, with the potential to expand to other subjects in the future.",
+  "tts": "The assessment will first be applied to Self-Learning J.E.I. Math, with the potential to expand to other subjects in the future.",
+  "wps": 2.998
+ }
+]

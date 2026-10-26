@@ -1,0 +1,106 @@
+{
+ "text": "In this way, we can minimize the number of questions while still gauging the learner's actual ability level.",
+ "tts": "In this way, we can minimize the number of questions while still gauging the learner's actual ability level.",
+ "voice": "Qwen3-TTS clone of audio/narration.mp3 (ref 14.1-28.7 s, l3-l4)",
+ "pick": {
+  "try": 4,
+  "cer": 0.0,
+  "sim": 0.8877126574516296,
+  "dur": 5.338666666666667,
+  "wps": 3.3716283716283715,
+  "hyp": "In this way, we can minimize the number of questions while still gauging the learner's actual ability level."
+ },
+ "tempo": 0.9,
+ "words": [
+  {
+   "w": " In",
+   "s": 0.0,
+   "e": 0.14
+  },
+  {
+   "w": " this",
+   "s": 0.14,
+   "e": 0.32
+  },
+  {
+   "w": " way,",
+   "s": 0.32,
+   "e": 0.72
+  },
+  {
+   "w": " we",
+   "s": 0.72,
+   "e": 1.0
+  },
+  {
+   "w": " can",
+   "s": 1.0,
+   "e": 1.2
+  },
+  {
+   "w": " minimize",
+   "s": 1.2,
+   "e": 1.58
+  },
+  {
+   "w": " the",
+   "s": 1.58,
+   "e": 1.86
+  },
+  {
+   "w": " number",
+   "s": 1.86,
+   "e": 2.08
+  },
+  {
+   "w": " of",
+   "s": 2.08,
+   "e": 2.22
+  },
+  {
+   "w": " questions",
+   "s": 2.22,
+   "e": 2.6
+  },
+  {
+   "w": " while",
+   "s": 2.6,
+   "e": 3.14
+  },
+  {
+   "w": " still",
+   "s": 3.14,
+   "e": 3.5
+  },
+  {
+   "w": " gauging",
+   "s": 3.5,
+   "e": 4.04
+  },
+  {
+   "w": " the",
+   "s": 4.04,
+   "e": 4.18
+  },
+  {
+   "w": " learner's",
+   "s": 4.18,
+   "e": 4.6
+  },
+  {
+   "w": " actual",
+   "s": 4.6,
+   "e": 5.02
+  },
+  {
+   "w": " ability",
+   "s": 5.02,
+   "e": 5.46
+  },
+  {
+   "w": " level.",
+   "s": 5.46,
+   "e": 5.9
+  }
+ ]
+}
