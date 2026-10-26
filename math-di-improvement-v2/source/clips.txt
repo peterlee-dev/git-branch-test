@@ -1,0 +1,32 @@
+intro     0  src    0.28-   5.14  →    1.80-   6.66  This video introduces the improvement plan for JEI Math Grad
+intro     1  src    5.66-  13.68  →    7.06-  15.08  We will explore the three key directions for improvement, th
+priority  0  src   14.54-  19.93  →   16.98-  22.37  Currently, approximately 80% of our total members are concen
+priority  1  src   20.43-  35.02  →   22.77-  37.36  Therefore, based on JEI’s unique and systematic learning str
+roadmap   0  src   35.89-  40.44  →   39.26-  43.81  The first area of improvement is to strengthen the incorpora
+roadmap   1  src   40.94-  48.61  →   44.21-  51.88  When comparing JEI’s learning sequence with the CCSS progres
+roadmap   2  src   49.16-  55.03  →   52.28-  58.15  In particular, we will closely review the timing and progres
+standards 0  src   55.69-  65.87  →   60.05-  70.23  Building on JEI’s systematic learning roadmap, we aim to fur
+gradeD    0  src   66.57-  75.58  →   72.13-  81.14  For example, in Grade D, we have strengthened students’ unde
+gradeD    1  src   76.09-  84.26  →   81.54-  89.71  We have also added word problems involving three numbers to 
+gradeI    0  src   84.90-  96.51  →   91.61- 103.22  In Grade I, we have newly introduced the coordinate plane an
+synergy   0  src   97.18- 106.94  →  105.12- 114.88  Through these changes, we will connect JEI’s strong learning
+workbook  0  src  107.82- 112.53  →  117.48- 122.19  The second direction is to improve page structure based on t
+workbook  1  src  113.23- 121.41  →  122.59- 130.77  The existing pages provided 12 to 24 calculation practice pr
+workbook  2  src  121.94- 128.98  →  131.17- 138.21  However, to reduce learner fatigue and help students focus m
+workbook  3  src  129.63- 141.41  →  138.61- 150.39  Accordingly, the main textbook has been redesigned around co
+supp      0  src  142.05- 150.08  →  153.19- 161.22  The repetitive practice problems reduced from the main textb
+supp      1  src  150.58- 158.85  →  161.62- 169.89  When students need additional practice after completing the 
+mastery   0  src  159.52- 172.49  →  171.79- 184.76  This approach reduces unnecessary learning burden in the mai
+sequence  0  src  173.36- 178.47  →  186.66- 191.77  The third direction is to strengthen the connection between 
+sequence  1  src  179.13- 191.27  →  192.17- 204.31  Building on JEI’s strong conceptual structure, we have furth
+gradeF    0  src  191.95- 198.07  →  206.21- 212.33  In Grade F, we have designed the concept of equal partitioni
+gradeF    1  src  198.55- 205.58  →  212.73- 219.76  We have also introduced the use of variables progressively a
+gradeGH   0  src  206.23- 219.96  →  221.66- 235.39  In Grades G and H, we have strengthened the use of visual mo
+gradeI2   0  src  220.64- 231.16  →  237.29- 247.81  Furthermore, in Grade I, these foundations are systematicall
+cycle     0  src  231.80- 238.11  →  250.41- 256.72  Along with the evolution of these learning objectives, we ar
+cycle     1  src  238.61- 249.50  →  257.12- 268.01  Based on the revised standards, the system will not only acc
+cycle     2  src  250.01- 254.82  →  268.41- 273.22  This will create a more complete learning cycle from diagnos
+scope     0  src  255.74- 266.33  →  275.62- 286.21  Through these improvements, 140 of the 221 existing sets wil
+package   0  src  267.26- 277.06  →  289.01- 298.81  For each grade, we will comprehensively implement the main t
+outro     0  src  277.74- 287.20  →  301.21- 310.67  Through this improvement aligned with global standards, we a
+outro     1  src  287.90- 288.42  →  311.07- 311.59  Thank you.

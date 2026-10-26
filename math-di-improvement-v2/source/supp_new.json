@@ -1,0 +1,189 @@
+{
+ "pick": {
+  "try": 4,
+  "cer": 0.0,
+  "sim": 0.8697772026062012,
+  "dur": 8.618666666666666,
+  "hyp": "When students need additional practice after completing the main textbook, centers will be able to use these materials flexibly according to individual learning needs."
+ },
+ "cands": [
+  {
+   "try": 0,
+   "cer": 0.0,
+   "sim": 0.8551172018051147,
+   "dur": 8.394666666666666,
+   "hyp": "When students need additional practice after completing the main textbook, centers will be able to use these materials flexibly according to individual learning needs."
+  },
+  {
+   "try": 1,
+   "cer": 0.0,
+   "sim": 0.8536383509635925,
+   "dur": 8.917333333333334,
+   "hyp": "When students need additional practice after completing the main textbook, centers will be able to use these materials flexibly according to individual learning needs."
+  },
+  {
+   "try": 2,
+   "cer": 0.0,
+   "sim": 0.8282523155212402,
+   "dur": 8.885333333333334,
+   "hyp": "When students need additional practice after completing the main textbook, centers will be able to use these materials flexibly according to individual learning needs."
+  },
+  {
+   "try": 3,
+   "cer": 0.0,
+   "sim": 0.8513097763061523,
+   "dur": 8.938666666666666,
+   "hyp": "When students need additional practice after completing the main textbook, centers will be able to use these materials flexibly according to individual learning needs."
+  },
+  {
+   "try": 4,
+   "cer": 0.0,
+   "sim": 0.8697772026062012,
+   "dur": 8.618666666666666,
+   "hyp": "When students need additional practice after completing the main textbook, centers will be able to use these materials flexibly according to individual learning needs."
+  },
+  {
+   "try": 5,
+   "cer": 0.0,
+   "sim": 0.8560732007026672,
+   "dur": 9.344,
+   "hyp": "When students need additional practice after completing the main textbook, centers will be able to use these materials flexibly according to individual learning needs."
+  },
+  {
+   "try": 6,
+   "cer": 0.0,
+   "sim": 0.8575947284698486,
+   "dur": 8.666666666666666,
+   "hyp": "When students need additional practice after completing the main textbook, centers will be able to use these materials flexibly according to individual learning needs."
+  },
+  {
+   "try": 7,
+   "cer": 0.0,
+   "sim": 0.850601315498352,
+   "dur": 8.730666666666666,
+   "hyp": "When students need additional practice after completing the main textbook, centers will be able to use these materials flexibly according to individual learning needs."
+  }
+ ],
+ "words": [
+  {
+   "w": " When",
+   "s": 0.0,
+   "e": 0.16
+  },
+  {
+   "w": " students",
+   "s": 0.16,
+   "e": 0.5
+  },
+  {
+   "w": " need",
+   "s": 0.5,
+   "e": 0.74
+  },
+  {
+   "w": " additional",
+   "s": 0.74,
+   "e": 1.14
+  },
+  {
+   "w": " practice",
+   "s": 1.14,
+   "e": 1.6
+  },
+  {
+   "w": " after",
+   "s": 1.62,
+   "e": 2.04
+  },
+  {
+   "w": " completing",
+   "s": 2.04,
+   "e": 2.46
+  },
+  {
+   "w": " the",
+   "s": 2.46,
+   "e": 2.64
+  },
+  {
+   "w": " main",
+   "s": 2.64,
+   "e": 2.84
+  },
+  {
+   "w": " textbook,",
+   "s": 2.84,
+   "e": 3.52
+  },
+  {
+   "w": " centers",
+   "s": 3.78,
+   "e": 4.04
+  },
+  {
+   "w": " will",
+   "s": 4.04,
+   "e": 4.26
+  },
+  {
+   "w": " be",
+   "s": 4.26,
+   "e": 4.38
+  },
+  {
+   "w": " able",
+   "s": 4.38,
+   "e": 4.56
+  },
+  {
+   "w": " to",
+   "s": 4.56,
+   "e": 4.68
+  },
+  {
+   "w": " use",
+   "s": 4.68,
+   "e": 4.92
+  },
+  {
+   "w": " these",
+   "s": 4.92,
+   "e": 5.12
+  },
+  {
+   "w": " materials",
+   "s": 5.12,
+   "e": 5.58
+  },
+  {
+   "w": " flexibly",
+   "s": 5.58,
+   "e": 6.2
+  },
+  {
+   "w": " according",
+   "s": 6.36,
+   "e": 6.6
+  },
+  {
+   "w": " to",
+   "s": 6.6,
+   "e": 6.82
+  },
+  {
+   "w": " individual",
+   "s": 6.82,
+   "e": 7.3
+  },
+  {
+   "w": " learning",
+   "s": 7.3,
+   "e": 7.64
+  },
+  {
+   "w": " needs.",
+   "s": 7.64,
+   "e": 8.18
+  }
+ ]
+}

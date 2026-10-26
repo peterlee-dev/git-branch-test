@@ -1,0 +1,3535 @@
+{
+"text": " This video introduces the improvement plan for JEI math grades D through I. We will explore the three key directions for improvement, the detailed changes for each grade, and how the supplementary materials will be utilized. Currently, approximately 80% of our total members are concentrated in grades D through I. Therefore, based on JEI's unique and systematic learning structure, we have selected these grades as our top priority for improvement, with the goal of strengthening alignment with the Common Core State Standards, CCSS, and optimizing the learner experience. The first area of improvement is to strengthen the incorporation of the CCSS. When comparing JEI's learning sequence with the CCSS progression, the timing and progression of learning do not always align. In particular, we will closely review the timing and progression of learning and CCSS alignment. Building on JEI's systematic learning roadmap, we aim to further enhance alignment with grade-level standards in the U.S., maximizing both the timeliness and completeness of learning. For example, in grade D, we have strengthened students' understanding of the relational meaning of the equal sign, emphasizing that both sides represent equal quantities. We have also added word problems involving three numbers to further develop students' ability to apply mathematical concepts to real-life situations. In grade-eye, we have newly introduced the coordinate plane and strengthened learning related to comparing integers and understanding absolute value, allowing students to progress naturally toward more advanced concepts. Through these changes, we will connect JEI's strong learning system more closely with the local curriculum and further strengthen the natural connections between concepts across grades. The second direction is to improve page structure based on the amount of learning content. The existing pages provided 12 to 24 calculation practice problems, offering students valuable opportunities for practice and mastery. However, to reduce learner fatigue and help students focus more deeply on concepts, we have reorganized the content more efficiently. Accordingly, the main textbook has been redesigned around conceptual understanding and representative problems, allowing students to focus on key learning objectives while providing sufficient space for solving problems. The repetitive practice problems reduced from the main textbook will be reorganized into supplementary materials customized for each set. When students need additional practice after completing the main textbook, centers will be able to download, print, and provide the appropriate materials. This approach reduces unnecessary learning burden in the main textbook while still providing sufficient opportunities for mastery through supplementary materials directly connected to each target set, ultimately supporting mastery learning. The third direction is to strengthen the connection between prerequisite concepts and subsequent learning. Building on JEI's strong conceptual structure, we have further subdivided the learning steps so that students can transition more easily to higher-level concepts such as equations, fractions, and decimals. In grade F, we have designed the concept of equal partitioning to naturally lead into fraction notation. We have also introduced the use of variables progressively according to students' grade levels to support intuitive understanding of equations. In grades G and H, we have strengthened the use of visual models such as number lines, area models, and grouping models so that students can develop a more intuitive understanding of rounding and the principles of multiplying and dividing fractions. Furthermore, in grade I, these foundations are systematically extended so that relationships between two variables naturally progress from equations to tables and then to graphs. Along with the evolution of these learning objectives, we are also redesigning the diagnostic assessment and system data. Based on the revised standards, the system will not only accurately identify each student's starting point, but also automatically connect the results to personalized supplementary material recommendations. This will create a more complete learning cycle from diagnosis to prescription to learning. Through these improvements, 140 of the 221 existing sets will maintain their current structure, while 81 sets will be revised and enhanced, and 5 new sets will be added. For each grade, we will comprehensively implement the main textbook revision, system data updates, and supplementary material development as one integrated package. Through this improvement aligned with global standards, we aim to help students understand mathematical concepts more clearly and confidently extend their learning to the next level. Thank you. Thank you.",
+"words": [
+{
+"w": " This",
+"s": 0.0,
+"e": 0.52
+},
+{
+"w": " video",
+"s": 0.52,
+"e": 0.82
+},
+{
+"w": " introduces",
+"s": 0.82,
+"e": 1.42
+},
+{
+"w": " the",
+"s": 1.42,
+"e": 1.68
+},
+{
+"w": " improvement",
+"s": 1.68,
+"e": 2.06
+},
+{
+"w": " plan",
+"s": 2.06,
+"e": 2.42
+},
+{
+"w": " for",
+"s": 2.42,
+"e": 2.66
+},
+{
+"w": " JEI",
+"s": 2.66,
+"e": 3.4
+},
+{
+"w": " math",
+"s": 3.4,
+"e": 3.66
+},
+{
+"w": " grades",
+"s": 3.66,
+"e": 4.08
+},
+{
+"w": " D",
+"s": 4.08,
+"e": 4.38
+},
+{
+"w": " through",
+"s": 4.38,
+"e": 4.64
+},
+{
+"w": " I.",
+"s": 4.64,
+"e": 4.94
+},
+{
+"w": " We",
+"s": 5.24,
+"e": 5.8
+},
+{
+"w": " will",
+"s": 5.8,
+"e": 5.96
+},
+{
+"w": " explore",
+"s": 5.96,
+"e": 6.34
+},
+{
+"w": " the",
+"s": 6.34,
+"e": 6.56
+},
+{
+"w": " three",
+"s": 6.56,
+"e": 6.82
+},
+{
+"w": " key",
+"s": 6.82,
+"e": 7.14
+},
+{
+"w": " directions",
+"s": 7.14,
+"e": 7.64
+},
+{
+"w": " for",
+"s": 7.64,
+"e": 7.9
+},
+{
+"w": " improvement,",
+"s": 7.9,
+"e": 8.42
+},
+{
+"w": " the",
+"s": 8.74,
+"e": 9.0
+},
+{
+"w": " detailed",
+"s": 9.0,
+"e": 9.46
+},
+{
+"w": " changes",
+"s": 9.46,
+"e": 9.82
+},
+{
+"w": " for",
+"s": 9.82,
+"e": 10.06
+},
+{
+"w": " each",
+"s": 10.06,
+"e": 10.3
+},
+{
+"w": " grade,",
+"s": 10.3,
+"e": 10.68
+},
+{
+"w": " and",
+"s": 10.92,
+"e": 11.16
+},
+{
+"w": " how",
+"s": 11.16,
+"e": 11.32
+},
+{
+"w": " the",
+"s": 11.32,
+"e": 11.5
+},
+{
+"w": " supplementary",
+"s": 11.5,
+"e": 12.1
+},
+{
+"w": " materials",
+"s": 12.1,
+"e": 12.62
+},
+{
+"w": " will",
+"s": 12.62,
+"e": 12.82
+},
+{
+"w": " be",
+"s": 12.82,
+"e": 12.96
+},
+{
+"w": " utilized.",
+"s": 12.96,
+"e": 13.34
+},
+{
+"w": " Currently,",
+"s": 14.4,
+"e": 15.0
+},
+{
+"w": " approximately",
+"s": 15.28,
+"e": 15.82
+},
+{
+"w": " 80",
+"s": 15.82,
+"e": 16.18
+},
+{
+"w": "%",
+"s": 16.18,
+"e": 16.48
+},
+{
+"w": " of",
+"s": 16.48,
+"e": 16.7
+},
+{
+"w": " our",
+"s": 16.7,
+"e": 16.82
+},
+{
+"w": " total",
+"s": 16.82,
+"e": 17.12
+},
+{
+"w": " members",
+"s": 17.12,
+"e": 17.5
+},
+{
+"w": " are",
+"s": 17.5,
+"e": 17.72
+},
+{
+"w": " concentrated",
+"s": 17.72,
+"e": 18.36
+},
+{
+"w": " in",
+"s": 18.36,
+"e": 18.62
+},
+{
+"w": " grades",
+"s": 18.62,
+"e": 18.94
+},
+{
+"w": " D",
+"s": 18.94,
+"e": 19.24
+},
+{
+"w": " through",
+"s": 19.24,
+"e": 19.44
+},
+{
+"w": " I.",
+"s": 19.44,
+"e": 19.76
+},
+{
+"w": " Therefore,",
+"s": 20.44,
+"e": 20.84
+},
+{
+"w": " based",
+"s": 21.16,
+"e": 21.36
+},
+{
+"w": " on",
+"s": 21.36,
+"e": 21.54
+},
+{
+"w": " JEI's",
+"s": 21.54,
+"e": 22.34
+},
+{
+"w": " unique",
+"s": 22.34,
+"e": 22.72
+},
+{
+"w": " and",
+"s": 22.72,
+"e": 22.92
+},
+{
+"w": " systematic",
+"s": 22.92,
+"e": 23.4
+},
+{
+"w": " learning",
+"s": 23.4,
+"e": 23.76
+},
+{
+"w": " structure,",
+"s": 23.76,
+"e": 24.22
+},
+{
+"w": " we",
+"s": 24.5,
+"e": 24.8
+},
+{
+"w": " have",
+"s": 24.8,
+"e": 24.9
+},
+{
+"w": " selected",
+"s": 24.9,
+"e": 25.28
+},
+{
+"w": " these",
+"s": 25.28,
+"e": 25.52
+},
+{
+"w": " grades",
+"s": 25.52,
+"e": 25.84
+},
+{
+"w": " as",
+"s": 25.84,
+"e": 26.1
+},
+{
+"w": " our",
+"s": 26.1,
+"e": 26.22
+},
+{
+"w": " top",
+"s": 26.22,
+"e": 26.42
+},
+{
+"w": " priority",
+"s": 26.42,
+"e": 26.92
+},
+{
+"w": " for",
+"s": 26.92,
+"e": 27.14
+},
+{
+"w": " improvement,",
+"s": 27.14,
+"e": 27.6
+},
+{
+"w": " with",
+"s": 27.6,
+"e": 28.28
+},
+{
+"w": " the",
+"s": 28.28,
+"e": 28.4
+},
+{
+"w": " goal",
+"s": 28.4,
+"e": 28.66
+},
+{
+"w": " of",
+"s": 28.66,
+"e": 28.82
+},
+{
+"w": " strengthening",
+"s": 28.82,
+"e": 29.28
+},
+{
+"w": " alignment",
+"s": 29.28,
+"e": 29.72
+},
+{
+"w": " with",
+"s": 29.72,
+"e": 29.96
+},
+{
+"w": " the",
+"s": 29.96,
+"e": 30.06
+},
+{
+"w": " Common",
+"s": 30.06,
+"e": 30.3
+},
+{
+"w": " Core",
+"s": 30.3,
+"e": 30.58
+},
+{
+"w": " State",
+"s": 30.58,
+"e": 30.84
+},
+{
+"w": " Standards,",
+"s": 30.84,
+"e": 31.38
+},
+{
+"w": " CCSS,",
+"s": 31.56,
+"e": 32.3
+},
+{
+"w": " and",
+"s": 32.62,
+"e": 33.1
+},
+{
+"w": " optimizing",
+"s": 33.1,
+"e": 33.72
+},
+{
+"w": " the",
+"s": 33.72,
+"e": 33.96
+},
+{
+"w": " learner",
+"s": 33.96,
+"e": 34.2
+},
+{
+"w": " experience.",
+"s": 34.2,
+"e": 34.82
+},
+{
+"w": " The",
+"s": 35.42,
+"e": 36.06
+},
+{
+"w": " first",
+"s": 36.06,
+"e": 36.36
+},
+{
+"w": " area",
+"s": 36.36,
+"e": 36.68
+},
+{
+"w": " of",
+"s": 36.68,
+"e": 36.9
+},
+{
+"w": " improvement",
+"s": 36.9,
+"e": 37.36
+},
+{
+"w": " is",
+"s": 37.36,
+"e": 37.66
+},
+{
+"w": " to",
+"s": 37.66,
+"e": 37.82
+},
+{
+"w": " strengthen",
+"s": 37.82,
+"e": 38.18
+},
+{
+"w": " the",
+"s": 38.18,
+"e": 38.4
+},
+{
+"w": " incorporation",
+"s": 38.4,
+"e": 39.1
+},
+{
+"w": " of",
+"s": 39.1,
+"e": 39.36
+},
+{
+"w": " the",
+"s": 39.36,
+"e": 39.48
+},
+{
+"w": " CCSS.",
+"s": 39.48,
+"e": 40.08
+},
+{
+"w": " When",
+"s": 40.64,
+"e": 41.1
+},
+{
+"w": " comparing",
+"s": 41.1,
+"e": 41.58
+},
+{
+"w": " JEI's",
+"s": 41.58,
+"e": 42.46
+},
+{
+"w": " learning",
+"s": 42.46,
+"e": 42.72
+},
+{
+"w": " sequence",
+"s": 42.72,
+"e": 43.16
+},
+{
+"w": " with",
+"s": 43.16,
+"e": 43.44
+},
+{
+"w": " the",
+"s": 43.44,
+"e": 43.6
+},
+{
+"w": " CCSS",
+"s": 43.6,
+"e": 44.38
+},
+{
+"w": " progression,",
+"s": 44.38,
+"e": 44.9
+},
+{
+"w": " the",
+"s": 45.18,
+"e": 45.62
+},
+{
+"w": " timing",
+"s": 45.62,
+"e": 46.0
+},
+{
+"w": " and",
+"s": 46.0,
+"e": 46.3
+},
+{
+"w": " progression",
+"s": 46.3,
+"e": 46.7
+},
+{
+"w": " of",
+"s": 46.7,
+"e": 46.92
+},
+{
+"w": " learning",
+"s": 46.92,
+"e": 47.22
+},
+{
+"w": " do",
+"s": 47.22,
+"e": 47.44
+},
+{
+"w": " not",
+"s": 47.44,
+"e": 47.68
+},
+{
+"w": " always",
+"s": 47.68,
+"e": 48.04
+},
+{
+"w": " align.",
+"s": 48.04,
+"e": 48.42
+},
+{
+"w": " In",
+"s": 48.88,
+"e": 49.34
+},
+{
+"w": " particular,",
+"s": 49.34,
+"e": 49.76
+},
+{
+"w": " we",
+"s": 50.06,
+"e": 50.28
+},
+{
+"w": " will",
+"s": 50.28,
+"e": 50.4
+},
+{
+"w": " closely",
+"s": 50.4,
+"e": 50.86
+},
+{
+"w": " review",
+"s": 50.86,
+"e": 51.18
+},
+{
+"w": " the",
+"s": 51.18,
+"e": 51.4
+},
+{
+"w": " timing",
+"s": 51.4,
+"e": 51.74
+},
+{
+"w": " and",
+"s": 51.74,
+"e": 52.0
+},
+{
+"w": " progression",
+"s": 52.0,
+"e": 52.46
+},
+{
+"w": " of",
+"s": 52.46,
+"e": 52.78
+},
+{
+"w": " learning",
+"s": 52.78,
+"e": 53.14
+},
+{
+"w": " and",
+"s": 53.14,
+"e": 53.62
+},
+{
+"w": " CCSS",
+"s": 53.62,
+"e": 54.32
+},
+{
+"w": " alignment.",
+"s": 54.32,
+"e": 54.78
+},
+{
+"w": " Building",
+"s": 54.78,
+"e": 55.94
+},
+{
+"w": " on",
+"s": 55.94,
+"e": 56.18
+},
+{
+"w": " JEI's",
+"s": 56.18,
+"e": 57.0
+},
+{
+"w": " systematic",
+"s": 57.0,
+"e": 57.38
+},
+{
+"w": " learning",
+"s": 57.38,
+"e": 57.74
+},
+{
+"w": " roadmap,",
+"s": 57.74,
+"e": 58.14
+},
+{
+"w": " we",
+"s": 58.54,
+"e": 58.84
+},
+{
+"w": " aim",
+"s": 58.84,
+"e": 59.06
+},
+{
+"w": " to",
+"s": 59.06,
+"e": 59.24
+},
+{
+"w": " further",
+"s": 59.24,
+"e": 59.52
+},
+{
+"w": " enhance",
+"s": 59.52,
+"e": 59.96
+},
+{
+"w": " alignment",
+"s": 59.96,
+"e": 60.42
+},
+{
+"w": " with",
+"s": 60.42,
+"e": 60.7
+},
+{
+"w": " grade",
+"s": 60.7,
+"e": 61.0
+},
+{
+"w": "-level",
+"s": 61.0,
+"e": 61.22
+},
+{
+"w": " standards",
+"s": 61.22,
+"e": 61.66
+},
+{
+"w": " in",
+"s": 61.66,
+"e": 61.94
+},
+{
+"w": " the",
+"s": 61.94,
+"e": 62.02
+},
+{
+"w": " U",
+"s": 62.02,
+"e": 62.2
+},
+{
+"w": ".S.,",
+"s": 62.2,
+"e": 62.78
+},
+{
+"w": " maximizing",
+"s": 62.78,
+"e": 63.58
+},
+{
+"w": " both",
+"s": 63.58,
+"e": 63.78
+},
+{
+"w": " the",
+"s": 63.78,
+"e": 63.94
+},
+{
+"w": " timeliness",
+"s": 63.94,
+"e": 64.38
+},
+{
+"w": " and",
+"s": 64.38,
+"e": 64.76
+},
+{
+"w": " completeness",
+"s": 64.76,
+"e": 65.3
+},
+{
+"w": " of",
+"s": 65.3,
+"e": 65.44
+},
+{
+"w": " learning.",
+"s": 65.44,
+"e": 65.7
+},
+{
+"w": " For",
+"s": 66.28,
+"e": 66.76
+},
+{
+"w": " example,",
+"s": 66.76,
+"e": 67.14
+},
+{
+"w": " in",
+"s": 67.34,
+"e": 67.42
+},
+{
+"w": " grade",
+"s": 67.42,
+"e": 67.66
+},
+{
+"w": " D,",
+"s": 67.66,
+"e": 67.96
+},
+{
+"w": " we",
+"s": 68.18,
+"e": 68.46
+},
+{
+"w": " have",
+"s": 68.46,
+"e": 68.62
+},
+{
+"w": " strengthened",
+"s": 68.62,
+"e": 69.06
+},
+{
+"w": " students'",
+"s": 69.06,
+"e": 69.46
+},
+{
+"w": " understanding",
+"s": 69.64,
+"e": 70.1
+},
+{
+"w": " of",
+"s": 70.1,
+"e": 70.28
+},
+{
+"w": " the",
+"s": 70.28,
+"e": 70.38
+},
+{
+"w": " relational",
+"s": 70.38,
+"e": 70.84
+},
+{
+"w": " meaning",
+"s": 70.84,
+"e": 71.16
+},
+{
+"w": " of",
+"s": 71.16,
+"e": 71.36
+},
+{
+"w": " the",
+"s": 71.36,
+"e": 71.46
+},
+{
+"w": " equal",
+"s": 71.46,
+"e": 71.7
+},
+{
+"w": " sign,",
+"s": 71.7,
+"e": 72.08
+},
+{
+"w": " emphasizing",
+"s": 72.48,
+"e": 73.06
+},
+{
+"w": " that",
+"s": 73.06,
+"e": 73.3
+},
+{
+"w": " both",
+"s": 73.3,
+"e": 73.56
+},
+{
+"w": " sides",
+"s": 73.56,
+"e": 73.88
+},
+{
+"w": " represent",
+"s": 73.88,
+"e": 74.38
+},
+{
+"w": " equal",
+"s": 74.38,
+"e": 74.82
+},
+{
+"w": " quantities.",
+"s": 74.82,
+"e": 75.26
+},
+{
+"w": " We",
+"s": 75.26,
+"e": 76.2
+},
+{
+"w": " have",
+"s": 76.2,
+"e": 76.32
+},
+{
+"w": " also",
+"s": 76.32,
+"e": 76.58
+},
+{
+"w": " added",
+"s": 76.58,
+"e": 76.9
+},
+{
+"w": " word",
+"s": 76.9,
+"e": 77.22
+},
+{
+"w": " problems",
+"s": 77.22,
+"e": 77.74
+},
+{
+"w": " involving",
+"s": 77.74,
+"e": 78.2
+},
+{
+"w": " three",
+"s": 78.2,
+"e": 78.52
+},
+{
+"w": " numbers",
+"s": 78.52,
+"e": 78.9
+},
+{
+"w": " to",
+"s": 78.9,
+"e": 79.14
+},
+{
+"w": " further",
+"s": 79.14,
+"e": 79.42
+},
+{
+"w": " develop",
+"s": 79.42,
+"e": 79.8
+},
+{
+"w": " students'",
+"s": 79.8,
+"e": 80.12
+},
+{
+"w": " ability",
+"s": 80.3,
+"e": 80.58
+},
+{
+"w": " to",
+"s": 80.58,
+"e": 80.86
+},
+{
+"w": " apply",
+"s": 80.86,
+"e": 81.18
+},
+{
+"w": " mathematical",
+"s": 81.18,
+"e": 81.68
+},
+{
+"w": " concepts",
+"s": 81.68,
+"e": 82.36
+},
+{
+"w": " to",
+"s": 82.36,
+"e": 82.84
+},
+{
+"w": " real",
+"s": 82.84,
+"e": 83.1
+},
+{
+"w": "-life",
+"s": 83.1,
+"e": 83.3
+},
+{
+"w": " situations.",
+"s": 83.3,
+"e": 83.94
+},
+{
+"w": " In",
+"s": 84.56,
+"e": 85.1
+},
+{
+"w": " grade",
+"s": 85.1,
+"e": 85.34
+},
+{
+"w": "-eye,",
+"s": 85.34,
+"e": 85.62
+},
+{
+"w": " we",
+"s": 85.78,
+"e": 85.82
+},
+{
+"w": " have",
+"s": 85.82,
+"e": 85.96
+},
+{
+"w": " newly",
+"s": 85.96,
+"e": 86.24
+},
+{
+"w": " introduced",
+"s": 86.24,
+"e": 86.74
+},
+{
+"w": " the",
+"s": 86.74,
+"e": 86.94
+},
+{
+"w": " coordinate",
+"s": 86.94,
+"e": 87.3
+},
+{
+"w": " plane",
+"s": 87.3,
+"e": 87.78
+},
+{
+"w": " and",
+"s": 87.78,
+"e": 88.32
+},
+{
+"w": " strengthened",
+"s": 88.32,
+"e": 88.72
+},
+{
+"w": " learning",
+"s": 88.72,
+"e": 89.1
+},
+{
+"w": " related",
+"s": 89.1,
+"e": 89.52
+},
+{
+"w": " to",
+"s": 89.52,
+"e": 89.7
+},
+{
+"w": " comparing",
+"s": 89.7,
+"e": 90.06
+},
+{
+"w": " integers",
+"s": 90.06,
+"e": 90.54
+},
+{
+"w": " and",
+"s": 90.54,
+"e": 90.9
+},
+{
+"w": " understanding",
+"s": 90.9,
+"e": 91.48
+},
+{
+"w": " absolute",
+"s": 91.48,
+"e": 91.98
+},
+{
+"w": " value,",
+"s": 91.98,
+"e": 92.48
+},
+{
+"w": " allowing",
+"s": 92.68,
+"e": 93.32
+},
+{
+"w": " students",
+"s": 93.32,
+"e": 93.64
+},
+{
+"w": " to",
+"s": 93.64,
+"e": 93.86
+},
+{
+"w": " progress",
+"s": 93.86,
+"e": 94.16
+},
+{
+"w": " naturally",
+"s": 94.16,
+"e": 94.72
+},
+{
+"w": " toward",
+"s": 94.72,
+"e": 95.04
+},
+{
+"w": " more",
+"s": 95.04,
+"e": 95.3
+},
+{
+"w": " advanced",
+"s": 95.3,
+"e": 95.7
+},
+{
+"w": " concepts.",
+"s": 95.7,
+"e": 96.32
+},
+{
+"w": " Through",
+"s": 96.32,
+"e": 97.36
+},
+{
+"w": " these",
+"s": 97.36,
+"e": 97.6
+},
+{
+"w": " changes,",
+"s": 97.6,
+"e": 97.98
+},
+{
+"w": " we",
+"s": 98.24,
+"e": 98.26
+},
+{
+"w": " will",
+"s": 98.26,
+"e": 98.4
+},
+{
+"w": " connect",
+"s": 98.4,
+"e": 98.74
+},
+{
+"w": " JEI's",
+"s": 98.74,
+"e": 99.64
+},
+{
+"w": " strong",
+"s": 99.64,
+"e": 99.96
+},
+{
+"w": " learning",
+"s": 99.96,
+"e": 100.28
+},
+{
+"w": " system",
+"s": 100.28,
+"e": 100.6
+},
+{
+"w": " more",
+"s": 100.6,
+"e": 100.9
+},
+{
+"w": " closely",
+"s": 100.9,
+"e": 101.32
+},
+{
+"w": " with",
+"s": 101.32,
+"e": 101.88
+},
+{
+"w": " the",
+"s": 101.88,
+"e": 102.0
+},
+{
+"w": " local",
+"s": 102.0,
+"e": 102.26
+},
+{
+"w": " curriculum",
+"s": 102.26,
+"e": 102.78
+},
+{
+"w": " and",
+"s": 102.78,
+"e": 103.32
+},
+{
+"w": " further",
+"s": 103.32,
+"e": 103.62
+},
+{
+"w": " strengthen",
+"s": 103.62,
+"e": 104.02
+},
+{
+"w": " the",
+"s": 104.02,
+"e": 104.24
+},
+{
+"w": " natural",
+"s": 104.24,
+"e": 104.58
+},
+{
+"w": " connections",
+"s": 104.58,
+"e": 105.04
+},
+{
+"w": " between",
+"s": 105.04,
+"e": 105.36
+},
+{
+"w": " concepts",
+"s": 105.36,
+"e": 105.98
+},
+{
+"w": " across",
+"s": 105.98,
+"e": 106.26
+},
+{
+"w": " grades.",
+"s": 106.26,
+"e": 106.7
+},
+{
+"w": " The",
+"s": 107.32,
+"e": 107.96
+},
+{
+"w": " second",
+"s": 107.96,
+"e": 108.24
+},
+{
+"w": " direction",
+"s": 108.24,
+"e": 108.68
+},
+{
+"w": " is",
+"s": 108.68,
+"e": 109.08
+},
+{
+"w": " to",
+"s": 109.08,
+"e": 109.24
+},
+{
+"w": " improve",
+"s": 109.24,
+"e": 109.68
+},
+{
+"w": " page",
+"s": 109.68,
+"e": 110.1
+},
+{
+"w": " structure",
+"s": 110.1,
+"e": 110.56
+},
+{
+"w": " based",
+"s": 110.56,
+"e": 110.92
+},
+{
+"w": " on",
+"s": 110.92,
+"e": 111.1
+},
+{
+"w": " the",
+"s": 111.1,
+"e": 111.18
+},
+{
+"w": " amount",
+"s": 111.18,
+"e": 111.42
+},
+{
+"w": " of",
+"s": 111.42,
+"e": 111.58
+},
+{
+"w": " learning",
+"s": 111.58,
+"e": 111.82
+},
+{
+"w": " content.",
+"s": 111.82,
+"e": 112.3
+},
+{
+"w": " The",
+"s": 112.3,
+"e": 113.34
+},
+{
+"w": " existing",
+"s": 113.34,
+"e": 113.76
+},
+{
+"w": " pages",
+"s": 113.76,
+"e": 114.18
+},
+{
+"w": " provided",
+"s": 114.18,
+"e": 114.68
+},
+{
+"w": " 12",
+"s": 114.68,
+"e": 114.98
+},
+{
+"w": " to",
+"s": 114.98,
+"e": 115.16
+},
+{
+"w": " 24",
+"s": 115.16,
+"e": 115.58
+},
+{
+"w": " calculation",
+"s": 115.58,
+"e": 116.08
+},
+{
+"w": " practice",
+"s": 116.08,
+"e": 116.62
+},
+{
+"w": " problems,",
+"s": 116.62,
+"e": 117.18
+},
+{
+"w": " offering",
+"s": 117.4,
+"e": 117.92
+},
+{
+"w": " students",
+"s": 117.92,
+"e": 118.32
+},
+{
+"w": " valuable",
+"s": 118.32,
+"e": 118.78
+},
+{
+"w": " opportunities",
+"s": 118.78,
+"e": 119.48
+},
+{
+"w": " for",
+"s": 119.48,
+"e": 119.84
+},
+{
+"w": " practice",
+"s": 119.84,
+"e": 120.28
+},
+{
+"w": " and",
+"s": 120.28,
+"e": 120.68
+},
+{
+"w": " mastery.",
+"s": 120.68,
+"e": 121.16
+},
+{
+"w": " However,",
+"s": 121.6,
+"e": 122.2
+},
+{
+"w": " to",
+"s": 122.48,
+"e": 122.62
+},
+{
+"w": " reduce",
+"s": 122.62,
+"e": 122.94
+},
+{
+"w": " learner",
+"s": 122.94,
+"e": 123.22
+},
+{
+"w": " fatigue",
+"s": 123.22,
+"e": 123.64
+},
+{
+"w": " and",
+"s": 123.64,
+"e": 123.92
+},
+{
+"w": " help",
+"s": 123.92,
+"e": 124.12
+},
+{
+"w": " students",
+"s": 124.12,
+"e": 124.46
+},
+{
+"w": " focus",
+"s": 124.46,
+"e": 124.74
+},
+{
+"w": " more",
+"s": 124.74,
+"e": 125.02
+},
+{
+"w": " deeply",
+"s": 125.02,
+"e": 125.32
+},
+{
+"w": " on",
+"s": 125.32,
+"e": 125.58
+},
+{
+"w": " concepts,",
+"s": 125.58,
+"e": 126.08
+},
+{
+"w": " we",
+"s": 126.34,
+"e": 126.72
+},
+{
+"w": " have",
+"s": 126.72,
+"e": 126.84
+},
+{
+"w": " reorganized",
+"s": 126.84,
+"e": 127.5
+},
+{
+"w": " the",
+"s": 127.5,
+"e": 127.64
+},
+{
+"w": " content",
+"s": 127.64,
+"e": 128.0
+},
+{
+"w": " more",
+"s": 128.0,
+"e": 128.28
+},
+{
+"w": " efficiently.",
+"s": 128.28,
+"e": 128.74
+},
+{
+"w": " Accordingly,",
+"s": 129.44,
+"e": 130.18
+},
+{
+"w": " the",
+"s": 130.32,
+"e": 130.42
+},
+{
+"w": " main",
+"s": 130.42,
+"e": 130.62
+},
+{
+"w": " textbook",
+"s": 130.62,
+"e": 131.08
+},
+{
+"w": " has",
+"s": 131.08,
+"e": 131.36
+},
+{
+"w": " been",
+"s": 131.36,
+"e": 131.52
+},
+{
+"w": " redesigned",
+"s": 131.52,
+"e": 132.08
+},
+{
+"w": " around",
+"s": 132.08,
+"e": 132.32
+},
+{
+"w": " conceptual",
+"s": 132.32,
+"e": 132.9
+},
+{
+"w": " understanding",
+"s": 132.9,
+"e": 133.6
+},
+{
+"w": " and",
+"s": 133.6,
+"e": 134.18
+},
+{
+"w": " representative",
+"s": 134.18,
+"e": 134.8
+},
+{
+"w": " problems,",
+"s": 134.8,
+"e": 135.42
+},
+{
+"w": " allowing",
+"s": 135.8,
+"e": 136.16
+},
+{
+"w": " students",
+"s": 136.16,
+"e": 136.5
+},
+{
+"w": " to",
+"s": 136.5,
+"e": 136.74
+},
+{
+"w": " focus",
+"s": 136.74,
+"e": 137.02
+},
+{
+"w": " on",
+"s": 137.02,
+"e": 137.28
+},
+{
+"w": " key",
+"s": 137.28,
+"e": 137.56
+},
+{
+"w": " learning",
+"s": 137.56,
+"e": 137.84
+},
+{
+"w": " objectives",
+"s": 137.84,
+"e": 138.4
+},
+{
+"w": " while",
+"s": 138.4,
+"e": 138.92
+},
+{
+"w": " providing",
+"s": 138.92,
+"e": 139.32
+},
+{
+"w": " sufficient",
+"s": 139.32,
+"e": 139.78
+},
+{
+"w": " space",
+"s": 139.78,
+"e": 140.16
+},
+{
+"w": " for",
+"s": 140.16,
+"e": 140.4
+},
+{
+"w": " solving",
+"s": 140.4,
+"e": 140.72
+},
+{
+"w": " problems.",
+"s": 140.72,
+"e": 141.18
+},
+{
+"w": " The",
+"s": 141.18,
+"e": 142.14
+},
+{
+"w": " repetitive",
+"s": 142.14,
+"e": 142.58
+},
+{
+"w": " practice",
+"s": 142.58,
+"e": 143.0
+},
+{
+"w": " problems",
+"s": 143.0,
+"e": 143.5
+},
+{
+"w": " reduced",
+"s": 143.5,
+"e": 143.86
+},
+{
+"w": " from",
+"s": 143.86,
+"e": 144.12
+},
+{
+"w": " the",
+"s": 144.12,
+"e": 144.24
+},
+{
+"w": " main",
+"s": 144.24,
+"e": 144.44
+},
+{
+"w": " textbook",
+"s": 144.44,
+"e": 144.92
+},
+{
+"w": " will",
+"s": 144.92,
+"e": 145.56
+},
+{
+"w": " be",
+"s": 145.56,
+"e": 145.7
+},
+{
+"w": " reorganized",
+"s": 145.7,
+"e": 146.52
+},
+{
+"w": " into",
+"s": 146.52,
+"e": 146.74
+},
+{
+"w": " supplementary",
+"s": 146.74,
+"e": 147.44
+},
+{
+"w": " materials",
+"s": 147.44,
+"e": 148.1
+},
+{
+"w": " customized",
+"s": 148.1,
+"e": 148.94
+},
+{
+"w": " for",
+"s": 148.94,
+"e": 149.4
+},
+{
+"w": " each",
+"s": 149.4,
+"e": 149.62
+},
+{
+"w": " set.",
+"s": 149.62,
+"e": 149.92
+},
+{
+"w": " When",
+"s": 150.18,
+"e": 150.78
+},
+{
+"w": " students",
+"s": 150.78,
+"e": 151.16
+},
+{
+"w": " need",
+"s": 151.16,
+"e": 151.42
+},
+{
+"w": " additional",
+"s": 151.42,
+"e": 151.84
+},
+{
+"w": " practice",
+"s": 151.84,
+"e": 152.26
+},
+{
+"w": " after",
+"s": 152.26,
+"e": 152.6
+},
+{
+"w": " completing",
+"s": 152.6,
+"e": 153.04
+},
+{
+"w": " the",
+"s": 153.04,
+"e": 153.2
+},
+{
+"w": " main",
+"s": 153.2,
+"e": 153.4
+},
+{
+"w": " textbook,",
+"s": 153.4,
+"e": 153.88
+},
+{
+"w": " centers",
+"s": 154.5,
+"e": 154.7
+},
+{
+"w": " will",
+"s": 154.7,
+"e": 154.9
+},
+{
+"w": " be",
+"s": 154.9,
+"e": 155.0
+},
+{
+"w": " able",
+"s": 155.0,
+"e": 155.26
+},
+{
+"w": " to",
+"s": 155.26,
+"e": 155.4
+},
+{
+"w": " download,",
+"s": 155.4,
+"e": 155.86
+},
+{
+"w": " print,",
+"s": 156.16,
+"e": 156.34
+},
+{
+"w": " and",
+"s": 156.38,
+"e": 156.58
+},
+{
+"w": " provide",
+"s": 156.58,
+"e": 156.92
+},
+{
+"w": " the",
+"s": 156.92,
+"e": 157.08
+},
+{
+"w": " appropriate",
+"s": 157.08,
+"e": 157.48
+},
+{
+"w": " materials.",
+"s": 157.48,
+"e": 158.06
+},
+{
+"w": " This",
+"s": 158.06,
+"e": 159.2
+},
+{
+"w": " approach",
+"s": 159.2,
+"e": 159.58
+},
+{
+"w": " reduces",
+"s": 159.58,
+"e": 160.06
+},
+{
+"w": " unnecessary",
+"s": 160.06,
+"e": 160.74
+},
+{
+"w": " learning",
+"s": 160.74,
+"e": 161.14
+},
+{
+"w": " burden",
+"s": 161.14,
+"e": 161.44
+},
+{
+"w": " in",
+"s": 161.44,
+"e": 161.68
+},
+{
+"w": " the",
+"s": 161.68,
+"e": 161.76
+},
+{
+"w": " main",
+"s": 161.76,
+"e": 161.94
+},
+{
+"w": " textbook",
+"s": 161.94,
+"e": 162.38
+},
+{
+"w": " while",
+"s": 162.38,
+"e": 163.04
+},
+{
+"w": " still",
+"s": 163.04,
+"e": 163.26
+},
+{
+"w": " providing",
+"s": 163.26,
+"e": 163.7
+},
+{
+"w": " sufficient",
+"s": 163.7,
+"e": 164.14
+},
+{
+"w": " opportunities",
+"s": 164.14,
+"e": 164.78
+},
+{
+"w": " for",
+"s": 164.78,
+"e": 165.08
+},
+{
+"w": " mastery",
+"s": 165.08,
+"e": 165.62
+},
+{
+"w": " through",
+"s": 165.62,
+"e": 165.96
+},
+{
+"w": " supplementary",
+"s": 165.96,
+"e": 166.64
+},
+{
+"w": " materials",
+"s": 166.64,
+"e": 167.24
+},
+{
+"w": " directly",
+"s": 167.24,
+"e": 167.88
+},
+{
+"w": " connected",
+"s": 167.88,
+"e": 168.34
+},
+{
+"w": " to",
+"s": 168.34,
+"e": 168.54
+},
+{
+"w": " each",
+"s": 168.54,
+"e": 168.82
+},
+{
+"w": " target",
+"s": 168.82,
+"e": 169.16
+},
+{
+"w": " set,",
+"s": 169.16,
+"e": 169.52
+},
+{
+"w": " ultimately",
+"s": 169.8,
+"e": 170.28
+},
+{
+"w": " supporting",
+"s": 170.28,
+"e": 170.86
+},
+{
+"w": " mastery",
+"s": 170.86,
+"e": 171.36
+},
+{
+"w": " learning.",
+"s": 171.36,
+"e": 171.74
+},
+{
+"w": " The",
+"s": 172.2,
+"e": 172.96
+},
+{
+"w": " third",
+"s": 172.96,
+"e": 173.18
+},
+{
+"w": " direction",
+"s": 173.18,
+"e": 173.6
+},
+{
+"w": " is",
+"s": 173.6,
+"e": 173.84
+},
+{
+"w": " to",
+"s": 173.84,
+"e": 173.98
+},
+{
+"w": " strengthen",
+"s": 173.98,
+"e": 174.34
+},
+{
+"w": " the",
+"s": 174.34,
+"e": 174.56
+},
+{
+"w": " connection",
+"s": 174.56,
+"e": 174.94
+},
+{
+"w": " between",
+"s": 174.94,
+"e": 175.32
+},
+{
+"w": " prerequisite",
+"s": 175.32,
+"e": 176.04
+},
+{
+"w": " concepts",
+"s": 176.04,
+"e": 176.58
+},
+{
+"w": " and",
+"s": 176.58,
+"e": 176.92
+},
+{
+"w": " subsequent",
+"s": 176.92,
+"e": 177.34
+},
+{
+"w": " learning.",
+"s": 177.34,
+"e": 177.76
+},
+{
+"w": " Building",
+"s": 177.76,
+"e": 178.84
+},
+{
+"w": " on",
+"s": 178.84,
+"e": 179.1
+},
+{
+"w": " JEI's",
+"s": 179.1,
+"e": 179.84
+},
+{
+"w": " strong",
+"s": 179.84,
+"e": 180.18
+},
+{
+"w": " conceptual",
+"s": 180.18,
+"e": 180.68
+},
+{
+"w": " structure,",
+"s": 180.68,
+"e": 181.24
+},
+{
+"w": " we",
+"s": 181.46,
+"e": 181.8
+},
+{
+"w": " have",
+"s": 181.8,
+"e": 181.94
+},
+{
+"w": " further",
+"s": 181.94,
+"e": 182.26
+},
+{
+"w": " subdivided",
+"s": 182.26,
+"e": 182.98
+},
+{
+"w": " the",
+"s": 182.98,
+"e": 183.1
+},
+{
+"w": " learning",
+"s": 183.1,
+"e": 183.34
+},
+{
+"w": " steps",
+"s": 183.34,
+"e": 183.76
+},
+{
+"w": " so",
+"s": 183.76,
+"e": 184.2
+},
+{
+"w": " that",
+"s": 184.2,
+"e": 184.38
+},
+{
+"w": " students",
+"s": 184.38,
+"e": 184.7
+},
+{
+"w": " can",
+"s": 184.7,
+"e": 184.92
+},
+{
+"w": " transition",
+"s": 184.92,
+"e": 185.44
+},
+{
+"w": " more",
+"s": 185.44,
+"e": 185.72
+},
+{
+"w": " easily",
+"s": 185.72,
+"e": 186.14
+},
+{
+"w": " to",
+"s": 186.14,
+"e": 186.4
+},
+{
+"w": " higher",
+"s": 186.4,
+"e": 186.7
+},
+{
+"w": "-level",
+"s": 186.7,
+"e": 186.96
+},
+{
+"w": " concepts",
+"s": 186.96,
+"e": 187.58
+},
+{
+"w": " such",
+"s": 187.58,
+"e": 188.08
+},
+{
+"w": " as",
+"s": 188.08,
+"e": 188.3
+},
+{
+"w": " equations,",
+"s": 188.3,
+"e": 188.78
+},
+{
+"w": " fractions,",
+"s": 189.28,
+"e": 189.62
+},
+{
+"w": " and",
+"s": 189.92,
+"e": 190.02
+},
+{
+"w": " decimals.",
+"s": 190.02,
+"e": 190.54
+},
+{
+"w": " In",
+"s": 190.92,
+"e": 191.6
+},
+{
+"w": " grade",
+"s": 191.6,
+"e": 191.86
+},
+{
+"w": " F,",
+"s": 191.86,
+"e": 192.24
+},
+{
+"w": " we",
+"s": 192.54,
+"e": 192.78
+},
+{
+"w": " have",
+"s": 192.78,
+"e": 192.9
+},
+{
+"w": " designed",
+"s": 192.9,
+"e": 193.28
+},
+{
+"w": " the",
+"s": 193.28,
+"e": 193.44
+},
+{
+"w": " concept",
+"s": 193.44,
+"e": 193.88
+},
+{
+"w": " of",
+"s": 193.88,
+"e": 194.12
+},
+{
+"w": " equal",
+"s": 194.12,
+"e": 194.4
+},
+{
+"w": " partitioning",
+"s": 194.4,
+"e": 195.14
+},
+{
+"w": " to",
+"s": 195.14,
+"e": 195.32
+},
+{
+"w": " naturally",
+"s": 195.32,
+"e": 195.78
+},
+{
+"w": " lead",
+"s": 195.78,
+"e": 196.12
+},
+{
+"w": " into",
+"s": 196.12,
+"e": 196.34
+},
+{
+"w": " fraction",
+"s": 196.34,
+"e": 196.72
+},
+{
+"w": " notation.",
+"s": 196.72,
+"e": 197.16
+},
+{
+"w": " We",
+"s": 197.56,
+"e": 198.16
+},
+{
+"w": " have",
+"s": 198.16,
+"e": 198.3
+},
+{
+"w": " also",
+"s": 198.3,
+"e": 198.56
+},
+{
+"w": " introduced",
+"s": 198.56,
+"e": 198.98
+},
+{
+"w": " the",
+"s": 198.98,
+"e": 199.18
+},
+{
+"w": " use",
+"s": 199.18,
+"e": 199.38
+},
+{
+"w": " of",
+"s": 199.38,
+"e": 199.52
+},
+{
+"w": " variables",
+"s": 199.52,
+"e": 200.0
+},
+{
+"w": " progressively",
+"s": 200.0,
+"e": 200.62
+},
+{
+"w": " according",
+"s": 200.62,
+"e": 201.0
+},
+{
+"w": " to",
+"s": 201.0,
+"e": 201.24
+},
+{
+"w": " students'",
+"s": 201.24,
+"e": 201.54
+},
+{
+"w": " grade",
+"s": 201.7,
+"e": 201.86
+},
+{
+"w": " levels",
+"s": 201.86,
+"e": 202.24
+},
+{
+"w": " to",
+"s": 202.24,
+"e": 202.66
+},
+{
+"w": " support",
+"s": 202.66,
+"e": 203.04
+},
+{
+"w": " intuitive",
+"s": 203.04,
+"e": 203.5
+},
+{
+"w": " understanding",
+"s": 203.5,
+"e": 204.12
+},
+{
+"w": " of",
+"s": 204.12,
+"e": 204.3
+},
+{
+"w": " equations.",
+"s": 204.3,
+"e": 204.76
+},
+{
+"w": " In",
+"s": 204.76,
+"e": 205.86
+},
+{
+"w": " grades",
+"s": 205.86,
+"e": 206.24
+},
+{
+"w": " G",
+"s": 206.24,
+"e": 206.54
+},
+{
+"w": " and",
+"s": 206.54,
+"e": 206.72
+},
+{
+"w": " H,",
+"s": 206.72,
+"e": 206.98
+},
+{
+"w": " we",
+"s": 207.22,
+"e": 207.26
+},
+{
+"w": " have",
+"s": 207.26,
+"e": 207.42
+},
+{
+"w": " strengthened",
+"s": 207.42,
+"e": 207.86
+},
+{
+"w": " the",
+"s": 207.86,
+"e": 208.04
+},
+{
+"w": " use",
+"s": 208.04,
+"e": 208.28
+},
+{
+"w": " of",
+"s": 208.28,
+"e": 208.48
+},
+{
+"w": " visual",
+"s": 208.48,
+"e": 208.82
+},
+{
+"w": " models",
+"s": 208.82,
+"e": 209.28
+},
+{
+"w": " such",
+"s": 209.28,
+"e": 209.68
+},
+{
+"w": " as",
+"s": 209.68,
+"e": 209.9
+},
+{
+"w": " number",
+"s": 209.9,
+"e": 210.22
+},
+{
+"w": " lines,",
+"s": 210.22,
+"e": 210.62
+},
+{
+"w": " area",
+"s": 210.92,
+"e": 211.24
+},
+{
+"w": " models,",
+"s": 211.24,
+"e": 211.62
+},
+{
+"w": " and",
+"s": 211.82,
+"e": 211.92
+},
+{
+"w": " grouping",
+"s": 211.92,
+"e": 212.22
+},
+{
+"w": " models",
+"s": 212.22,
+"e": 212.68
+},
+{
+"w": " so",
+"s": 212.68,
+"e": 213.08
+},
+{
+"w": " that",
+"s": 213.08,
+"e": 213.24
+},
+{
+"w": " students",
+"s": 213.24,
+"e": 213.58
+},
+{
+"w": " can",
+"s": 213.58,
+"e": 213.78
+},
+{
+"w": " develop",
+"s": 213.78,
+"e": 214.08
+},
+{
+"w": " a",
+"s": 214.08,
+"e": 214.28
+},
+{
+"w": " more",
+"s": 214.28,
+"e": 214.48
+},
+{
+"w": " intuitive",
+"s": 214.48,
+"e": 215.0
+},
+{
+"w": " understanding",
+"s": 215.0,
+"e": 215.6
+},
+{
+"w": " of",
+"s": 215.6,
+"e": 215.86
+},
+{
+"w": " rounding",
+"s": 215.86,
+"e": 216.16
+},
+{
+"w": " and",
+"s": 216.16,
+"e": 216.64
+},
+{
+"w": " the",
+"s": 216.64,
+"e": 216.76
+},
+{
+"w": " principles",
+"s": 216.76,
+"e": 217.18
+},
+{
+"w": " of",
+"s": 217.18,
+"e": 217.46
+},
+{
+"w": " multiplying",
+"s": 217.46,
+"e": 218.02
+},
+{
+"w": " and",
+"s": 218.02,
+"e": 218.26
+},
+{
+"w": " dividing",
+"s": 218.26,
+"e": 218.62
+},
+{
+"w": " fractions.",
+"s": 218.62,
+"e": 219.16
+},
+{
+"w": " Furthermore,",
+"s": 219.82,
+"e": 220.46
+},
+{
+"w": " in",
+"s": 220.8,
+"e": 220.92
+},
+{
+"w": " grade",
+"s": 220.92,
+"e": 221.16
+},
+{
+"w": " I,",
+"s": 221.16,
+"e": 221.5
+},
+{
+"w": " these",
+"s": 221.74,
+"e": 222.14
+},
+{
+"w": " foundations",
+"s": 222.14,
+"e": 222.6
+},
+{
+"w": " are",
+"s": 222.6,
+"e": 222.88
+},
+{
+"w": " systematically",
+"s": 222.88,
+"e": 223.46
+},
+{
+"w": " extended",
+"s": 223.46,
+"e": 224.08
+},
+{
+"w": " so",
+"s": 224.08,
+"e": 224.68
+},
+{
+"w": " that",
+"s": 224.68,
+"e": 224.86
+},
+{
+"w": " relationships",
+"s": 224.86,
+"e": 225.42
+},
+{
+"w": " between",
+"s": 225.42,
+"e": 225.82
+},
+{
+"w": " two",
+"s": 225.82,
+"e": 226.14
+},
+{
+"w": " variables",
+"s": 226.14,
+"e": 226.64
+},
+{
+"w": " naturally",
+"s": 226.64,
+"e": 227.22
+},
+{
+"w": " progress",
+"s": 227.22,
+"e": 227.76
+},
+{
+"w": " from",
+"s": 227.76,
+"e": 228.06
+},
+{
+"w": " equations",
+"s": 228.06,
+"e": 228.54
+},
+{
+"w": " to",
+"s": 228.54,
+"e": 228.84
+},
+{
+"w": " tables",
+"s": 228.84,
+"e": 229.22
+},
+{
+"w": " and",
+"s": 229.22,
+"e": 229.64
+},
+{
+"w": " then",
+"s": 229.64,
+"e": 229.8
+},
+{
+"w": " to",
+"s": 229.8,
+"e": 229.98
+},
+{
+"w": " graphs.",
+"s": 229.98,
+"e": 230.36
+},
+{
+"w": " Along",
+"s": 230.36,
+"e": 231.52
+},
+{
+"w": " with",
+"s": 231.52,
+"e": 231.74
+},
+{
+"w": " the",
+"s": 231.74,
+"e": 231.86
+},
+{
+"w": " evolution",
+"s": 231.86,
+"e": 232.28
+},
+{
+"w": " of",
+"s": 232.28,
+"e": 232.5
+},
+{
+"w": " these",
+"s": 232.5,
+"e": 232.66
+},
+{
+"w": " learning",
+"s": 232.66,
+"e": 232.96
+},
+{
+"w": " objectives,",
+"s": 232.96,
+"e": 233.4
+},
+{
+"w": " we",
+"s": 233.72,
+"e": 234.1
+},
+{
+"w": " are",
+"s": 234.1,
+"e": 234.22
+},
+{
+"w": " also",
+"s": 234.22,
+"e": 234.54
+},
+{
+"w": " redesigning",
+"s": 234.54,
+"e": 235.18
+},
+{
+"w": " the",
+"s": 235.18,
+"e": 235.38
+},
+{
+"w": " diagnostic",
+"s": 235.38,
+"e": 235.82
+},
+{
+"w": " assessment",
+"s": 235.82,
+"e": 236.46
+},
+{
+"w": " and",
+"s": 236.46,
+"e": 236.72
+},
+{
+"w": " system",
+"s": 236.72,
+"e": 237.06
+},
+{
+"w": " data.",
+"s": 237.06,
+"e": 237.38
+},
+{
+"w": " Based",
+"s": 237.66,
+"e": 238.34
+},
+{
+"w": " on",
+"s": 238.34,
+"e": 238.54
+},
+{
+"w": " the",
+"s": 238.54,
+"e": 238.64
+},
+{
+"w": " revised",
+"s": 238.64,
+"e": 239.08
+},
+{
+"w": " standards,",
+"s": 239.08,
+"e": 239.58
+},
+{
+"w": " the",
+"s": 240.04,
+"e": 240.16
+},
+{
+"w": " system",
+"s": 240.16,
+"e": 240.44
+},
+{
+"w": " will",
+"s": 240.44,
+"e": 240.64
+},
+{
+"w": " not",
+"s": 240.64,
+"e": 240.8
+},
+{
+"w": " only",
+"s": 240.8,
+"e": 241.08
+},
+{
+"w": " accurately",
+"s": 241.08,
+"e": 241.56
+},
+{
+"w": " identify",
+"s": 241.56,
+"e": 242.12
+},
+{
+"w": " each",
+"s": 242.12,
+"e": 242.48
+},
+{
+"w": " student's",
+"s": 242.48,
+"e": 242.98
+},
+{
+"w": " starting",
+"s": 242.98,
+"e": 243.2
+},
+{
+"w": " point,",
+"s": 243.2,
+"e": 243.54
+},
+{
+"w": " but",
+"s": 243.7,
+"e": 244.08
+},
+{
+"w": " also",
+"s": 244.08,
+"e": 244.34
+},
+{
+"w": " automatically",
+"s": 244.34,
+"e": 244.9
+},
+{
+"w": " connect",
+"s": 244.9,
+"e": 245.34
+},
+{
+"w": " the",
+"s": 245.34,
+"e": 245.54
+},
+{
+"w": " results",
+"s": 245.54,
+"e": 245.92
+},
+{
+"w": " to",
+"s": 245.92,
+"e": 246.12
+},
+{
+"w": " personalized",
+"s": 246.12,
+"e": 246.68
+},
+{
+"w": " supplementary",
+"s": 246.68,
+"e": 247.48
+},
+{
+"w": " material",
+"s": 247.48,
+"e": 247.94
+},
+{
+"w": " recommendations.",
+"s": 247.94,
+"e": 248.56
+},
+{
+"w": " This",
+"s": 248.98,
+"e": 249.66
+},
+{
+"w": " will",
+"s": 249.66,
+"e": 249.82
+},
+{
+"w": " create",
+"s": 249.82,
+"e": 250.18
+},
+{
+"w": " a",
+"s": 250.18,
+"e": 250.36
+},
+{
+"w": " more",
+"s": 250.36,
+"e": 250.54
+},
+{
+"w": " complete",
+"s": 250.54,
+"e": 250.98
+},
+{
+"w": " learning",
+"s": 250.98,
+"e": 251.32
+},
+{
+"w": " cycle",
+"s": 251.32,
+"e": 251.76
+},
+{
+"w": " from",
+"s": 251.76,
+"e": 252.02
+},
+{
+"w": " diagnosis",
+"s": 252.02,
+"e": 252.62
+},
+{
+"w": " to",
+"s": 252.62,
+"e": 252.92
+},
+{
+"w": " prescription",
+"s": 252.92,
+"e": 253.42
+},
+{
+"w": " to",
+"s": 253.42,
+"e": 253.82
+},
+{
+"w": " learning.",
+"s": 253.82,
+"e": 254.12
+},
+{
+"w": " Through",
+"s": 254.12,
+"e": 255.4
+},
+{
+"w": " these",
+"s": 255.4,
+"e": 255.62
+},
+{
+"w": " improvements,",
+"s": 255.62,
+"e": 256.16
+},
+{
+"w": " 140",
+"s": 256.4,
+"e": 257.06
+},
+{
+"w": " of",
+"s": 257.06,
+"e": 257.38
+},
+{
+"w": " the",
+"s": 257.38,
+"e": 257.5
+},
+{
+"w": " 221",
+"s": 257.5,
+"e": 258.26
+},
+{
+"w": " existing",
+"s": 258.26,
+"e": 258.8
+},
+{
+"w": " sets",
+"s": 258.8,
+"e": 259.12
+},
+{
+"w": " will",
+"s": 259.12,
+"e": 259.34
+},
+{
+"w": " maintain",
+"s": 259.34,
+"e": 259.68
+},
+{
+"w": " their",
+"s": 259.68,
+"e": 259.94
+},
+{
+"w": " current",
+"s": 259.94,
+"e": 260.2
+},
+{
+"w": " structure,",
+"s": 260.2,
+"e": 260.64
+},
+{
+"w": " while",
+"s": 260.94,
+"e": 261.32
+},
+{
+"w": " 81",
+"s": 261.32,
+"e": 261.68
+},
+{
+"w": " sets",
+"s": 261.68,
+"e": 262.14
+},
+{
+"w": " will",
+"s": 262.14,
+"e": 262.3
+},
+{
+"w": " be",
+"s": 262.3,
+"e": 262.4
+},
+{
+"w": " revised",
+"s": 262.4,
+"e": 262.86
+},
+{
+"w": " and",
+"s": 262.86,
+"e": 263.1
+},
+{
+"w": " enhanced,",
+"s": 263.1,
+"e": 263.56
+},
+{
+"w": " and",
+"s": 263.72,
+"e": 264.18
+},
+{
+"w": " 5",
+"s": 264.18,
+"e": 264.44
+},
+{
+"w": " new",
+"s": 264.44,
+"e": 264.72
+},
+{
+"w": " sets",
+"s": 264.72,
+"e": 265.06
+},
+{
+"w": " will",
+"s": 265.06,
+"e": 265.22
+},
+{
+"w": " be",
+"s": 265.22,
+"e": 265.34
+},
+{
+"w": " added.",
+"s": 265.34,
+"e": 265.6
+},
+{
+"w": " For",
+"s": 266.36,
+"e": 266.88
+},
+{
+"w": " each",
+"s": 266.88,
+"e": 267.1
+},
+{
+"w": " grade,",
+"s": 267.1,
+"e": 267.46
+},
+{
+"w": " we",
+"s": 267.58,
+"e": 267.74
+},
+{
+"w": " will",
+"s": 267.74,
+"e": 267.88
+},
+{
+"w": " comprehensively",
+"s": 267.88,
+"e": 268.76
+},
+{
+"w": " implement",
+"s": 268.76,
+"e": 269.14
+},
+{
+"w": " the",
+"s": 269.14,
+"e": 269.38
+},
+{
+"w": " main",
+"s": 269.38,
+"e": 269.62
+},
+{
+"w": " textbook",
+"s": 269.62,
+"e": 270.06
+},
+{
+"w": " revision,",
+"s": 270.06,
+"e": 270.56
+},
+{
+"w": " system",
+"s": 271.08,
+"e": 271.42
+},
+{
+"w": " data",
+"s": 271.42,
+"e": 271.68
+},
+{
+"w": " updates,",
+"s": 271.68,
+"e": 272.18
+},
+{
+"w": " and",
+"s": 272.5,
+"e": 272.84
+},
+{
+"w": " supplementary",
+"s": 272.84,
+"e": 273.5
+},
+{
+"w": " material",
+"s": 273.5,
+"e": 273.92
+},
+{
+"w": " development",
+"s": 273.92,
+"e": 274.48
+},
+{
+"w": " as",
+"s": 274.48,
+"e": 275.02
+},
+{
+"w": " one",
+"s": 275.02,
+"e": 275.28
+},
+{
+"w": " integrated",
+"s": 275.28,
+"e": 275.8
+},
+{
+"w": " package.",
+"s": 275.8,
+"e": 276.32
+},
+{
+"w": " Through",
+"s": 276.32,
+"e": 277.38
+},
+{
+"w": " this",
+"s": 277.38,
+"e": 277.6
+},
+{
+"w": " improvement",
+"s": 277.6,
+"e": 278.02
+},
+{
+"w": " aligned",
+"s": 278.02,
+"e": 278.46
+},
+{
+"w": " with",
+"s": 278.46,
+"e": 278.7
+},
+{
+"w": " global",
+"s": 278.7,
+"e": 279.02
+},
+{
+"w": " standards,",
+"s": 279.02,
+"e": 279.5
+},
+{
+"w": " we",
+"s": 280.08,
+"e": 280.18
+},
+{
+"w": " aim",
+"s": 280.18,
+"e": 280.44
+},
+{
+"w": " to",
+"s": 280.44,
+"e": 280.58
+},
+{
+"w": " help",
+"s": 280.58,
+"e": 280.8
+},
+{
+"w": " students",
+"s": 280.8,
+"e": 281.18
+},
+{
+"w": " understand",
+"s": 281.18,
+"e": 281.8
+},
+{
+"w": " mathematical",
+"s": 281.8,
+"e": 282.28
+},
+{
+"w": " concepts",
+"s": 282.28,
+"e": 283.06
+},
+{
+"w": " more",
+"s": 283.06,
+"e": 283.38
+},
+{
+"w": " clearly",
+"s": 283.38,
+"e": 283.78
+},
+{
+"w": " and",
+"s": 283.78,
+"e": 284.06
+},
+{
+"w": " confidently",
+"s": 284.06,
+"e": 284.58
+},
+{
+"w": " extend",
+"s": 284.58,
+"e": 285.1
+},
+{
+"w": " their",
+"s": 285.1,
+"e": 285.32
+},
+{
+"w": " learning",
+"s": 285.32,
+"e": 285.66
+},
+{
+"w": " to",
+"s": 285.66,
+"e": 285.88
+},
+{
+"w": " the",
+"s": 285.88,
+"e": 285.98
+},
+{
+"w": " next",
+"s": 285.98,
+"e": 286.18
+},
+{
+"w": " level.",
+"s": 286.18,
+"e": 286.52
+},
+{
+"w": " Thank",
+"s": 286.92,
+"e": 287.52
+},
+{
+"w": " you.",
+"s": 287.52,
+"e": 287.72
+},
+{
+"w": " Thank",
+"s": 287.72,
+"e": 287.72
+},
+{
+"w": " you.",
+"s": 287.72,
+"e": 287.74
+}
+]
+}

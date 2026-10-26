@@ -1,5 +1,6 @@
 // 사용: node render.js stills 3,12.5,40        → stills/*.png
 //       node render.js video out.mp4 [workers]  → 병렬 렌더 후 오디오 합성
+//       node render.js patch base.mp4 out.mp4 44-60,84-91.6  → 그 구간(초)만 다시 렌더해 base 에 끼움
 const puppeteer = require("puppeteer-core");
 const ffmpeg = require("ffmpeg-static");
 const { spawn } = require("child_process");
@@ -99,6 +100,28 @@ async function renderChunk(from, to, out, id) {
     console.log("done:", a1, `${total} frames`);
     // 전 프레임 검사: 앞뒤 프레임과 동떨어진 프레임(깨진 캡처)을 찾는다
     await run("python3", [path.join(__dirname, "check_frames.py"), a1], { stdio: ["ignore", "inherit", "inherit"] });
+  } else if (mode === "patch") {
+    // 바뀐 구간만 다시 렌더해 기존 영상에 끼운다(오디오는 기존 영상 것을 그대로 씀)
+    // node render.js patch base.mp4 out.mp4 44-60,84-91.6
+    const [base, out, spans] = [a1, a2, process.argv[5]];
+    const page = await openPage(browser);
+    const total = Math.ceil((await page.evaluate(() => window.DURATION)) * FPS);
+    await page.close();
+    const R = spans.split(",").map(s => s.split("-").map(t => Math.round(Number(t) * FPS))).map(([a, b]) => [Math.max(0, a), Math.min(total, b)]).sort((x, y) => x[0] - y[0]);
+    const tmp = path.join(__dirname, "chunks"); fs.mkdirSync(tmp, { recursive: true });
+    const parts = R.map((_, i) => path.join(tmp, `patch${i}.mp4`));
+    await Promise.all(R.map(([a, b], i) => renderChunk(a, b, parts[i], i)));
+    // 원본 [0,a0) + patch0 + 원본 [b0,a1) + patch1 + … + 원본 [bN,total)
+    const segs = [], inputs = ["-i", base]; let cur = 0;
+    R.forEach(([a, b], i) => {
+      if (a > cur) segs.push(`[0:v]trim=start_frame=${cur}:end_frame=${a},setpts=PTS-STARTPTS[s${segs.length}]`);
+      inputs.push("-i", parts[i]); segs.push(`[${i + 1}:v]setpts=PTS-STARTPTS[s${segs.length}]`); cur = b;
+    });
+    if (cur < total) segs.push(`[0:v]trim=start_frame=${cur}:end_frame=${total},setpts=PTS-STARTPTS[s${segs.length}]`);
+    const fc = segs.join(";") + ";" + segs.map((_, i) => `[s${i}]`).join("") + `concat=n=${segs.length}:v=1:a=0[v]`;
+    await run(ffmpeg, ["-y", ...inputs, "-filter_complex", fc, "-map", "[v]", "-map", "0:a", "-c:v", "libx264", "-preset", "medium", "-crf", "18", "-pix_fmt", "yuv420p", "-r", String(FPS), "-c:a", "copy", "-movflags", "+faststart", out]);
+    console.log("done:", out, R.map(([a, b]) => `${(a / FPS).toFixed(2)}–${(b / FPS).toFixed(2)}s`).join(", "));
+    await run("python3", [path.join(__dirname, "check_frames.py"), out], { stdio: ["ignore", "inherit", "inherit"] });
   }
   await browser.close();
 })().catch(e => { console.error(e); process.exit(1); });
